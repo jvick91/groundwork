@@ -1,5 +1,5 @@
-# Practice Management App — TDD Specification
-**Version:** 0.2.0  
+# Groundwork — Practice Management App Specification
+**Version:** 0.3.0  
 **Stack:** Next.js (App Router) · FastAPI · PostgreSQL · Docker  
 **Test Frameworks:** pytest + httpx (backend) · Vitest (frontend unit) · Playwright (E2E)  
 **No mocks policy:** All tests run against real DBs, real HTTP, real browser.
@@ -58,17 +58,9 @@ A web-based practice management platform for independent therapists and small me
 
 All services run in Docker containers orchestrated by Docker Compose. There is no "run it locally outside Docker" workflow — Docker is the development environment.
 
-```
-docker-compose.yml (dev)
-  frontend      → Next.js dev server (port 3000), hot reload via volume mount
-  backend       → FastAPI via uvicorn (port 8000), hot reload via volume mount
-  db            → PostgreSQL 16 (port 5432), persisted via named volume
-  db-test       → PostgreSQL 16 (port 5433), ephemeral, used only during test runs
+The development compose file defines four services: a Next.js frontend dev server with hot reload on port 3000, a FastAPI backend via uvicorn with hot reload on port 8000, a persistent PostgreSQL 16 database on port 5432, and an ephemeral PostgreSQL 16 test database on port 5433 used only during test runs.
 
-docker-compose.test.yml (test override)
-  backend-test  → runs pytest against db-test, exits when done
-  e2e           → runs Playwright against live frontend + backend containers
-```
+A separate test compose override defines a backend test runner that executes pytest against the test database and exits when complete, and an E2E runner that executes Playwright against the live frontend and backend containers.
 
 **Key principle:** Tests always run inside containers via `docker compose run` or `docker compose up`. There is no CI step that installs Python or Node directly on the host runner.
 
@@ -165,9 +157,10 @@ SOAPNote
 
 ### Backend: pytest + httpx
 
-FastAPI has no Django test client. Instead, tests use `httpx.AsyncClient` pointed at a real running FastAPI app backed by a real PostgreSQL test database (`db-test` container). SQLAlchemy sessions are transaction-wrapped and rolled back after each test.
+Backend tests use an async HTTP client pointed at a real running FastAPI app, backed by a dedicated PostgreSQL test database. Each test function receives its own database session, which is rolled back after the test completes so tests remain isolated.
 
 **Project structure**
+
 ```
 backend/
   app/
@@ -195,152 +188,29 @@ backend/
   requirements.txt
 ```
 
-**Key pytest settings (pytest.ini)**
-```ini
-[pytest]
-asyncio_mode = auto
-python_files = test_*.py
-python_classes = Test*
-python_functions = test_*
-addopts = --strict-markers
-markers =
-    slow: marks tests as slow (deselect with -m "not slow")
-    auth: tests related to authentication/authorization
-```
+**Test configuration** declares async mode, marks slow tests for optional exclusion, and marks auth-related tests for targeted execution.
 
-**conftest.py (top-level fixtures)**
-```python
-import pytest
-import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
+**Test fixtures** provide the following shared setup:
 
-from app.main import app
-from app.db import get_session
-from app.models import Base, Provider
+- A real async database session per test, rolled back on teardown, pointed at the test database container.
+- A Provider fixture representing a standard authenticated provider, seeded into the test database.
+- An Admin fixture representing a provider with the admin role, seeded into the test database.
+- An HTTP client fixture authenticated as the standard provider, with the auth dependency replaced by the test-backed provider (no mocks — the provider record is real in the DB).
+- An HTTP client fixture authenticated as the admin user, following the same pattern.
 
-# Points at the db-test container (port 5433)
-TEST_DATABASE_URL = "postgresql+asyncpg://postgres:postgres@db-test:5433/test"
-
-@pytest_asyncio.fixture(scope="function")
-async def db_session():
-    """Each test gets a real async DB session, rolled back on teardown."""
-    engine = create_async_engine(TEST_DATABASE_URL)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    async with async_session() as session:
-        async with session.begin():
-            yield session
-            await session.rollback()
-    await engine.dispose()
-
-@pytest_asyncio.fixture
-async def provider(db_session):
-    p = Provider(
-        auth0_user_id="auth0|test_provider",
-        email="provider@test.com",
-        full_name="Test Provider",
-        role="provider",
-    )
-    db_session.add(p)
-    await db_session.flush()
-    return p
-
-@pytest_asyncio.fixture
-async def admin_user(db_session):
-    a = Provider(
-        auth0_user_id="auth0|test_admin",
-        email="admin@test.com",
-        full_name="Test Admin",
-        role="admin",
-    )
-    db_session.add(a)
-    await db_session.flush()
-    return a
-
-@pytest_asyncio.fixture
-async def client(provider, db_session):
-    """Returns an httpx AsyncClient wired to the FastAPI app with provider auth."""
-    app.dependency_overrides[get_session] = lambda: db_session
-    # Override JWT dependency to inject the test provider directly
-    app.dependency_overrides[get_current_provider] = lambda: provider
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        yield ac
-    app.dependency_overrides.clear()
-
-@pytest_asyncio.fixture
-async def admin_client(admin_user, db_session):
-    """Returns an httpx AsyncClient authenticated as admin."""
-    app.dependency_overrides[get_session] = lambda: db_session
-    app.dependency_overrides[get_current_provider] = lambda: admin_user
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        yield ac
-    app.dependency_overrides.clear()
-```
-
-> **Note on dependency overrides:** FastAPI's `dependency_overrides` replaces the JWT validation dependency with one that returns a real DB-backed Provider fixture. This is the FastAPI-idiomatic equivalent of `force_authenticate` — no mocks, just swapping the auth dependency for a test-controlled one that still touches the real DB.
+> **Note on auth in tests:** FastAPI's dependency override system replaces the JWT validation dependency with one that returns a real DB-backed Provider fixture. This is the FastAPI-idiomatic equivalent of `force_authenticate` — no mocks, just swapping the auth dependency for a test-controlled one that still reads from the real database.
 
 ### Frontend: Vitest
 
-```
-frontend/
-  vitest.config.ts
-  tests/
-    unit/
-      components/
-      hooks/
-      utils/
-    integration/
-      api-client.test.ts   ← real fetch calls to backend container
-  Dockerfile
-```
+Frontend unit tests cover React components, custom hooks, and utility functions. Integration tests make real fetch calls to the backend container. Tests are organized under `frontend/tests/` with subdirectories for unit and integration tests.
 
 ### E2E: Playwright
 
-Playwright runs inside its own container and drives a real browser against the live `frontend` and `backend` containers.
-
-```
-e2e/
-  playwright.config.ts
-  fixtures/
-    auth.fixture.ts       ← real Auth0 login flow
-  tests/
-    auth.spec.ts
-    clients.spec.ts
-    appointments.spec.ts
-    notes.spec.ts
-  Dockerfile
-```
-
-**Playwright config key settings**
-```typescript
-// playwright.config.ts
-export default defineConfig({
-  use: {
-    baseURL: 'http://frontend:3000',  // container service name
-    serviceWorkers: 'block',
-  },
-  // No webServer block — containers are already up via docker compose
-});
-```
+Playwright runs inside its own container and drives a real browser against the live frontend and backend containers. Tests are organized by feature area (auth, clients, appointments, notes). The auth fixture performs a real Auth0 login flow using test credentials. The Playwright config points `baseURL` at the frontend container's service name; no `webServer` block is needed because containers are already running via Docker Compose.
 
 ### Docker Compose Test Workflow
 
-```bash
-# Run all backend unit + integration tests
-docker compose -f docker-compose.yml -f docker-compose.test.yml run --rm backend-test
-
-# Run frontend unit tests
-docker compose -f docker-compose.yml -f docker-compose.test.yml run --rm frontend-test
-
-# Run E2E tests (spins up all services first)
-docker compose -f docker-compose.yml -f docker-compose.test.yml up --exit-code-from e2e e2e
-
-# Run a specific backend test file
-docker compose run --rm backend-test pytest tests/integration/test_clients_api.py -v
-```
+All test commands invoke Docker Compose to run tests inside containers. Backend unit and integration tests run against the test database container. Frontend unit tests run in an isolated frontend container. E2E tests spin up the full stack and run Playwright against it, with the process exit code driven by the E2E container result. Individual backend test files can be targeted by specifying the file path to pytest.
 
 ---
 
@@ -354,65 +224,35 @@ docker compose run --rm backend-test pytest tests/integration/test_clients_api.p
 
 #### Unit Tests
 
-```python
-# tests/unit/test_auth.py
+These tests verify JWT validation logic in isolation against the real database.
 
-class TestJWTValidation:
-    async def test_valid_token_authenticates_provider(self, db_session, valid_jwt_token):
-        """A well-formed Auth0 JWT resolves to the correct Provider record."""
-
-    async def test_expired_token_returns_401(self, unauthenticated_client, expired_jwt):
-        """An expired JWT returns HTTP 401."""
-
-    async def test_malformed_token_returns_401(self, unauthenticated_client):
-        """A non-JWT string in Authorization header returns HTTP 401."""
-
-    async def test_unknown_sub_returns_401(self, db_session, jwt_for_unknown_user):
-        """A valid JWT whose sub does not match any Provider returns HTTP 401."""
-```
+| Test | Input | Expected Output |
+|---|---|---|
+| Valid token authenticates provider | A well-formed Auth0 JWT for an existing provider | The JWT resolves to the correct Provider record |
+| Expired token is rejected | An expired JWT in the Authorization header | HTTP 401 |
+| Malformed token is rejected | A non-JWT string in the Authorization header | HTTP 401 |
+| Unknown subject is rejected | A valid JWT whose `sub` does not match any Provider in the database | HTTP 401 |
 
 #### Integration Tests
 
-```python
-# tests/integration/test_auth.py
+These tests verify RBAC enforcement across the full HTTP stack.
 
-class TestRBAC:
-    async def test_provider_cannot_access_other_providers_clients(
-        self, client, other_provider_client
-    ):
-        """GET /clients/{other_client_id} returns 404 for a different provider's client."""
-
-    async def test_admin_can_access_all_clients(self, admin_client, client_obj):
-        """Admin GET /clients/{any_id} returns 200 regardless of assigned provider."""
-
-    async def test_unauthenticated_request_returns_401(self, unauthenticated_client):
-        """Any endpoint without Authorization header returns HTTP 401."""
-
-    async def test_provider_cannot_escalate_to_admin(self, client):
-        """Provider cannot set role=admin on their own profile via PATCH /me."""
-```
+| Test | Input | Expected Output |
+|---|---|---|
+| Provider cannot access another provider's client | Authenticated provider requests a client record belonging to a different provider | HTTP 404 |
+| Admin can access any client | Admin-authenticated request for a client belonging to any provider | HTTP 200 with client data |
+| Unauthenticated request is rejected | Any endpoint called without an Authorization header | HTTP 401 |
+| Provider cannot self-escalate to admin | Provider submits `PATCH /me` with `role=admin` | Request is rejected or the role field is silently ignored; provider role remains unchanged |
 
 #### E2E Tests
 
-```typescript
-// e2e/tests/auth.spec.ts
+These tests exercise the full authentication flow through a real browser.
 
-test('login redirects to dashboard', async ({ page }) => {
-  // Real Auth0 login flow using test credentials
-});
-
-test('unauthenticated user is redirected to login', async ({ page }) => {
-  await page.goto('/dashboard');
-  await expect(page).toHaveURL(/login/);
-});
-
-test('logout clears session and redirects to login', async ({ page, loggedIn }) => {
-  await page.click('[data-testid="logout-button"]');
-  await expect(page).toHaveURL(/login/);
-  await page.goto('/dashboard');
-  await expect(page).toHaveURL(/login/);
-});
-```
+| Test | Steps | Expected Outcome |
+|---|---|---|
+| Login redirects to dashboard | Complete the real Auth0 login flow with test credentials | User lands on the dashboard |
+| Unauthenticated access redirects to login | Navigate directly to `/dashboard` without being logged in | Browser is redirected to the login page |
+| Logout clears session | Click the logout button; then navigate to `/dashboard` | User is redirected to login; session is fully cleared |
 
 ---
 
@@ -422,113 +262,73 @@ test('logout clears session and redirects to login', async ({ page, loggedIn }) 
 
 #### Unit Tests
 
-```python
-# tests/unit/test_models.py
+**Model tests** verify data behavior at the ORM layer.
 
-class TestClientModel:
-    async def test_full_name_property(self, db_session):
-        """Client.full_name returns 'First Last'."""
+| Test | Input | Expected Output |
+|---|---|---|
+| Full name property | A Client with a first and last name | `Client.full_name` returns "First Last" |
+| Soft delete sets fields | Call `soft_delete()` on an active client | `deleted_at` is set and `is_active` is False |
+| Soft-deleted client excluded from active query | Query clients with `active_only=True` after soft-deleting a client | Soft-deleted client does not appear |
+| Soft-deleted client visible in unfiltered query | Query clients without an active filter | Soft-deleted client is included |
 
-    async def test_soft_delete_sets_deleted_at(self, db_session, client_obj):
-        """client.soft_delete() sets deleted_at and is_active=False."""
+**Schema validation tests** verify input validation at the Pydantic layer.
 
-    async def test_soft_deleted_client_excluded_from_active_query(self, db_session, client_obj):
-        """Query with active_only=True excludes soft-deleted records."""
-
-    async def test_soft_deleted_client_visible_in_all_query(self, db_session, client_obj):
-        """Query without active filter includes soft-deleted records."""
-
-# tests/unit/test_schemas.py
-
-class TestClientSchema:
-    def test_valid_data_passes(self):
-        """Pydantic ClientCreate schema accepts valid client data."""
-
-    def test_date_of_birth_cannot_be_in_future(self):
-        """date_of_birth in the future raises Pydantic ValidationError."""
-
-    def test_phone_format_validated(self):
-        """Phone number must be E.164 format or raise ValidationError."""
-
-    def test_diagnosis_codes_must_be_valid_icd10(self):
-        """Non-ICD-10 strings in diagnosis_codes raise ValidationError."""
-```
+| Test | Input | Expected Output |
+|---|---|---|
+| Valid data passes | A complete, valid `ClientCreate` payload | Schema accepts the data without error |
+| Future date of birth rejected | `date_of_birth` set to a future date | Pydantic `ValidationError` is raised |
+| Invalid phone format rejected | A phone number not in E.164 format | Pydantic `ValidationError` is raised |
+| Invalid ICD-10 codes rejected | Strings in `diagnosis_codes` that are not valid ICD-10 codes | Pydantic `ValidationError` is raised |
 
 #### Integration Tests
 
-```python
-# tests/integration/test_clients_api.py
+**List**
 
-class TestClientList:
-    async def test_list_returns_only_own_clients(self, client, provider, other_provider):
-        """GET /clients returns only clients belonging to the authenticated provider."""
+| Test | Input | Expected Output |
+|---|---|---|
+| Returns only own clients | Authenticated provider with clients from multiple providers in the DB | Response contains only clients assigned to the authenticated provider |
+| Excludes soft-deleted clients | A soft-deleted client exists in the DB | Response does not include the deleted client |
+| Search by name | `GET /clients?search=John` with matching and non-matching clients present | Response contains only clients whose name matches the search term |
+| Pagination | More clients than fit on one page | Response includes paginated results with `next` and `previous` links |
 
-    async def test_list_excludes_soft_deleted(self, client, deleted_client):
-        """GET /clients does not include soft-deleted clients."""
+**Create**
 
-    async def test_list_supports_search_by_name(self, client, clients):
-        """GET /clients?search=John returns matching clients only."""
+| Test | Input | Expected Output |
+|---|---|---|
+| Valid creation | `POST /clients` with all required fields | HTTP 201; record created in DB |
+| Missing first name | `POST /clients` without `first_name` | HTTP 422 |
+| Missing last name | `POST /clients` without `last_name` | HTTP 422 |
+| Missing date of birth | `POST /clients` without `date_of_birth` | HTTP 422 |
+| Provider assignment is enforced | `POST /clients` with a different `provider` field in the body | Client is always assigned to the authenticated provider regardless of body content |
 
-    async def test_list_supports_pagination(self, client, many_clients):
-        """GET /clients returns paginated results with next/previous links."""
+**Retrieve**
 
-class TestClientCreate:
-    async def test_create_client_success(self, client):
-        """POST /clients with valid data returns 201 and creates DB record."""
+| Test | Input | Expected Output |
+|---|---|---|
+| Own client accessible | `GET /clients/{id}` for a client owned by the authenticated provider | HTTP 200 with client data |
+| Other provider's client returns 404 | `GET /clients/{id}` for a client owned by a different provider | HTTP 404 |
 
-    async def test_create_requires_first_name(self, client):
-        """POST /clients without first_name returns 422."""
+**Update**
 
-    async def test_create_requires_last_name(self, client):
-        """POST /clients without last_name returns 422."""
+| Test | Input | Expected Output |
+|---|---|---|
+| Partial update succeeds | `PATCH /clients/{id}` with a subset of valid fields | HTTP 200; updated fields reflected in response |
+| Provider field cannot be changed | `PATCH /clients/{id}` with a new `provider` value | Request succeeds but provider assignment is silently ignored |
 
-    async def test_create_requires_date_of_birth(self, client):
-        """POST /clients without date_of_birth returns 422."""
+**Delete**
 
-    async def test_create_assigns_to_authenticated_provider(self, client, provider):
-        """POST /clients always assigns client to the authenticated provider, ignoring any provider field in body."""
-
-class TestClientRetrieve:
-    async def test_retrieve_own_client(self, client, client_obj):
-        """GET /clients/{id} returns 200 for own client."""
-
-    async def test_retrieve_other_providers_client_returns_404(
-        self, client, other_client
-    ):
-        """GET /clients/{id} returns 404 for client belonging to another provider."""
-
-class TestClientUpdate:
-    async def test_partial_update_succeeds(self, client, client_obj):
-        """PATCH /clients/{id} with valid partial data returns 200."""
-
-    async def test_cannot_change_provider(self, client, client_obj, other_provider):
-        """PATCH /clients/{id} with a new provider field is silently ignored."""
-
-class TestClientDelete:
-    async def test_delete_soft_deletes(self, client, client_obj):
-        """DELETE /clients/{id} returns 204 and sets deleted_at; DB record persists."""
-
-    async def test_deleted_client_not_accessible(self, client, client_obj):
-        """After DELETE, GET /clients/{id} returns 404."""
-```
+| Test | Input | Expected Output |
+|---|---|---|
+| Delete soft-deletes the record | `DELETE /clients/{id}` | HTTP 204; `deleted_at` is set; the database record still exists |
+| Deleted client is no longer accessible | `GET /clients/{id}` after deletion | HTTP 404 |
 
 #### E2E Tests
 
-```typescript
-// e2e/tests/clients.spec.ts
-
-test('provider can create a new client', async ({ page, loggedIn }) => {
-  // Navigate to /clients/new, fill form, submit, verify appears in list
-});
-
-test('search filters client list in real time', async ({ page, loggedIn }) => {
-  // Type in search box, assert only matching rows visible
-});
-
-test('soft-deleted client disappears from list', async ({ page, loggedIn }) => {
-  // Delete a client, assert it is no longer in the list
-});
-```
+| Test | Steps | Expected Outcome |
+|---|---|---|
+| Create a new client | Navigate to `/clients/new`, fill and submit the form | New client appears in the client list |
+| Search filters list in real time | Type a search term in the search box | Only matching client rows are visible |
+| Soft-delete removes client from list | Delete a client via the UI | The client no longer appears in the list |
 
 ---
 
@@ -538,93 +338,57 @@ test('soft-deleted client disappears from list', async ({ page, loggedIn }) => {
 
 #### Unit Tests
 
-```python
-# tests/unit/test_models.py
+**Model tests**
 
-class TestAppointmentModel:
-    async def test_duration_in_minutes(self, db_session, appointment):
-        """appointment.duration_minutes returns correct integer."""
+| Test | Input | Expected Output |
+|---|---|---|
+| Duration calculation | An appointment with a known `start_time` and `end_time` | `duration_minutes` returns the correct integer value |
+| End before start rejected | An appointment where `end_time` is before or equal to `start_time` | `ValueError` is raised (BR-01) |
+| Client must belong to provider | An appointment where the client belongs to a different provider | `ValueError` is raised (BR-02) |
 
-    async def test_end_before_start_raises(self, db_session, provider, client_obj):
-        """Creating an Appointment with end_time <= start_time raises ValueError. (BR-01)"""
+**Overlap tests**
 
-    async def test_client_must_belong_to_provider(self, db_session, provider, other_client):
-        """Creating an Appointment with a client not belonging to provider raises ValueError. (BR-02)"""
-
-class TestAppointmentOverlap:
-    async def test_overlapping_appointment_raises(self, db_session, appointment):
-        """A second non-cancelled appointment overlapping in time raises ValueError. (BR-03)"""
-
-    async def test_cancelled_appointment_does_not_block_slot(self, db_session, cancelled_appt):
-        """A new appointment in the same slot as a cancelled appointment succeeds. (BR-03)"""
-
-    async def test_adjacent_appointments_do_not_overlap(self, db_session, appointment):
-        """An appointment starting exactly when another ends does not raise. (BR-03)"""
-
-    async def test_overlap_check_scoped_to_provider(self, db_session, appointment, other_provider):
-        """Two providers can have appointments in the same slot without conflict."""
-```
+| Test | Input | Expected Output |
+|---|---|---|
+| Overlapping appointment rejected | A second non-cancelled appointment whose time window overlaps an existing one | `ValueError` is raised (BR-03) |
+| Cancelled appointment does not block slot | A new appointment in the same time slot as a cancelled appointment | Appointment is created successfully (BR-03) |
+| Adjacent appointments are allowed | An appointment that starts exactly when another ends | Appointment is created successfully; no overlap (BR-03) |
+| Overlap check is provider-scoped | Two different providers with appointments in the same time slot | Both appointments are created successfully; no conflict |
 
 #### Integration Tests
 
-```python
-# tests/integration/test_appointments_api.py
+**Create**
 
-class TestAppointmentCreate:
-    async def test_create_valid_appointment(self, client, client_obj):
-        """POST /appointments with valid data returns 201."""
+| Test | Input | Expected Output |
+|---|---|---|
+| Valid creation | `POST /appointments` with valid data for own client | HTTP 201 |
+| Past appointments allowed | `POST /appointments` with a `start_time` in the past | HTTP 201 (past sessions may be recorded) |
+| Overlapping slot returns conflict | `POST /appointments` that overlaps an existing non-cancelled appointment | HTTP 409 Conflict |
+| Client from another provider rejected | `POST /appointments` referencing a client owned by a different provider | HTTP 422 |
 
-    async def test_create_with_past_start_time_succeeds(self, client, client_obj):
-        """Past appointments are allowed (for recording completed sessions)."""
+**Status transitions**
 
-    async def test_create_overlapping_returns_409(self, client, client_obj, existing_appt):
-        """POST /appointments that overlaps existing returns 409 Conflict."""
+| Test | Input | Expected Output |
+|---|---|---|
+| Cancel appointment | `PATCH /appointments/{id}` with `status=cancelled` | HTTP 200 |
+| Complete appointment | `PATCH /appointments/{id}` with `status=completed` | HTTP 200 |
+| Cannot reopen cancelled appointment | `PATCH /appointments/{id}` with `status=scheduled` on a cancelled appointment | HTTP 422 |
 
-    async def test_create_for_other_providers_client_returns_422(
-        self, client, other_client
-    ):
-        """POST /appointments with a client from another provider returns 422."""
+**List**
 
-class TestAppointmentStatusTransitions:
-    async def test_cancel_appointment(self, client, appointment):
-        """PATCH /appointments/{id} with status=cancelled returns 200."""
-
-    async def test_complete_appointment(self, client, appointment):
-        """PATCH /appointments/{id} with status=completed returns 200."""
-
-    async def test_cannot_reopen_cancelled_appointment(self, client, cancelled_appt):
-        """PATCH /appointments/{id} with status=scheduled on cancelled returns 422."""
-
-class TestAppointmentList:
-    async def test_list_filtered_by_date_range(self, client, appointments):
-        """GET /appointments?start=2024-01-01&end=2024-01-31 returns only that range."""
-
-    async def test_list_filtered_by_client(self, client, client_obj, appointments):
-        """GET /appointments?client_id={id} returns only that client's appointments."""
-
-    async def test_list_excludes_other_providers_appointments(
-        self, client, other_appointment
-    ):
-        """GET /appointments never includes another provider's appointments."""
-```
+| Test | Input | Expected Output |
+|---|---|---|
+| Filter by date range | `GET /appointments?start=YYYY-MM-DD&end=YYYY-MM-DD` | Only appointments within that date range are returned |
+| Filter by client | `GET /appointments?client_id={id}` | Only appointments for that client are returned |
+| Other providers' appointments excluded | A mix of own and other-provider appointments in the DB | Only the authenticated provider's appointments are returned |
 
 #### E2E Tests
 
-```typescript
-// e2e/tests/appointments.spec.ts
-
-test('provider can schedule a new appointment', async ({ page, loggedIn }) => {
-  // Open calendar, pick slot, select client, save, verify on calendar
-});
-
-test('double-booking shows conflict error', async ({ page, loggedIn }) => {
-  // Book same slot twice, assert error message visible
-});
-
-test('cancelling appointment updates calendar display', async ({ page, loggedIn }) => {
-  // Cancel appointment, assert slot no longer shows as booked
-});
-```
+| Test | Steps | Expected Outcome |
+|---|---|---|
+| Schedule a new appointment | Open the calendar, pick a slot, select a client, save | The appointment appears on the calendar |
+| Double-booking shows conflict error | Attempt to book a slot that is already occupied | An error message describing the conflict is displayed |
+| Cancelling updates the calendar | Cancel an existing appointment via the UI | The slot no longer shows as booked on the calendar |
 
 ---
 
@@ -634,116 +398,66 @@ test('cancelling appointment updates calendar display', async ({ page, loggedIn 
 
 #### Unit Tests
 
-```python
-# tests/unit/test_models.py
+**Model tests**
 
-class TestSOAPNoteModel:
-    async def test_sign_note_sets_signed_at(self, db_session, draft_note):
-        """note.sign() sets status=signed and signed_at to current UTC time."""
+| Test | Input | Expected Output |
+|---|---|---|
+| Signing sets status and timestamp | Call `sign()` on a draft note | `status` is set to `signed` and `signed_at` is set to the current UTC time |
+| Signed note cannot be modified | Call `update()` on a signed note | `PermissionError` is raised (BR-04) |
+| Soft delete a draft note | Call `soft_delete()` on a draft note | `deleted_at` is set and the note is excluded from active queries |
+| Signed note cannot be soft-deleted | Call `soft_delete()` on a signed note | `PermissionError` is raised |
 
-    async def test_signed_note_cannot_be_modified(self, db_session, signed_note):
-        """Calling note.update() on a signed note raises PermissionError. (BR-04)"""
+**Schema validation tests**
 
-    async def test_soft_delete_note(self, db_session, draft_note):
-        """note.soft_delete() sets deleted_at; note excluded from active query."""
-
-    async def test_signed_note_cannot_be_soft_deleted(self, db_session, signed_note):
-        """Attempting to soft_delete a signed note raises PermissionError."""
-
-# tests/unit/test_schemas.py
-
-class TestSOAPNoteSchema:
-    def test_all_four_sections_required_to_sign(self):
-        """Signing a note with any empty SOAP section raises Pydantic ValidationError."""
-
-    def test_draft_allows_empty_sections(self):
-        """Saving a draft with empty sections succeeds."""
-```
+| Test | Input | Expected Output |
+|---|---|---|
+| All four sections required to sign | A `SOAPNote` payload with `status=signed` and one or more empty SOAP sections | Pydantic `ValidationError` is raised |
+| Draft allows empty sections | A `SOAPNote` payload with `status=draft` and empty SOAP sections | Schema accepts the data without error |
 
 #### Integration Tests
 
-```python
-# tests/integration/test_notes_api.py
+**Create**
 
-class TestSOAPNoteCreate:
-    async def test_create_draft_note(self, client, client_obj):
-        """POST /notes with status=draft returns 201."""
+| Test | Input | Expected Output |
+|---|---|---|
+| Create draft note | `POST /notes` with `status=draft` | HTTP 201 |
+| Note linked to appointment | `POST /notes` with a valid `appointment_id` | HTTP 201; the note is linked to that appointment in the database |
+| Note for another provider's client rejected | `POST /notes` referencing a client belonging to a different provider | HTTP 403 |
 
-    async def test_create_note_linked_to_appointment(self, client, appointment):
-        """POST /notes with appointment_id field links to that appointment in DB."""
+**Update**
 
-    async def test_create_note_for_other_providers_client_returns_403(
-        self, client, other_client
-    ):
-        """POST /notes for another provider's client returns 403."""
+| Test | Input | Expected Output |
+|---|---|---|
+| Update draft note content | `PATCH /notes/{id}` on a draft with new content | HTTP 200; updated content is reflected |
+| Cannot update signed note | `PATCH /notes/{id}` on a signed note | HTTP 403 (BR-04) |
+| Sign note with all sections filled | `PATCH /notes/{id}` with `status=signed` on a complete draft | HTTP 200; `signed_at` is set in the response |
+| Sign note with missing section rejected | `PATCH /notes/{id}` with `status=signed` on a draft that has one or more empty sections | HTTP 422 |
 
-class TestSOAPNoteUpdate:
-    async def test_update_draft_note(self, client, draft_note):
-        """PATCH /notes/{id} on a draft returns 200 and updates content."""
+**Delete**
 
-    async def test_cannot_update_signed_note(self, client, signed_note):
-        """PATCH /notes/{id} on a signed note returns 403. (BR-04)"""
+| Test | Input | Expected Output |
+|---|---|---|
+| Delete a draft note | `DELETE /notes/{id}` on a draft | HTTP 204; soft delete applied |
+| Cannot delete a signed note | `DELETE /notes/{id}` on a signed note | HTTP 403 |
+| Deleted note not in list | `GET /notes` after deleting a draft | The deleted note does not appear in the response |
 
-    async def test_sign_note_with_all_sections_filled(self, client, complete_draft_note):
-        """PATCH /notes/{id} with status=signed returns 200 and sets signed_at."""
+**Access control**
 
-    async def test_sign_note_with_missing_section_returns_422(
-        self, client, incomplete_draft_note
-    ):
-        """PATCH /notes/{id} with status=signed but empty sections returns 422."""
-
-class TestSOAPNoteDelete:
-    async def test_delete_draft_note(self, client, draft_note):
-        """DELETE /notes/{id} on a draft returns 204 (soft delete)."""
-
-    async def test_cannot_delete_signed_note(self, client, signed_note):
-        """DELETE /notes/{id} on a signed note returns 403."""
-
-    async def test_deleted_note_not_in_list(self, client, draft_note):
-        """After DELETE, note does not appear in GET /notes."""
-
-class TestSOAPNoteAccess:
-    async def test_list_returns_only_own_notes(self, client, provider, other_provider_note):
-        """GET /notes returns only notes by authenticated provider."""
-
-    async def test_retrieve_other_providers_note_returns_404(
-        self, client, other_provider_note
-    ):
-        """GET /notes/{id} for another provider's note returns 404."""
-
-    async def test_list_filtered_by_client(self, client, client_obj):
-        """GET /notes?client_id={id} returns only notes for that client."""
-
-    async def test_list_filtered_by_date_range(self, client, notes):
-        """GET /notes?start=2024-01-01&end=2024-01-31 returns only that range."""
-```
+| Test | Input | Expected Output |
+|---|---|---|
+| List returns only own notes | Provider with notes from multiple providers in the DB | Response contains only notes authored by the authenticated provider |
+| Cannot retrieve another provider's note | `GET /notes/{id}` for a note authored by a different provider | HTTP 404 |
+| Filter by client | `GET /notes?client_id={id}` | Only notes for that client are returned |
+| Filter by date range | `GET /notes?start=YYYY-MM-DD&end=YYYY-MM-DD` | Only notes within that session date range are returned |
 
 #### E2E Tests
 
-```typescript
-// e2e/tests/notes.spec.ts
-
-test('provider can create and save a draft SOAP note', async ({ page, loggedIn }) => {
-  // Navigate to notes, fill in all four SOAP sections, save as draft
-  // Assert draft appears in notes list
-});
-
-test('signing a note makes it read-only', async ({ page, loggedIn }) => {
-  // Open draft note, sign it
-  // Assert all SOAP fields become read-only / inputs are disabled
-  // Assert "Sign" button is no longer visible
-});
-
-test('attempting to sign note with empty section shows error', async ({ page, loggedIn }) => {
-  // Leave one SOAP section empty, attempt to sign
-  // Assert validation error message is displayed
-});
-
-test('signed note cannot be edited via direct navigation', async ({ page, loggedIn }) => {
-  // Navigate directly to /notes/{signedId}/edit
-  // Assert redirect to read-only view or 403 page
-});
-```
+| Test | Steps | Expected Outcome |
+|---|---|---|
+| Create and save a draft SOAP note | Navigate to notes, fill in all four SOAP sections, save as draft | The draft appears in the notes list |
+| Signing makes note read-only | Open a draft note and sign it | All SOAP fields become read-only; the Sign button is no longer visible |
+| Cannot sign with empty section | Leave one SOAP section empty and attempt to sign | A validation error message is displayed |
+| Signed note cannot be edited via direct navigation | Navigate directly to `/notes/{signedId}/edit` | User is redirected to the read-only view or shown a 403 page |
 
 ---
 
@@ -782,26 +496,13 @@ Authorization: Bearer <auth0_access_token>
 
 ### Standard Error Responses
 
-```json
-// 422 Unprocessable Entity (FastAPI validation failure)
-{
-  "detail": [
-    { "loc": ["body", "field_name"], "msg": "Error message.", "type": "value_error" }
-  ]
-}
-
-// 401 Unauthorized
-{ "detail": "Not authenticated" }
-
-// 403 Forbidden
-{ "detail": "Not enough permissions" }
-
-// 404 Not Found
-{ "detail": "Not found" }
-
-// 409 Conflict (double booking)
-{ "detail": "This time slot conflicts with an existing appointment" }
-```
+| Status | Condition | Response body key |
+|---|---|---|
+| 401 Unauthorized | Missing or invalid Authorization header | `detail: "Not authenticated"` |
+| 403 Forbidden | Authenticated but insufficient permissions | `detail: "Not enough permissions"` |
+| 404 Not Found | Resource does not exist or is not accessible to the caller | `detail: "Not found"` |
+| 409 Conflict | Double-booking attempt | `detail: "This time slot conflicts with an existing appointment"` |
+| 422 Unprocessable Entity | Request body fails validation | `detail` array with field-level error messages |
 
 ---
 
@@ -809,28 +510,15 @@ Authorization: Bearer <auth0_access_token>
 
 ### Running Tests
 
-```bash
-# Backend — all tests (inside Docker)
-docker compose run --rm backend-test pytest
+All test commands run inside Docker containers. The canonical commands are:
 
-# Backend — unit tests only (fast)
-docker compose run --rm backend-test pytest tests/unit/
-
-# Backend — with coverage report
-docker compose run --rm backend-test pytest --cov=app --cov-report=html
-
-# Frontend — unit tests
-docker compose run --rm frontend-test npx vitest run
-
-# E2E — all (spins up full stack)
-docker compose -f docker-compose.yml -f docker-compose.test.yml up --exit-code-from e2e e2e
-
-# E2E — specific feature
-docker compose run --rm e2e npx playwright test notes.spec.ts
-
-# Run a specific backend test file
-docker compose run --rm backend-test pytest tests/integration/test_clients_api.py -v
-```
+- **Backend — all tests:** Run pytest inside the backend-test container
+- **Backend — unit tests only:** Run pytest targeting the `tests/unit/` directory
+- **Backend — with coverage:** Run pytest with `--cov=app` and generate an HTML report
+- **Frontend — unit tests:** Run Vitest inside the frontend-test container
+- **E2E — all:** Spin up the full stack via the test compose override; exit code is driven by the E2E container
+- **E2E — specific feature:** Run Playwright targeting a single spec file (e.g., `notes.spec.ts`)
+- **Specific backend file:** Run pytest targeting a single integration test file with verbose output
 
 ### Coverage Targets
 
@@ -845,12 +533,12 @@ docker compose run --rm backend-test pytest tests/integration/test_clients_api.p
 
 | Rule | Description | Test Location |
 |---|---|---|
-| BR-01 | end_time after start_time | `test_models.py::TestAppointmentModel::test_end_before_start_raises` |
-| BR-02 | Client must belong to provider | `test_models.py::TestAppointmentModel::test_client_must_belong_to_provider` |
-| BR-03 | No overlapping appointments | `test_models.py::TestAppointmentOverlap::*` |
-| BR-04 | Signed notes immutable | `test_models.py::TestSOAPNoteModel::test_signed_note_cannot_be_modified` |
-| BR-05 | Soft-deleted clients excluded | `test_clients_api.py::TestClientList::test_list_excludes_soft_deleted` |
-| BR-06 | Provider isolation | `test_auth.py::TestRBAC::test_provider_cannot_access_other_providers_clients` |
+| BR-01 | end_time after start_time | `test_models.py` — Appointment model, end-before-start test |
+| BR-02 | Client must belong to provider | `test_models.py` — Appointment model, client-provider mismatch test |
+| BR-03 | No overlapping appointments | `test_models.py` — Appointment overlap test group |
+| BR-04 | Signed notes immutable | `test_models.py` — SOAP note model, signed-note modification test |
+| BR-05 | Soft-deleted clients excluded | `test_clients_api.py` — Client list, soft-delete exclusion test |
+| BR-06 | Provider isolation | `test_auth.py` — RBAC, cross-provider access test |
 
 ---
 
@@ -858,42 +546,16 @@ docker compose run --rm backend-test pytest tests/integration/test_clients_api.p
 
 ### CI Pipeline (GitHub Actions)
 
-All CI steps run entirely inside Docker — no Python or Node is installed directly on the runner.
+All CI steps run entirely inside Docker — no Python or Node is installed directly on the runner. The pipeline consists of four jobs:
 
-```yaml
-on: push, pull_request
-
-jobs:
-  backend-tests:
-    steps:
-      - docker compose -f docker-compose.yml -f docker-compose.test.yml
-          run --rm backend-test pytest --cov=app --cov-fail-under=90
-
-  frontend-tests:
-    steps:
-      - docker compose run --rm frontend-test npx vitest run
-
-  e2e-tests:
-    steps:
-      - docker compose -f docker-compose.yml -f docker-compose.test.yml
-          up --exit-code-from e2e e2e
-      - Upload Playwright HTML report as artifact
-
-  lint:
-    steps:
-      - docker compose run --rm backend-test ruff check app/
-      - docker compose run --rm frontend npx eslint . && npx tsc --noEmit
-```
+- **backend-tests:** Runs pytest inside the test compose configuration with a minimum coverage threshold of 90%.
+- **frontend-tests:** Runs Vitest inside the frontend-test container.
+- **e2e-tests:** Spins up the full stack via the test compose override and runs Playwright. The Playwright HTML report is uploaded as a build artifact.
+- **lint:** Runs `ruff` on the backend source and ESLint + TypeScript type checking on the frontend.
 
 ### Docker Image Strategy
 
-```
-backend/Dockerfile        ← multi-stage: builder installs deps, runtime is slim
-frontend/Dockerfile       ← multi-stage: builder runs next build, runtime serves
-e2e/Dockerfile            ← based on mcr.microsoft.com/playwright, includes browsers
-docker-compose.yml        ← dev: volume mounts for hot reload, db-test sidecar
-docker-compose.test.yml   ← test overrides: no volume mounts, exit-code-from
-```
+The project uses three Dockerfiles. The backend image is multi-stage: a builder stage installs dependencies, and a slim runtime stage runs the app. The frontend image is similarly multi-stage: a builder stage runs `next build`, and a runtime stage serves the output. The E2E image is based on the official Playwright image and includes browser binaries. The development compose file uses volume mounts for hot reload. The test compose override removes volume mounts and uses `exit-code-from` to signal test completion.
 
 **Key rules:**
 - Images must build reproducibly from a clean checkout with no secrets baked in
@@ -903,7 +565,7 @@ docker-compose.test.yml   ← test overrides: no volume mounts, exit-code-from
 ### HIPAA-Ready Design Decisions (v1)
 
 - **Auth0**: Handles MFA, SSO, session management, audit logs of auth events
-- **Soft deletes**: PHI is never hard-deleted; deleted_at flag used instead
+- **Soft deletes**: PHI is never hard-deleted; `deleted_at` flag used instead
 - **No logging of PHI**: Application logs must not include note content, DOB, or diagnosis codes
 - **FastAPI structured logging**: Use `structlog` with JSON output; PHI fields excluded at the serializer layer
 - **Future**: AWS S3 with SSE-S3 or SSE-KMS for file attachments; audit log table for all record access
@@ -916,3 +578,4 @@ This spec lives in the repository at `docs/spec.md`. Every PR that changes behav
 |---|---|
 | 0.1.0 | Initial spec (Django + DRF) |
 | 0.2.0 | Migrated to FastAPI + Docker; async tests; Pydantic schemas; no trailing slashes; 422 replaces 400 for validation errors |
+| 0.3.0 | Renamed to Groundwork; removed implementation code from all testing sections; test requirements now described in plain English with input/output tables |
