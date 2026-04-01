@@ -1,7 +1,7 @@
 # SPEC-002: Identity and RBAC
 
 **Status:** Draft
-**Version:** 0.2.0
+**Version:** 0.3.0
 **Parent Spec:** [SPEC-000-platform-overview](./SPEC-000-platform-overview.md)
 **Scope:** Human identity, role assignment, permission grants, and access enforcement across all domains.
 
@@ -160,8 +160,15 @@ On platform initialization, the system seeds baseline roles, permissions, and ro
 | notes.write | notes | write | Draft and edit unsigned notes. |
 | notes.sign | notes | sign | Sign notes as author. |
 | notes.cosign | notes | cosign | Co-sign notes as supervisor. |
-| billing.read | billing | read | Read invoices, payments, and coverage records. |
-| billing.write | billing | write | Create and update billing records. |
+| invoices.read | invoices | read | Read invoices and line items. |
+| invoices.create | invoices | create | Create new invoices for completed sessions. |
+| invoices.write | invoices | write | Update invoice metadata, manage line items, transition to sent. |
+| invoices.void | invoices | void | Void invoices with required reason. |
+| payments.read | payments | read | Read payment records. |
+| payments.record | payments | record | Record payments against invoices. |
+| insurance.read | insurance | read | Read insurance payers and client coverage records. |
+| insurance.write | insurance | write | Create and update insurance payers and client coverage. |
+| codes.read | codes | read | Read CPT and ICD reference code tables. |
 | settings.read | settings | read | Read organization configuration. |
 | settings.write | settings | write | Update organization configuration. |
 | people.read | people | read | Read person identity records. |
@@ -192,8 +199,15 @@ Y = granted. Blank = not granted. Child roles inherit all parent grants (inherit
 | notes.write | | | | | | Y | inh | inh | inh | | |
 | notes.sign | | | | | | | Y | inh | inh | | |
 | notes.cosign | | | | | | | | Y | | | |
-| billing.read | Y | inh | inh | inh | | | | | | | |
-| billing.write | Y | inh | inh | inh | | | | | | | |
+| invoices.read | Y | inh | inh | Y | | | | | | | |
+| invoices.create | Y | inh | inh | Y | | | | | | | |
+| invoices.write | Y | inh | inh | Y | | | | | | | |
+| invoices.void | Y | inh | inh | Y | | | | | | | |
+| payments.read | Y | inh | inh | Y | | | | | | | |
+| payments.record | Y | inh | inh | Y | | | | | | | |
+| insurance.read | Y | inh | inh | Y | | | | | | | |
+| insurance.write | Y | inh | inh | Y | | | | | | | |
+| codes.read | Y | inh | inh | Y | | | | | | | |
 | settings.read | Y | inh | inh | | | | | | | | |
 | settings.write | Y | inh | inh | | | | | | | | |
 | people.read | Y | inh | inh | | Y | | | | | | |
@@ -249,8 +263,15 @@ Under Option A, the corrected matrix for biller and receptionist uses direct gra
 | clients.write | | Y |
 | sessions.read | | Y |
 | sessions.write | | Y |
-| billing.read | Y | |
-| billing.write | Y | |
+| invoices.read | Y | |
+| invoices.create | Y | |
+| invoices.write | Y | |
+| invoices.void | Y | |
+| payments.read | Y | |
+| payments.record | Y | |
+| insurance.read | Y | |
+| insurance.write | Y | |
+| codes.read | Y | |
 | people.read | | Y |
 
 ---
@@ -299,7 +320,7 @@ A practice_admin's `clients.read` grant has conditions: `null`. Null conditions 
 | Condition key | Meaning | Applied to |
 |---|---|---|
 | scope: own_clients | Filter to clients assigned to the requesting provider instance. | clients.read, clients.write |
-| scope: own_sessions | Filter to sessions where the requesting provider is the conductor. | sessions.read, sessions.write |
+| scope: own_sessions | Filter to sessions where the requesting provider is the provider_instance_id. | sessions.read, sessions.write |
 | scope: own_notes | Filter to notes authored by the requesting provider. | notes.read, notes.write |
 | scope: own_profile | Filter to the requesting person's own Person and EntityInstance records. | Post-MVP client portal. |
 | null | Unrestricted within organization. | Admin and practice_admin grants. |
@@ -317,7 +338,10 @@ A practice_admin's `clients.read` grant has conditions: `null`. Null conditions 
 | admin | all grants | null (unrestricted) |
 | receptionist | clients.read | null (all clients for intake) |
 | receptionist | sessions.read | null (all sessions for scheduling) |
-| biller | billing.read | null (all billing records) |
+| biller | invoices.read | null (all invoices) |
+| biller | payments.read | null (all payments) |
+| biller | insurance.read | null (all insurance records) |
+| biller | codes.read | null (all reference codes) |
 
 ---
 
@@ -440,3 +464,4 @@ The response includes person identity, active roles with their EntityInstance bi
 |---|---|
 | 0.1.0 | Initial draft. Full identity and RBAC ownership, model definitions, seed roles and permissions, authorization flow, API surface, business rules, and ADR mapping. |
 | 0.2.0 | Removed organization_id from Person (tenant scoping via PersonRole). Made auth_subject nullable for non-authenticating personas. Documented entity_instance_id rules on PersonRole. Specified partial unique indexes for PersonRole and RolePermission. Added primary_domain hierarchy invariant. Added role-permission seed matrix. Added missing seed permissions (people.*, roles.*, entity_types.*). Added row-level filtering section with conditions JSONB on RolePermission. Added SPEC-001 integration contract. Added /auth/me and /auth/me/permissions response shapes. Resolved biller/receptionist inheritance model (Option A: standalone roles, not admin children). Added auth subject rule for non-authenticating personas. Added Person query scoping constraint. |
+| 0.3.0 | Replaced coarse billing.read/billing.write with 9 granular billing permissions: invoices.read, invoices.create, invoices.write, invoices.void, payments.read, payments.record, insurance.read, insurance.write, codes.read. Updated seed matrix and biller standalone grants. Updated row-level filtering seed conditions. |

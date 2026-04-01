@@ -137,7 +137,7 @@ intake_status options: ["new", "in_progress", "complete"]
 
 - BR-05 (Soft delete): EntityInstance includes a deleted_at column. API list endpoints must exclude records where deleted_at is not null. See ADR-006 for the full soft delete strategy across EAV tables.
 - Multi-tenancy isolation: All EntityInstance queries must filter by organization_id. No query may return instances belonging to a different tenant. See ADR-011.
-- Bridge rule validation: When a concrete table (e.g., Session) references an EntityInstance, the backend must verify two things: (1) the instance belongs to the expected EntityType (e.g., conductor must be a provider type), and (2) the instance belongs to the same Organization as the requesting user.
+- Bridge rule validation: When a concrete table (e.g., Session) references an EntityInstance, the backend must verify two things: (1) the instance belongs to the expected EntityType (e.g., provider_instance_id must be a provider type), and (2) the instance belongs to the same Organization as the requesting user.
 - System type protection: EntityTypes with is_system_type = true cannot be deleted or renamed. Their EntityAttributes can be extended (new fields added) but seed attributes cannot be removed.
 - Required field enforcement: When creating or updating an EntityInstance, the backend must verify that all EntityAttributes with is_required = true on the instance's EntityType have a corresponding non-null AttributeValue.
 

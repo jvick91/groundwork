@@ -1,7 +1,7 @@
 # SPEC-003: Scheduling and Sessions
 
 **Status:** Draft
-**Version:** 0.1.0
+**Version:** 0.2.0
 **Parent Spec:** [SPEC-000-platform-overview](./SPEC-000-platform-overview.md)
 **Scope:** Session scheduling, appointment types, availability, and cancellation lifecycle.
 
@@ -43,8 +43,8 @@ Sessions are the primary transactional unit connecting the identity layer (SPEC-
 | id | UUID | PK | Primary key. |
 | organization_id | UUID | FK -> Organization, NOT NULL | Scopes session to a tenant. |
 | appointment_type_id | UUID | FK -> AppointmentType, NOT NULL | Template used for this session. |
-| conductor_instance_id | UUID | FK -> EntityInstance, NOT NULL | Provider profile instance conducting the session. Must reference an EntityInstance of type provider. |
-| attendee_instance_id | UUID | FK -> EntityInstance, NOT NULL | Client profile instance attending the session. Must reference an EntityInstance of type client. |
+| provider_instance_id | UUID | FK -> EntityInstance, NOT NULL | Provider profile instance delivering the session. Must reference an EntityInstance of type provider. |
+| client_instance_id | UUID | FK -> EntityInstance, NOT NULL | Client profile instance receiving the session. Must reference an EntityInstance of type client. |
 | start_time | Timestamp | NOT NULL | Scheduled or actual start of the session in UTC. |
 | end_time | Timestamp | NOT NULL | Scheduled or actual end of the session in UTC. |
 | status | Enum | NOT NULL, default scheduled | One of: scheduled, confirmed, in_progress, completed, cancelled, no_show. |
@@ -79,10 +79,10 @@ Terminal statuses cannot be updated. Any attempt to transition out of a terminal
 ## 4. Business Rules
 
 - BR-01 (Time order): A session's end_time must be strictly after start_time. A zero-duration or negative-duration session is invalid.
-- BR-02 (Org membership): A session's attendee_instance_id and conductor_instance_id must both belong to the same organization_id as the session. Cross-tenant session creation is never permitted.
+- BR-02 (Org membership): A session's client_instance_id and provider_instance_id must both belong to the same organization_id as the session. Cross-tenant session creation is never permitted.
 - BR-03 (Provider overlap): A provider instance cannot have two non-cancelled sessions whose time ranges overlap. Overlap is defined as: an existing session's start_time is before the new session's end_time, and the existing session's end_time is after the new session's start_time. The check applies to scheduled, confirmed, and in_progress sessions. Cancelled and no_show sessions do not count toward overlap.
-- Bridge rule for conductor: conductor_instance_id must reference an EntityInstance whose EntityType slug is provider. The backend validates this at write time.
-- Bridge rule for attendee: attendee_instance_id must reference an EntityInstance whose EntityType slug is client. The backend validates this at write time.
+- Bridge rule for provider: provider_instance_id must reference an EntityInstance whose EntityType slug is provider. The backend validates this at write time.
+- Bridge rule for client: client_instance_id must reference an EntityInstance whose EntityType slug is client. The backend validates this at write time.
 - Cancellation reason: When setting status to cancelled or no_show, cancellation_reason must be provided. Requests without a reason are rejected.
 - AppointmentType guard: An inactive AppointmentType (is_active = false) cannot be used when creating a new Session. Existing sessions referencing a deactivated type are not affected.
 - Soft delete rule: Soft-deleted sessions must not appear in list endpoints. Soft-deleted sessions are excluded from provider overlap checks.
@@ -141,7 +141,7 @@ Explicit transition endpoints are preferred over a generic PATCH on status to en
 
 - Overlap detection: BR-03 must be enforced inside a database transaction to prevent race conditions on concurrent booking requests.
 - Audit requirements: All state-changing calls (POST, PATCH, DELETE, and all transition endpoints) must write an AuditLog entry per BR-07.
-- PHI-safe logging: Session.notes is not PHI, but attendee identity details must never appear in application logs per BR-08.
+- PHI-safe logging: Session.notes is not PHI, but client identity details must never appear in application logs per BR-08.
 - Timezone handling: All session timestamps are stored and compared in UTC. Display conversion to the organization's timezone is a frontend concern.
 - Clinical note link: When a session transitions to completed, the backend should not automatically create a ClinicalNote. Note creation is a separate intentional action by the provider. See SPEC-004.
 - Invoice link: A completed session is eligible for invoice generation. Billing is not triggered automatically. See SPEC-005.
@@ -152,7 +152,7 @@ Explicit transition endpoints are preferred over a generic PATCH on status to en
 
 | ADR | Title | Impact on this spec |
 |---|---|---|
-| ADR-003 | Session FK semantics | Defines how conductor and attendee are referenced as EntityInstance IDs rather than Person IDs, and the bridge rule validation responsibility. |
+| ADR-003 | Session FK semantics | Defines how provider and client are referenced as EntityInstance IDs rather than Person IDs, and the bridge rule validation responsibility. |
 | ADR-001 | Core MVP data model | Establishes Session as a concrete table and AppointmentType as its template. |
 | ADR-006 | Soft delete strategy | Defines delete semantics and how deleted sessions are excluded from overlap checks. |
 | ADR-011 | Multi-tenancy isolation | Requires all session queries to filter by organization_id and prohibits cross-tenant access. |
@@ -164,3 +164,4 @@ Explicit transition endpoints are preferred over a generic PATCH on status to en
 | Version | Changes |
 |---|---|
 | 0.1.0 | Initial draft. Full model definitions for Session and AppointmentType. Status lifecycle, business rules BR-01 through BR-03, API surface, scheduling constraints, and ADR mapping. |
+| 0.2.0 | Renamed conductor_instance_id to provider_instance_id and attendee_instance_id to client_instance_id. Aligns field naming with SPEC-005 Invoice and cross-spec consistency. |

@@ -4,6 +4,7 @@
 **Status:** Draft
 **Supersedes:** practice_management_spec v0.3.0
 **Stack:** Next.js (App Router) · FastAPI · PostgreSQL · Docker
+**Type System:** Pydantic for all data validation, serialization, and API schemas. Every model, request body, response body, and internal service contract uses Pydantic types. No untyped dicts or raw JSON handling.
 **Test Frameworks:** pytest + httpx (backend) · Vitest (frontend unit) · Playwright (E2E)
 **No mocks policy:** All tests run against real DBs, real HTTP, real browser.
 
@@ -38,9 +39,9 @@ There are only 3 EntityTypes (provider, client, admin) but 9+ Roles. A therapist
 | Therapist | provider | therapist | license_number, license_state, npi_number, specialty | clients.rw, sessions.rw, notes.rw, notes.sign |
 | Supervisor | provider | supervisor | license_number, license_state, npi_number, specialty | Everything therapist has + notes.cosign |
 | Prescriber | provider | prescriber | license_number, license_state, npi_number, specialty, dea_number | Everything therapist has + prescriptions.write (future) |
-| Practice admin | admin | practice_admin | department, title | clients.rw, sessions.rw, providers.read, billing.rw, settings.rw |
+| Practice admin | admin | practice_admin | department, title | clients.rw, sessions.rw, providers.read, invoices.*, payments.*, insurance.*, codes.read, settings.rw |
 | System admin | admin | system_admin | department, title | Everything practice_admin has + tenants.manage, system.configure |
-| Biller | admin | biller | department, title | billing.rw, invoices.create, payments.record, insurance.read |
+| Biller | admin | biller | department, title | invoices.*, payments.*, insurance.*, codes.read |
 | Receptionist | admin | receptionist | department, title | sessions.rw, clients.rw (intake only), forms.send |
 | Client | client | client | intake_status, referral_source, emergency_contact, onboarded_at | Post-MVP: own_profile.read, own_sessions.read, own_invoices.read |
 | Guardian | client | guardian | intake_status, referral_source, relationship_to_minor | Post-MVP: same as client, scoped to dependent's records |
@@ -96,6 +97,7 @@ Tests always run inside containers. There is no CI step that installs Python or 
 - Soft deletes on all clinical and PHI-bearing records
 - All environment secrets injected via .env files, never baked into images
 - Every record scopes to an Organization (multi-tenant isolation)
+- All backend data validation, API request/response schemas, and service-layer contracts use Pydantic models. No raw dicts, untyped JSON, or manual validation. Python type hints are mandatory throughout.
 
 ADR: ADR-007 (Auth provider), ADR-011 (Multi-tenancy isolation), ADR-013 (CI/CD)
 
@@ -130,11 +132,11 @@ The data model is a hybrid of two patterns. See ADR-001 for the full rationale.
 | Clinical | AppointmentType | Template for session kinds with default duration and CPT code. |
 | Billing | InsurancePayer | Reference directory of insurance companies. |
 | Billing | ClientInsurance | Links a client instance to a payer with coverage details. |
-| Billing | Invoice | Bill generated from a session. |
+| Billing | Invoice | Bill generated from a completed session. Lifecycle: draft, sent, partial, paid, void. One active (non-voided) invoice per session. |
 | Billing | InvoiceLineItem | Individual charge with CPT and ICD codes. |
-| Billing | Payment | Money received against an invoice. |
-| Reference | CPTCode | Procedure code reference table. |
-| Reference | ICDCode | Diagnosis code reference table. |
+| Billing | Payment | Money received against an invoice. Can be voided with reason for corrections. |
+| Billing | CPTCode | Procedure code reference table, scoped to organization. |
+| Billing | ICDCode | Diagnosis code reference table, scoped to organization. |
 | Compliance | AuditLog | Immutable record of every user action. HIPAA required. |
 | Compliance | Document | Uploaded file with S3 key, encrypted at rest. |
 | Compliance | ClientConsent | Consent tracking with type, signed date, expiry. |
@@ -151,7 +153,7 @@ These carry forward from v0.3.0 and apply to the new model. Entity-specific rule
 | Rule | Description | Sub-spec |
 |---|---|---|
 | BR-01 | A Session's end_time must be after start_time | SPEC-003 |
-| BR-02 | A Session's attendee must be assigned to the conductor's organization | SPEC-003 |
+| BR-02 | A Session's client must be assigned to the provider's organization | SPEC-003 |
 | BR-03 | A provider instance cannot have two non-cancelled sessions that overlap in time | SPEC-003 |
 | BR-04 | A ClinicalNote's signed content is immutable. Post-signing changes follow an addendum-only model: the original content is never overwritten, amendments are append-only, and the note re-enters the signing cycle. Notes transition through draft, signed, cosigned, and amendment_pending statuses. Co-signing is required for supervisees and optional otherwise. Any person with the notes.cosign permission may co-sign. | SPEC-004 |
 | BR-05 | Soft-deleted records do not appear in any list endpoints. Only draft ClinicalNotes may be soft-deleted; signed, cosigned, and amendment_pending notes are protected from deletion. | SPEC-001, SPEC-004 |
