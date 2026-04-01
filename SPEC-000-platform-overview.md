@@ -153,8 +153,8 @@ These carry forward from v0.3.0 and apply to the new model. Entity-specific rule
 | BR-01 | A Session's end_time must be after start_time | SPEC-003 |
 | BR-02 | A Session's attendee must be assigned to the conductor's organization | SPEC-003 |
 | BR-03 | A provider instance cannot have two non-cancelled sessions that overlap in time | SPEC-003 |
-| BR-04 | A ClinicalNote's signed status is irreversible. Signed notes cannot be edited. | SPEC-004 |
-| BR-05 | Soft-deleted records do not appear in any list endpoints | SPEC-001 |
+| BR-04 | A ClinicalNote's signed content is immutable. Post-signing changes follow an addendum-only model: the original content is never overwritten, amendments are append-only, and the note re-enters the signing cycle. Notes transition through draft, signed, cosigned, and amendment_pending statuses. Co-signing is required for supervisees and optional otherwise. Any person with the notes.cosign permission may co-sign. | SPEC-004 |
+| BR-05 | Soft-deleted records do not appear in any list endpoints. Only draft ClinicalNotes may be soft-deleted; signed, cosigned, and amendment_pending notes are protected from deletion. | SPEC-001, SPEC-004 |
 | BR-06 | Access control is enforced by RBAC. A role can only access entity instances and records permitted by its RolePermission grants. | SPEC-002 |
 | BR-07 | Every state-changing API call writes an AuditLog entry | SPEC-006 |
 | BR-08 | Application logs must not contain PHI (note content, DOB, diagnosis codes) | SPEC-006 |
