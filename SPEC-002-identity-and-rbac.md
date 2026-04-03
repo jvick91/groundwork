@@ -1,7 +1,7 @@
 # SPEC-002: Identity and RBAC
 
 **Status:** Draft
-**Version:** 0.3.0
+**Version:** 0.4.0
 **Parent Spec:** [SPEC-000-platform-overview](./SPEC-000-platform-overview.md)
 **Scope:** Human identity, role assignment, permission grants, and access enforcement across all domains.
 
@@ -181,6 +181,17 @@ On platform initialization, the system seeds baseline roles, permissions, and ro
 | entity_types.read | entity_types | read | List and view entity types and attributes. |
 | entity_types.write | entity_types | write | Create or update custom entity types. |
 | entity_types.delete | entity_types | delete | Delete custom entity types. |
+| documents.read | documents | read | Read document metadata and download via presigned URL. |
+| documents.write | documents | write | Upload documents, manage document types. |
+| documents.delete | documents | delete | Soft delete documents. |
+| consents.read | consents | read | Read client consent records and consent types. |
+| consents.write | consents | write | Create and update consent records and consent types. |
+| consents.sign | consents | sign | Record a consent as signed. |
+| consents.revoke | consents | revoke | Revoke a signed consent. |
+| forms.read | forms | read | Read form templates. |
+| forms.write | forms | write | Create and update custom form templates. |
+| forms.send | forms | send | Send forms to clients for completion. |
+| audit.read | audit | read | Query the audit log. |
 | tenants.manage | tenants | manage | Create, suspend, or update tenant organizations. |
 | system.configure | system | manage | Platform-level operational configuration. |
 
@@ -217,6 +228,17 @@ Y = granted. Blank = not granted. Child roles inherit all parent grants (inherit
 | roles.write | Y | inh | inh | | | | | | | | |
 | roles.delete | Y | inh | inh | | | | | | | | |
 | roles.assign | Y | inh | inh | | | | | | | | |
+| documents.read | Y | inh | inh | | | Y | inh | inh | inh | | |
+| documents.write | Y | inh | inh | | | Y | inh | inh | inh | | |
+| documents.delete | Y | inh | inh | | | | | | | | |
+| consents.read | Y | inh | inh | | Y | Y | inh | inh | inh | | |
+| consents.write | Y | inh | inh | | Y | Y | inh | inh | inh | | |
+| consents.sign | Y | inh | inh | | Y | Y | inh | inh | inh | | |
+| consents.revoke | Y | inh | inh | | | | | | | | |
+| forms.read | Y | inh | inh | | Y | Y | inh | inh | inh | | |
+| forms.write | Y | inh | inh | | | | | | | | |
+| forms.send | Y | inh | inh | | Y | | | | | | |
+| audit.read | Y | inh | inh | | | | | | | | |
 | entity_types.read | Y | inh | inh | | | | | | | | |
 | entity_types.write | | | Y | | | | | | | | |
 | entity_types.delete | | | Y | | | | | | | | |
@@ -272,6 +294,11 @@ Under Option A, the corrected matrix for biller and receptionist uses direct gra
 | insurance.read | Y | |
 | insurance.write | Y | |
 | codes.read | Y | |
+| consents.read | | Y |
+| consents.write | | Y |
+| consents.sign | | Y |
+| forms.read | | Y |
+| forms.send | | Y |
 | people.read | | Y |
 
 ---
@@ -443,6 +470,7 @@ The response includes person identity, active roles with their EntityInstance bi
 - Audit requirements: Every role assignment, revocation, role-permission grant, and role-permission revocation is a state-changing action and must write an AuditLog entry per BR-07.
 - PHI-safe logging: Authorization failures and audit metadata must never include PHI fields, per BR-08.
 - Person query scoping: Since Person has no organization_id, the `GET /people` endpoint must join through PersonRole to find people with active roles in the requesting user's organization. A person with no PersonRole in the org is invisible to that org.
+- Permission caching: The resolved effective permission set is cached in-process per (person_id, organization_id) with a 60-second TTL. Cache entries must be invalidated immediately within the same process when PersonRole, RolePermission, or Role records are modified. See SPEC-007 §3.3 for full caching specification.
 
 ---
 
@@ -465,3 +493,4 @@ The response includes person identity, active roles with their EntityInstance bi
 | 0.1.0 | Initial draft. Full identity and RBAC ownership, model definitions, seed roles and permissions, authorization flow, API surface, business rules, and ADR mapping. |
 | 0.2.0 | Removed organization_id from Person (tenant scoping via PersonRole). Made auth_subject nullable for non-authenticating personas. Documented entity_instance_id rules on PersonRole. Specified partial unique indexes for PersonRole and RolePermission. Added primary_domain hierarchy invariant. Added role-permission seed matrix. Added missing seed permissions (people.*, roles.*, entity_types.*). Added row-level filtering section with conditions JSONB on RolePermission. Added SPEC-001 integration contract. Added /auth/me and /auth/me/permissions response shapes. Resolved biller/receptionist inheritance model (Option A: standalone roles, not admin children). Added auth subject rule for non-authenticating personas. Added Person query scoping constraint. |
 | 0.3.0 | Replaced coarse billing.read/billing.write with 9 granular billing permissions: invoices.read, invoices.create, invoices.write, invoices.void, payments.read, payments.record, insurance.read, insurance.write, codes.read. Updated seed matrix and biller standalone grants. Updated row-level filtering seed conditions. |
+| 0.4.0 | Added 11 SPEC-006 permissions: documents.read, documents.write, documents.delete, consents.read, consents.write, consents.sign, consents.revoke, forms.read, forms.write, forms.send, audit.read. Updated seed matrix and receptionist standalone grants. |

@@ -1,7 +1,7 @@
 # SPEC-006: Documents, Consent, and Compliance
 
 **Status:** Draft
-**Version:** 0.1.0
+**Version:** 0.2.0
 **Parent Spec:** [SPEC-000-platform-overview](./SPEC-000-platform-overview.md)
 **Scope:** File storage, client consent tracking, audit logging, and intake form management.
 
@@ -21,7 +21,9 @@ No other domain may own these tables or define their structure. Other domains re
 ### Tables owned
 
 - AuditLog: Immutable record of every user-initiated state change in the platform.
-- Document: Metadata record for an uploaded file stored in S3.
+- DocumentType: Organization-scoped reference table defining valid document categories.
+- Document: Metadata record for an uploaded file stored in S3, linked to a DocumentType.
+- ConsentType: Organization-scoped reference table defining valid consent categories.
 - ClientConsent: A consent agreement of a specific type, signed by or on behalf of a client.
 - FormTemplate: A reusable form structure for intake, assessment, or consent workflows.
 
@@ -47,26 +49,71 @@ No other domain may own these tables or define their structure. Other domains re
 
 AuditLog rows are never updated or deleted. There are no updated_at or deleted_at columns. Any operation that attempts to modify or remove an existing AuditLog row must be rejected at the database and application layer.
 
+### DocumentType
+
+| Field | Type | Constraints | Description |
+|---|---|---|---|
+| id | UUID | PK | Primary key. |
+| organization_id | UUID | FK -> Organization, NOT NULL | Scopes document type to a tenant. |
+| name | String | NOT NULL | Human label (for example Session Document, Consent Form, Insurance Card, Referral Letter). |
+| slug | String | NOT NULL | Stable machine identifier (for example session_document, consent_form). |
+| linked_resource_table | String | NULLABLE | The table name this type links to (for example Session, ClinicalNote, ClientConsent, EntityInstance). Null means the type can be used for unlinked documents. |
+| is_system_type | Boolean | NOT NULL, default false | Protected seed types that cannot be deleted. |
+| is_active | Boolean | NOT NULL, default true | Inactive types cannot be used on new documents. |
+| created_at | Timestamp | NOT NULL, default now | Record creation time in UTC. |
+| updated_at | Timestamp | NOT NULL, default now | Last modification time in UTC. |
+
+**Unique constraint:** (organization_id, slug). Slug is unique within an organization. System type slugs are globally reserved.
+
+**Seed document types:** session_document, clinical_attachment, consent_form, insurance_card, referral_letter, prior_authorization, identification, intake_form.
+
 ### Document
 
 | Field | Type | Constraints | Description |
 |---|---|---|---|
 | id | UUID | PK | Primary key. |
 | organization_id | UUID | FK -> Organization, NOT NULL | Scopes document to a tenant. |
+| document_type_id | UUID | FK -> DocumentType, NOT NULL | Categorizes the document. Replaces free-form resource type string. |
 | uploaded_by_person_id | UUID | FK -> Person, NOT NULL | Person who uploaded the file. |
-| linked_resource_type | String | NULLABLE | The type of record this document is attached to (for example Session, ClinicalNote, ClientConsent, EntityInstance). |
-| linked_resource_id | UUID | NULLABLE | Primary key of the linked record. |
-| file_name | String | NOT NULL | Original filename as provided at upload. |
-| mime_type | String | NOT NULL | MIME type of the file (for example application/pdf, image/jpeg). |
-| size_bytes | Integer | NOT NULL | File size in bytes at time of upload. |
+| linked_resource_id | UUID | NULLABLE | Primary key of the linked record. When set, the linked record must exist in the table specified by the DocumentType's linked_resource_table. Validated at application layer. |
+| file_name | String | NOT NULL | Original filename. Sanitized server-side: path components stripped, max 255 characters, no null bytes or control characters. |
+| mime_type | String | NOT NULL | MIME type, validated server-side against allowlist. See file upload constraints below. |
+| size_bytes | Integer | NOT NULL | File size in bytes at time of upload. Validated against maximum before S3 upload. |
 | s3_key | String | NOT NULL | Full object key in S3. Never exposed directly to clients. |
 | s3_bucket | String | NOT NULL | S3 bucket name. Allows bucket migration without data loss. |
 | is_encrypted | Boolean | NOT NULL, default true | Confirms server-side encryption is applied. |
-| is_active | Boolean | NOT NULL, default true | Soft toggle. Inactive documents are not surfaced in normal queries. |
 | created_at | Timestamp | NOT NULL, default now | Record creation time in UTC. |
 | deleted_at | Timestamp | NULLABLE | Soft delete marker. S3 object is not removed on soft delete. See ADR-009. |
 
 The s3_key is never returned in any API response. File access is provided via a time-limited presigned URL generated at request time.
+
+### File upload constraints
+
+| Constraint | Value |
+|---|---|
+| Maximum file size | 25 MB |
+| Allowed MIME types | application/pdf, image/jpeg, image/png, image/tiff, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document |
+| Filename max length | 255 characters |
+| Filename sanitization | Strip path components, reject null bytes and control characters |
+
+All constraints are enforced server-side before the presigned S3 upload URL is generated. Client-supplied values are not trusted.
+
+### ConsentType
+
+| Field | Type | Constraints | Description |
+|---|---|---|---|
+| id | UUID | PK | Primary key. |
+| organization_id | UUID | FK -> Organization, NOT NULL | Scopes consent type to a tenant. |
+| name | String | NOT NULL | Human label (for example Treatment Consent, Telehealth Consent, Release of Information). |
+| slug | String | NOT NULL | Stable machine identifier (for example treatment, telehealth, release_of_information). |
+| is_system_type | Boolean | NOT NULL, default false | Protected seed types that cannot be deleted. |
+| is_active | Boolean | NOT NULL, default true | Inactive types cannot be used on new consent records. |
+| created_at | Timestamp | NOT NULL, default now | Record creation time in UTC. |
+| updated_at | Timestamp | NOT NULL, default now | Last modification time in UTC. |
+
+**Unique constraint:** (organization_id, slug). Slug is unique within an organization. System type slugs are globally reserved.
+
+**Seed consent types:** treatment, telehealth, release_of_information, minor_assent, guardian_consent, hipaa_privacy_notice, financial_responsibility, medication_consent, group_therapy_consent.
 
 ### ClientConsent
 
@@ -75,7 +122,7 @@ The s3_key is never returned in any API response. File access is provided via a 
 | id | UUID | PK | Primary key. |
 | organization_id | UUID | FK -> Organization, NOT NULL | Scopes consent to a tenant. |
 | client_instance_id | UUID | FK -> EntityInstance, NOT NULL | Client profile instance who gave or for whom consent was recorded. Must reference an EntityInstance of type client. |
-| consent_type | Enum | NOT NULL | One of: treatment, telehealth, release_of_information, minor_assent, guardian_consent. |
+| consent_type_id | UUID | FK -> ConsentType, NOT NULL | Type of consent. References the organization-scoped ConsentType table. |
 | status | Enum | NOT NULL | One of: pending, signed, revoked, expired. |
 | signed_at | Timestamp | NULLABLE | When consent was formally recorded. |
 | signed_by_person_id | UUID | FK -> Person, NULLABLE | Person who recorded or co-signed the consent. |
@@ -86,27 +133,29 @@ The s3_key is never returned in any API response. File access is provided via a 
 | revocation_reason | Text | NULLABLE | Required when status is revoked. |
 | document_id | UUID | FK -> Document, NULLABLE | Signed consent form document, if uploaded. |
 | form_template_id | UUID | FK -> FormTemplate, NULLABLE | Form template used to generate the consent, if applicable. |
-| notes | Text | NULLABLE | Internal notes on the consent record. |
+| notes | Text | NULLABLE | Internal notes on the consent record. PHI — excluded from logs per BR-08. |
 | created_at | Timestamp | NOT NULL, default now | Record creation time in UTC. |
 | updated_at | Timestamp | NOT NULL, default now | Last modification time in UTC. |
+| deleted_at | Timestamp | NULLABLE | Soft delete marker. See BR-05 and ADR-006. |
 
 ### FormTemplate
 
 | Field | Type | Constraints | Description |
 |---|---|---|---|
 | id | UUID | PK | Primary key. |
-| organization_id | UUID | FK -> Organization, NULLABLE | Null for system-provided templates, set for practice-created templates. |
+| organization_id | UUID | FK -> Organization, NOT NULL | Scopes template to a tenant. System templates are seeded per-org on organization creation. |
 | name | String | NOT NULL | Human label for the form (for example New Client Intake, Telehealth Consent). |
 | slug | String | NOT NULL | Stable machine identifier. |
 | form_type | Enum | NOT NULL | One of: intake, assessment, consent, custom. |
 | schema | JSONB | NOT NULL | Form field definitions. Describes field names, types, labels, and required flags. |
 | version | String | NOT NULL, default "1.0.0" | Semantic version of this template. Incremented when schema changes. |
-| is_system_template | Boolean | NOT NULL, default false | Protected templates provided by the platform. Cannot be deleted. |
+| is_system_template | Boolean | NOT NULL, default false | Protected templates provided by the platform. Cannot be deleted or have slug/form_type changed. |
 | is_active | Boolean | NOT NULL, default true | Inactive templates cannot be sent to new clients. |
 | created_at | Timestamp | NOT NULL, default now | Record creation time in UTC. |
 | updated_at | Timestamp | NOT NULL, default now | Last modification time in UTC. |
+| deleted_at | Timestamp | NULLABLE | Soft delete marker. See BR-05 and ADR-006. |
 
-**Unique constraint:** slug is unique within an organization; system template slugs are globally reserved.
+**Unique constraint:** (organization_id, slug). Slug is unique within an organization. System template slugs are globally reserved.
 
 ---
 
@@ -119,7 +168,7 @@ The s3_key is never returned in any API response. File access is provided via a 
 | revoked | none (terminal) | — |
 | expired | none (terminal) | — |
 
-Expiry is a computed transition. When the current date surpasses expiration_date, the status is treated as expired in all application reads. A background job or read-time check may persist the status change. Either approach must write an AuditLog entry.
+Expiry is handled by a Celery Beat scheduled task (`expire_consents`). The task runs daily at 00:00 UTC, queries all ClientConsent records where `status = 'signed'` and `expiration_date < CURRENT_DATE`, transitions each to `expired`, and writes an AuditLog entry per record with `actor_person_id = NULL` (system-triggered event). See SPEC-007 §10 for task infrastructure. As a defense-in-depth measure, all consent gate checks must also verify `expiration_date IS NULL OR expiration_date >= CURRENT_DATE` in addition to checking `status = 'signed'`, so an expired consent is never treated as valid even if the cron job has not yet run.
 
 ---
 
@@ -150,14 +199,20 @@ The AuditLog previous_state and next_state snapshots must be filtered at the app
 ### Document rules
 
 - The s3_key must never appear in any API response. File access is always mediated by a presigned URL with a short expiry window. See ADR-009.
-- Documents linked to soft-deleted records remain accessible to authorized users until explicitly deactivated.
-- File size and MIME type must be validated server-side before the S3 upload is initiated. Client-supplied values are not trusted.
+- Documents linked to soft-deleted records remain accessible to authorized users until explicitly soft-deleted themselves.
+- File size and MIME type must be validated server-side against the allowlist defined in the file upload constraints table before the presigned S3 upload URL is generated. Client-supplied values are not trusted.
+- DocumentType activity: Only active DocumentType records (is_active = true) may be used when creating new documents.
+- DocumentType system protection: System document types (is_system_type = true) cannot be deleted or have their slug changed.
+- Linked resource validation: When linked_resource_id is set, the application layer must verify that the referenced record exists in the table specified by the DocumentType's linked_resource_table and belongs to the same organization. When linked_resource_id is null, the document is unlinked (filed by type only).
+- Both-or-neither rule: If a DocumentType has a non-null linked_resource_table, documents of that type must provide a linked_resource_id. If linked_resource_table is null, linked_resource_id must also be null.
 
 ### Consent rules
 
-- A client without a signed treatment consent record cannot have a session status transitioned to completed. The billing domain must check for active signed treatment consent before allowing invoice creation.
+- A client without a signed treatment consent record cannot have a session status transitioned to completed. This gate is enforced in SPEC-003's session completion path. Since invoice creation requires a completed session (SPEC-005), the consent requirement is transitively enforced for billing without a separate check.
 - Revocation reason is required when setting status to revoked.
-- A client may have multiple consent records of the same consent_type over time (for example after annual renewal), but only one may be in signed status at a time per type. The backend must reject a sign action if an active signed record of the same type already exists for the client.
+- A client may have multiple consent records of the same consent_type_id over time (for example after annual renewal), but only one may be in signed status at a time per type. The backend must reject a sign action if an active signed record of the same consent_type_id already exists for the client.
+- ConsentType activity: Only active ConsentType records (is_active = true) may be used when creating new consent records.
+- ConsentType system protection: System consent types (is_system_type = true) cannot be deleted or have their slug changed.
 
 ### FormTemplate rules
 
@@ -176,14 +231,32 @@ Every domain must produce audit log entries for the following action types. This
 | SPEC-002 Identity | Person, PersonRole, Role, Permission, RolePermission | created, updated, deleted, assigned, revoked |
 | SPEC-003 Scheduling | Session, AppointmentType | created, updated, deleted, status_changed |
 | SPEC-004 Clinical | ClinicalNote | created, updated, deleted, signed, cosigned, amended |
-| SPEC-005 Billing | Invoice, InvoiceLineItem, Payment, ClientInsurance | created, updated, deleted, sent, voided, payment_recorded |
-| SPEC-006 Compliance | Document, ClientConsent, FormTemplate | created, updated, deleted, signed, revoked, uploaded |
+| SPEC-005 Billing | Invoice, InvoiceLineItem, Payment, ClientInsurance, InsurancePayer, CPTCode, ICDCode | created, updated, deleted, sent, voided, payment_recorded, payment_voided |
+| SPEC-006 Compliance | DocumentType, Document, ConsentType, ClientConsent, FormTemplate | created, updated, deleted, signed, revoked, expired, uploaded |
 
 ---
 
 ## 6. API Surface
 
 All endpoints require Auth0 JWT. All endpoints scope to the authenticated user's organization.
+
+### DocumentType management
+
+| Method | Path | Description | Permission |
+|---|---|---|---|
+| GET | /document-types | List active document types for the org | documents.read |
+| POST | /document-types | Create a custom document type | documents.write |
+| PATCH | /document-types/{id} | Update a custom document type (system types blocked) | documents.write |
+| DELETE | /document-types/{id} | Deactivate a custom document type (system types blocked) | documents.write |
+
+### ConsentType management
+
+| Method | Path | Description | Permission |
+|---|---|---|---|
+| GET | /consent-types | List active consent types for the org | consents.read |
+| POST | /consent-types | Create a custom consent type | consents.write |
+| PATCH | /consent-types/{id} | Update a custom consent type (system types blocked) | consents.write |
+| DELETE | /consent-types/{id} | Deactivate a custom consent type (system types blocked) | consents.write |
 
 ### Document management
 
@@ -201,12 +274,14 @@ File upload follows a two-step pattern. The caller first posts metadata to recei
 
 | Method | Path | Description | Permission |
 |---|---|---|---|
-| GET | /entities/client/{id}/consents | List all consent records for a client | clients.read |
-| POST | /entities/client/{id}/consents | Create a consent record | clients.write |
-| GET | /entities/client/{id}/consents/{consent_id} | Retrieve a consent record | clients.read |
-| PATCH | /entities/client/{id}/consents/{consent_id} | Update a pending consent record | clients.write |
-| POST | /entities/client/{id}/consents/{consent_id}/sign | Record consent as signed | clients.write |
-| POST | /entities/client/{id}/consents/{consent_id}/revoke | Revoke a signed consent with required reason | clients.write |
+| GET | /entities/{type_slug}/{id}/consents | List all consent records for a client | consents.read |
+| POST | /entities/{type_slug}/{id}/consents | Create a consent record | consents.write |
+| GET | /entities/{type_slug}/{id}/consents/{consent_id} | Retrieve a consent record | consents.read |
+| PATCH | /entities/{type_slug}/{id}/consents/{consent_id} | Update a pending consent record | consents.write |
+| POST | /entities/{type_slug}/{id}/consents/{consent_id}/sign | Record consent as signed | consents.sign |
+| POST | /entities/{type_slug}/{id}/consents/{consent_id}/revoke | Revoke a signed consent with required reason | consents.revoke |
+
+Client consent endpoints follow EAV routing conventions from SPEC-001. The `type_slug` must resolve to client; requests with a non-client type_slug are rejected with 422.
 
 ### FormTemplate management
 
@@ -235,7 +310,7 @@ AuditLog has no write endpoints. Entries are written only by internal service ca
 - PHI field exclusion list: A single centralized exclusion list must define which fields are stripped from previous_state and next_state before the AuditLog row is written. This list is a platform configuration concern, not a per-endpoint concern.
 - Presigned URL expiry: S3 presigned download URLs must have a short expiry. The exact window is defined in ADR-009 but must be measured in minutes, not hours.
 - S3 key opacity: The s3_key column must be marked as excluded from all serialization schemas that produce API responses. It is only used internally when generating presigned URLs.
-- Consent session gate: The session completion and invoice creation paths in SPEC-003 and SPEC-005 must consult the consent service to verify an active signed treatment consent exists before allowing the action. This check is a service-layer dependency, not enforced by a foreign key.
+- Consent session gate: The session completion path in SPEC-003 must consult the consent service to verify an active signed treatment consent exists before allowing the transition to completed. The check must verify `status = 'signed'` AND `expiration_date IS NULL OR expiration_date >= CURRENT_DATE` on a ConsentType with slug = 'treatment'. This is a service-layer dependency, not enforced by a foreign key.
 - FormTemplate versioning: Any PATCH to a FormTemplate schema field must increment the version automatically if the caller does not supply an updated version. Auto-increment uses semantic minor version bumping.
 
 ---
@@ -251,8 +326,63 @@ AuditLog has no write endpoints. Entries are written only by internal service ca
 
 ---
 
-## 9. Spec Versioning
+## 9. Test Table
+
+Every business rule and constraint maps to at least one test case per SPEC-000 §5.
+
+| Table | Column / Constraint | Test Case | Type | Validates |
+|---|---|---|---|---|
+| AuditLog | immutability | `test_update_audit_log_row_rejected` | Integration | Audit rows cannot be modified |
+| AuditLog | immutability | `test_delete_audit_log_row_rejected` | Integration | Audit rows cannot be deleted |
+| AuditLog | transactional write | `test_state_change_writes_audit_entry` | Integration | BR-07: every state change logged |
+| AuditLog | transactional write | `test_audit_failure_rolls_back_business_operation` | Integration | Audit atomicity |
+| AuditLog | `previous_state` + `next_state` | `test_audit_snapshot_excludes_phi_fields` | Integration | BR-08: PHI excluded from snapshots |
+| AuditLog | `actor_person_id` | `test_system_triggered_audit_has_null_actor` | Integration | Cron-triggered events have null actor |
+| AuditLog | `organization_id` | `test_audit_log_filters_by_org` | Integration | Multi-tenant isolation |
+| DocumentType | `UNIQUE(organization_id, slug)` | `test_duplicate_document_type_slug_same_org_returns_409` | Integration | Unique constraint |
+| DocumentType | `is_system_type` | `test_delete_system_document_type_returns_409` | Integration | System type protection |
+| DocumentType | `is_active` | `test_create_document_with_inactive_type_returns_422` | Integration | Activity check |
+| Document | `document_type_id` FK → DocumentType | `test_create_document_with_valid_type_succeeds` | Integration | FK integrity |
+| Document | `linked_resource_id` | `test_create_document_linked_resource_not_found_returns_422` | Integration | Linked resource validation |
+| Document | `linked_resource_id` | `test_create_document_linked_resource_wrong_org_returns_422` | Integration | Cross-tenant validation |
+| Document | both-or-neither rule | `test_create_document_linkable_type_without_resource_id_returns_422` | Integration | Both-or-neither rule |
+| Document | both-or-neither rule | `test_create_document_unlinkable_type_with_resource_id_returns_422` | Integration | Both-or-neither rule |
+| Document | `s3_key` | `test_document_api_response_excludes_s3_key` | Integration | S3 key opacity |
+| Document | presigned URL | `test_document_download_returns_presigned_url` | Integration | Presigned URL access |
+| Document | `mime_type` | `test_upload_disallowed_mime_type_returns_422` | Integration | MIME type allowlist |
+| Document | `size_bytes` | `test_upload_exceeding_max_size_returns_422` | Integration | 25 MB limit |
+| Document | `file_name` | `test_upload_filename_sanitized` | Unit | Path traversal prevention |
+| Document | `deleted_at` | `test_soft_deleted_document_excluded_from_list` | Integration | BR-05 |
+| Document | `organization_id` | `test_list_documents_filters_by_org` | Integration | Multi-tenant isolation |
+| ConsentType | `UNIQUE(organization_id, slug)` | `test_duplicate_consent_type_slug_same_org_returns_409` | Integration | Unique constraint |
+| ConsentType | `is_system_type` | `test_delete_system_consent_type_returns_409` | Integration | System type protection |
+| ConsentType | `is_active` | `test_create_consent_with_inactive_type_returns_422` | Integration | Activity check |
+| ClientConsent | `consent_type_id` FK → ConsentType | `test_create_consent_with_valid_type_succeeds` | Integration | FK integrity |
+| ClientConsent | `client_instance_id` FK → EntityInstance | `test_create_consent_non_client_type_returns_422` | Integration | Client bridge rule |
+| ClientConsent | `status` lifecycle | `test_sign_pending_transitions_to_signed` | Integration | pending → signed |
+| ClientConsent | `status` lifecycle | `test_revoke_signed_transitions_to_revoked` | Integration | signed → revoked |
+| ClientConsent | `status` lifecycle | `test_revoke_without_reason_returns_422` | Integration | Revocation reason required |
+| ClientConsent | `status` lifecycle | `test_transition_out_of_revoked_returns_409` | Integration | Revoked is terminal |
+| ClientConsent | `status` lifecycle | `test_transition_out_of_expired_returns_409` | Integration | Expired is terminal |
+| ClientConsent | unique signed per type | `test_sign_consent_when_active_signed_exists_returns_409` | Integration | One signed per type per client |
+| ClientConsent | `expiration_date` | `test_expired_consent_not_treated_as_valid` | Integration | Read-time expiry check |
+| ClientConsent | `expiration_date` | `test_cron_job_transitions_expired_consents` | Integration | Cron job persistence |
+| ClientConsent | `expiration_date` | `test_cron_job_writes_audit_entry_for_expiry` | Integration | Audit on system-triggered expiry |
+| ClientConsent | consent gate | `test_complete_session_without_treatment_consent_returns_422` | Integration | Consent session gate (SPEC-003) |
+| ClientConsent | consent gate | `test_complete_session_with_expired_consent_returns_422` | Integration | Expired consent blocks completion |
+| ClientConsent | `deleted_at` | `test_soft_deleted_consent_excluded_from_list` | Integration | BR-05 |
+| ClientConsent | `organization_id` | `test_list_consents_filters_by_org` | Integration | Multi-tenant isolation |
+| FormTemplate | `UNIQUE(organization_id, slug)` | `test_duplicate_form_template_slug_same_org_returns_409` | Integration | Unique constraint |
+| FormTemplate | `is_system_template` | `test_delete_system_template_returns_409` | Integration | System template protection |
+| FormTemplate | `schema` + `version` | `test_patch_schema_auto_increments_version` | Integration | Auto-version on schema change |
+| FormTemplate | `deleted_at` | `test_soft_deleted_template_excluded_from_list` | Integration | BR-05 |
+| FormTemplate | `organization_id` | `test_list_templates_filters_by_org` | Integration | Multi-tenant isolation |
+
+---
+
+## 10. Spec Versioning
 
 | Version | Changes |
 |---|---|
 | 0.1.0 | Initial draft. Full model definitions for AuditLog, Document, ClientConsent, and FormTemplate. Consent lifecycle, BR-07 and BR-08 full specifications, audit coverage matrix, two-step document upload pattern, API surface, and ADR mapping. |
+| 0.2.0 | Added DocumentType and ConsentType reference tables replacing free-form strings and hardcoded enums. Made FormTemplate organization_id NOT NULL (system templates seeded per-org). Added deleted_at to ClientConsent and FormTemplate. Defined cron job for consent expiry with defense-in-depth read-time check. Added file upload constraints (25MB max, MIME allowlist, filename sanitization). Updated consent URLs to EAV routing. Added DocumentType and ConsentType management APIs. Updated audit coverage matrix. Clarified consent session gate (SPEC-003 only, not billing). Added test table with 45 test cases. Introduced granular consent permissions (consents.read, consents.write, consents.sign, consents.revoke). |

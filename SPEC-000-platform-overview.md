@@ -3,7 +3,7 @@
 **Version:** 1.0.0
 **Status:** Draft
 **Supersedes:** practice_management_spec v0.3.0
-**Stack:** Next.js (App Router) · FastAPI · PostgreSQL · Docker
+**Stack:** Next.js (App Router) · FastAPI · PostgreSQL · Redis · Celery · Docker
 **Type System:** Pydantic for all data validation, serialization, and API schemas. Every model, request body, response body, and internal service contract uses Pydantic types. No untyped dicts or raw JSON handling.
 **Test Frameworks:** pytest + httpx (backend) · Vitest (frontend unit) · Playwright (E2E)
 **No mocks policy:** All tests run against real DBs, real HTTP, real browser.
@@ -42,7 +42,7 @@ There are only 3 EntityTypes (provider, client, admin) but 9+ Roles. A therapist
 | Practice admin | admin | practice_admin | department, title | clients.rw, sessions.rw, providers.read, invoices.*, payments.*, insurance.*, codes.read, settings.rw |
 | System admin | admin | system_admin | department, title | Everything practice_admin has + tenants.manage, system.configure |
 | Biller | admin | biller | department, title | invoices.*, payments.*, insurance.*, codes.read |
-| Receptionist | admin | receptionist | department, title | sessions.rw, clients.rw (intake only), forms.send |
+| Receptionist | admin | receptionist | department, title | sessions.rw, clients.rw (intake only), consents.rw, consents.sign, forms.read, forms.send |
 | Client | client | client | intake_status, referral_source, emergency_contact, onboarded_at | Post-MVP: own_profile.read, own_sessions.read, own_invoices.read |
 | Guardian | client | guardian | intake_status, referral_source, relationship_to_minor | Post-MVP: same as client, scoped to dependent's records |
 
@@ -72,18 +72,26 @@ Three primary roles. All others are subordinate to one of them.
 │   - Auth0 SDK (client)  │                          │   - Alembic migrations   │
 └─────────────────────────┘                          │   - Auth0 JWT validation │
          │                                           └──────────────────────────┘
-    Auth0 (SSO/MFA)                                             │
-                                                     ┌──────────────────────────┐
-                                                     │   PostgreSQL 16          │
-                                                     └──────────────────────────┘
-                                                     AWS S3 (documents, encrypted at rest)
+    Auth0 (SSO/MFA)                                      │              │
+                                                ┌────────┘              └────────┐
+                                                │                                │
+                                       ┌──────────────────┐          ┌──────────────────┐
+                                       │  PostgreSQL 16   │          │  Redis 7         │
+                                       └──────────────────┘          │  - Celery broker │
+                                                                     │  - Cache (future)│
+                                       ┌──────────────────┐          └──────────────────┘
+                                       │  Celery Worker   │                  │
+                                       │  - Task queue    │◄─────────────────┘
+                                       │  - Beat scheduler│
+                                       └──────────────────┘
+                                       AWS S3 (documents, encrypted at rest)
 ```
 
 ### Docker services
 
 All services run in Docker containers orchestrated by Docker Compose. There is no "run it locally outside Docker" workflow. Docker is the development environment.
 
-The development compose file defines four services: a Next.js frontend dev server with hot reload on port 3000, a FastAPI backend via uvicorn with hot reload on port 8000, a persistent PostgreSQL 16 database on port 5432, and an ephemeral PostgreSQL 16 test database on port 5433 used only during test runs.
+The development compose file defines six services: a Next.js frontend dev server with hot reload on port 3000, a FastAPI backend via uvicorn with hot reload on port 8000, a persistent PostgreSQL 16 database on port 5432, an ephemeral PostgreSQL 16 test database on port 5433 used only during test runs, a Redis 7 instance on port 6379 for the Celery broker, and a Celery worker with Beat scheduler for background tasks.
 
 A separate test compose override defines a backend test runner that executes pytest against the test database and exits when complete, and an E2E runner that executes Playwright against the live frontend and backend containers.
 
@@ -113,7 +121,7 @@ The data model is a hybrid of two patterns. See ADR-001 for the full rationale.
 
 **Bridge rule:** Concrete tables reference EntityInstance IDs. Application-level validation ensures the referenced instance matches the expected entity type.
 
-### MVP table inventory (24 tables)
+### MVP table inventory (26 tables)
 
 | Layer | Table | One-line purpose |
 |---|---|---|
@@ -138,9 +146,11 @@ The data model is a hybrid of two patterns. See ADR-001 for the full rationale.
 | Billing | CPTCode | Procedure code reference table, scoped to organization. |
 | Billing | ICDCode | Diagnosis code reference table, scoped to organization. |
 | Compliance | AuditLog | Immutable record of every user action. HIPAA required. |
-| Compliance | Document | Uploaded file with S3 key, encrypted at rest. |
-| Compliance | ClientConsent | Consent tracking with type, signed date, expiry. |
-| Reference | FormTemplate | Custom form definition for intake and assessments. |
+| Compliance | DocumentType | Organization-scoped reference table defining valid document categories. |
+| Compliance | Document | Uploaded file with S3 key, encrypted at rest. Linked to DocumentType. |
+| Compliance | ConsentType | Organization-scoped reference table defining valid consent categories. |
+| Compliance | ClientConsent | Consent tracking with type, signed date, expiry. Lifecycle: pending, signed, revoked, expired. |
+| Compliance | FormTemplate | Custom form definition for intake and assessments. System templates seeded per-org. |
 
 ADR: ADR-001 (Core data model), ADR-002 (EAV query performance), ADR-005 (AttributeValue type safety), ADR-006 (Soft delete strategy)
 
@@ -210,7 +220,7 @@ Each sub-spec owns its domain completely: entity definitions, field-level detail
 | SPEC-003 | Scheduling and sessions | Session, AppointmentType |
 | SPEC-004 | Clinical notes | ClinicalNote |
 | SPEC-005 | Billing and payments | InsurancePayer, ClientInsurance, Invoice, InvoiceLineItem, Payment, CPTCode, ICDCode |
-| SPEC-006 | Documents, consent, compliance | AuditLog, Document, ClientConsent, FormTemplate |
+| SPEC-006 | Documents, consent, compliance | AuditLog, DocumentType, Document, ConsentType, ClientConsent, FormTemplate |
 | SPEC-007 | API contract and testing | No tables. Cross-cutting: endpoint inventory, error codes, test strategy, CI pipeline. |
 
 ---
@@ -246,3 +256,4 @@ This spec lives in the repository at docs/SPEC-000-platform-overview.md. Every P
 | 0.2.0 | Migrated to FastAPI + Docker |
 | 0.3.0 | Renamed to Groundwork. Removed implementation code from test sections. |
 | 1.0.0 | Platform rewrite. EAV + concrete hybrid. Multi-tenancy. RBAC. 24 MVP tables. Master/sub-spec/ADR document structure. Supersedes monolithic spec. |
+| 1.1.0 | Updated BR-04 (amendment model), BR-05 (draft-only delete for notes). Added Pydantic type system requirement. Added granular billing permissions. Renamed conductor/attendee to provider/client in sessions. Added DocumentType and ConsentType reference tables (26 MVP tables). Updated persona permissions. Universal org-scoping enforced on all tables. |

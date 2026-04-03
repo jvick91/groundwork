@@ -1,7 +1,7 @@
 # SPEC-003: Scheduling and Sessions
 
 **Status:** Draft
-**Version:** 0.2.0
+**Version:** 0.3.0
 **Parent Spec:** [SPEC-000-platform-overview](./SPEC-000-platform-overview.md)
 **Scope:** Session scheduling, appointment types, availability, and cancellation lifecycle.
 
@@ -86,6 +86,7 @@ Terminal statuses cannot be updated. Any attempt to transition out of a terminal
 - Cancellation reason: When setting status to cancelled or no_show, cancellation_reason must be provided. Requests without a reason are rejected.
 - AppointmentType guard: An inactive AppointmentType (is_active = false) cannot be used when creating a new Session. Existing sessions referencing a deactivated type are not affected.
 - Soft delete rule: Soft-deleted sessions must not appear in list endpoints. Soft-deleted sessions are excluded from provider overlap checks.
+- Consent gate: A session cannot be transitioned to completed unless the client has an active signed treatment consent on file (ConsentType slug = 'treatment', status = 'signed', and expiration_date is null or >= current date). This check is a service-layer call to the consent service defined in SPEC-006. Sessions may be scheduled, confirmed, and started without consent, but completion is blocked.
 
 ---
 
@@ -165,3 +166,4 @@ Explicit transition endpoints are preferred over a generic PATCH on status to en
 |---|---|
 | 0.1.0 | Initial draft. Full model definitions for Session and AppointmentType. Status lifecycle, business rules BR-01 through BR-03, API surface, scheduling constraints, and ADR mapping. |
 | 0.2.0 | Renamed conductor_instance_id to provider_instance_id and attendee_instance_id to client_instance_id. Aligns field naming with SPEC-005 Invoice and cross-spec consistency. |
+| 0.3.0 | Added consent gate business rule: session completion requires active signed treatment consent per SPEC-006. |
