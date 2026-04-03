@@ -307,9 +307,10 @@ All paths are relative to `/api/v1/`. Every endpoint requires Auth0 JWT and `X-O
 | GET | /entity-types/{slug} | Retrieve entity type with attributes | entity_types.read |
 | PATCH | /entity-types/{slug} | Update entity type | entity_types.write |
 | DELETE | /entity-types/{slug} | Delete custom entity type | entity_types.delete |
+| GET | /entity-types/{slug}/attributes | List attributes for a type | entity_types.read |
 | POST | /entity-types/{slug}/attributes | Add attribute to entity type | entity_types.write |
-| PATCH | /entity-types/{slug}/attributes/{attr_id} | Update attribute | entity_types.write |
-| DELETE | /entity-types/{slug}/attributes/{attr_id} | Delete attribute | entity_types.delete |
+| PATCH | /entity-types/{slug}/attributes/{id} | Update attribute | entity_types.write |
+| DELETE | /entity-types/{slug}/attributes/{id} | Delete attribute | entity_types.delete |
 | GET | /entities/{type_slug} | List entity instances of a type | {type_slug}.read |
 | POST | /entities/{type_slug} | Create entity instance | {type_slug}.write |
 | GET | /entities/{type_slug}/{id} | Retrieve entity instance with attribute values | {type_slug}.read |
@@ -857,3 +858,4 @@ API responses must never include fields marked as PHI-excluded in BR-08 in conte
 | Version | Changes |
 |---|---|
 | 0.1.0 | Initial draft. API versioning (/api/v1/), org context via X-Organization-Id header, cursor-based pagination, standard error envelope, complete 100+ endpoint inventory, auth flow, permission caching, Celery + Redis background tasks, database indexing strategy, application structure, test infrastructure, CI pipeline, security constraints, and health check endpoints. |
+| 0.2.0 | Aligned EAV endpoint inventory with SPEC-001: changed entity-type path parameters from {id}/{type_id} to {slug}, added missing GET /entity-types/{slug}/attributes endpoint, renamed attribute path parameter from {attr_id} to {id} for consistency. Resolves issues 2 and 3 from consistency review. |

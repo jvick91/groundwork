@@ -23,7 +23,7 @@ This separation allows a single person to operate in multiple capacities without
 - Person: Canonical identity record for a human. Exists independent of any tenant.
 - PersonRole: Assignment of a person to a role in one organization, optionally bound to a specific EntityInstance profile.
 - Role: Named role with optional parent role for hierarchy and a primary_domain linking to EntityType family.
-- Permission: A single action right, such as clients.read or billing.write.
+- Permission: A single action right, such as clients.read or invoices.void.
 - RolePermission: Junction table that grants permissions to roles, with optional row-level conditions.
 
 ---
@@ -108,7 +108,7 @@ PersonRole is the three-way binding that connects identity, permissions, and pro
 
 **Unique constraint:** slug is unique within an organization. System permission slugs are globally reserved.
 
-**Naming convention (contract with SPEC-001):** Permission slugs follow the pattern `{resource_slug}.{action}`. The resource_slug matches an EntityType slug for entity-scoped permissions (e.g., provider.read, client.write) or a domain keyword for cross-cutting permissions (e.g., billing.read, settings.write). Both SPEC-001 and SPEC-002 must follow this convention.
+**Naming convention (contract with SPEC-001):** Permission slugs follow the pattern `{resource_slug}.{action}`. The resource_slug matches an EntityType slug for entity-scoped permissions (e.g., provider.read, client.write) or a domain keyword for cross-cutting permissions (e.g., invoices.void, settings.write). Both SPEC-001 and SPEC-002 must follow this convention.
 
 ### RolePermission
 
