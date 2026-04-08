@@ -165,18 +165,20 @@ All endpoints require Auth0 JWT. All endpoints scope to the authenticated user's
 |---|---|---|---|
 | GET | /entity-types | List all types for the org (system + custom) | entity_types.read |
 | POST | /entity-types | Create a custom type | entity_types.write |
-| GET | /entity-types/{id} | Retrieve a type with its attributes | entity_types.read |
-| PATCH | /entity-types/{id} | Update a custom type (system types blocked) | entity_types.write |
-| DELETE | /entity-types/{id} | Delete a custom type (system types blocked) | entity_types.delete |
+| GET | /entity-types/{slug} | Retrieve a type with its attributes | entity_types.read |
+| PATCH | /entity-types/{slug} | Update a custom type (system types blocked) | entity_types.write |
+| DELETE | /entity-types/{slug} | Delete a custom type (system types blocked) | entity_types.delete |
+
+Note: Slug is used as the path parameter because it is the natural lookup key across the system — permission generation, instance routing, and bridge rule validation all reference entity types by slug. When a PATCH changes a custom type's slug, the request must use the old slug in the path.
 
 ### EntityAttribute management
 
 | Method | Path | Description | Permission |
 |---|---|---|---|
-| GET | /entity-types/{type_id}/attributes | List attributes for a type | entity_types.read |
-| POST | /entity-types/{type_id}/attributes | Add a field to a type | entity_types.write |
-| PATCH | /entity-types/{type_id}/attributes/{id} | Update a field definition | entity_types.write |
-| DELETE | /entity-types/{type_id}/attributes/{id} | Remove a field (seed attributes on system types blocked) | entity_types.delete |
+| GET | /entity-types/{slug}/attributes | List attributes for a type | entity_types.read |
+| POST | /entity-types/{slug}/attributes | Add a field to a type | entity_types.write |
+| PATCH | /entity-types/{slug}/attributes/{id} | Update a field definition | entity_types.write |
+| DELETE | /entity-types/{slug}/attributes/{id} | Remove a field (seed attributes on system types blocked) | entity_types.delete |
 
 ### EntityInstance management
 
@@ -220,3 +222,4 @@ Note: Permissions are dynamically resolved based on the EntityType slug. When a 
 |---|---|
 | 0.1.0 | Initial draft. Lean table definitions, basic business rules. |
 | 0.2.0 | Full field definitions for all 5 tables. Added seed data section, API surface, canonical query patterns, implementation constraints. Added missing fields: Organization (npi, timezone, etc.), EntityType (slug, is_system_type, is_person_subtype, organization_id), EntityAttribute (is_required, options, display_order, display_name, field_type expanded), EntityInstance (person_id, is_active, deleted_at), AttributeValue unique constraint. |
+| 0.3.0 | Changed EntityType and EntityAttribute path parameters from {id}/{type_id} to {slug} throughout API surface. Added slug-change note for PATCH. Aligns with SPEC-007 endpoint inventory and system-wide slug-based lookup convention. |
