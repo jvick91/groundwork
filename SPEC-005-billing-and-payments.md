@@ -1,7 +1,7 @@
 # SPEC-005: Billing and Payments
 
 **Status:** Draft
-**Version:** 0.3.0
+**Version:** 0.4.0
 **Parent Spec:** [SPEC-000-platform-overview](./SPEC-000-platform-overview.md)
 **Scope:** Invoice generation, line item coding, payment recording, insurance coverage, and reference code tables.
 
@@ -181,7 +181,7 @@ Status transitions to partial and paid are computed automatically when payments 
 - Payment amount guard: A payment's amount_cents must be greater than zero. Zero or negative payment amounts must be rejected.
 - Overpayment handling: A payment that would cause amount_paid_cents to exceed total_cents is not automatically rejected, as insurance adjustments may result in credit balances, but it must generate a warning in the audit log for biller review.
 - Void reason required: When setting invoice status to void, void_reason must be provided. Requests without a reason are rejected.
-- Locked invoice editing: Line items cannot be added, updated, or deleted on an invoice in paid or void status. Only draft and sent invoices allow line item modification.
+- Locked invoice editing: Line items can only be added, updated, or deleted on invoices in draft or sent status. Invoices in partial, paid, or void status are locked. Attempts to modify line items on a locked invoice return HTTP 409, error code `resource_locked`, message: "Line items cannot be modified on invoices in {status} status."
 - CPT and ICD code activity: Only active CPT and ICD codes (is_active = true) may be used when creating or updating line items.
 - Client bridge rule: client_instance_id on Invoice must reference an EntityInstance of type client. Validated at write time.
 - Provider bridge rule: provider_instance_id on Invoice must reference an EntityInstance of type provider. Validated at write time.
@@ -190,6 +190,8 @@ Status transitions to partial and paid are computed automatically when payments 
 - Payment void reason required: When voiding a payment, void_reason must be provided. Requests without a reason are rejected.
 - Payment void recalculation: When a payment is voided, invoice.amount_paid_cents must be recomputed by summing only posted (non-voided) payments, and invoice status must be recalculated in the same transaction. A voided payment on a paid invoice may transition the invoice back to partial or sent.
 - Payment immutability: A posted payment cannot be edited. To correct a payment, void it and record a new one.
+- Insurance payer required: When `Payment.payer_type` is `"insurance"`, `insurance_payer_id` must be non-null and reference an active InsurancePayer in the same organization. When `payer_type` is `"client"` or `"other"`, `insurance_payer_id` must be null. Violations return HTTP 422, error code `validation_error`.
+- Note independence: Invoice creation does not require a ClinicalNote to exist for the session. Notes and invoices are independent downstream records of a completed session. A session may have an invoice without a note, a note without an invoice, or both.
 
 ---
 
@@ -341,3 +343,4 @@ Every business rule and constraint maps to at least one test case per SPEC-000 Â
 | 0.1.0 | Initial draft. Full model definitions for all 7 tables. Invoice lifecycle, business rules, API surface, implementation constraints, and ADR mapping. |
 | 0.2.0 | Changed one-invoice-per-session from absolute UNIQUE to partial unique index excluding voided invoices. Billers can now void and rebill a session. Replaced coarse billing.read/billing.write with granular permissions: invoices.read, invoices.create, invoices.write, invoices.void, payments.read, payments.record, insurance.read, insurance.write, codes.read. All API endpoints updated to use granular permissions. |
 | 0.3.0 | Added organization_id to CPTCode, ICDCode, InsurancePayer (all tables now org-scoped). Added deleted_at to InvoiceLineItem. Added Payment void mechanism (status, voided_at, voided_by_person_id, void_reason) with recalculation rules. Added session-invoice consistency rule. Updated client insurance URLs to EAV routing convention. Added test table with 43 test cases. Renamed conductor/attendee to provider/client across SPEC-003 for naming consistency. |
+| 0.4.0 | Fixed locked invoice editing rule to explicitly include partial status as locked (previously ambiguous â€” first sentence allowed partial, second sentence blocked it). Added insurance payer required business rule (payer_type=insurance requires non-null insurance_payer_id). Added note independence rule (ClinicalNote not required for invoice creation). |

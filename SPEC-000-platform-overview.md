@@ -1,6 +1,6 @@
 # Groundwork — Practice Management Platform Specification
 
-**Version:** 1.0.0
+**Version:** 1.2.0
 **Status:** Draft
 **Supersedes:** practice_management_spec v0.3.0
 **Stack:** Next.js (App Router) · FastAPI · PostgreSQL · Redis · Celery · Docker
@@ -43,8 +43,10 @@ There are only 3 EntityTypes (provider, client, admin) but 9+ Roles. A therapist
 | System admin | admin | system_admin | department, title | Everything practice_admin has + tenants.manage, system.configure |
 | Biller | admin | biller | department, title | invoices.*, payments.*, insurance.*, codes.read |
 | Receptionist | admin | receptionist | department, title | sessions.rw, clients.rw (intake only), consents.rw, consents.sign, forms.read, forms.send |
-| Client | client | client | intake_status, referral_source, emergency_contact, onboarded_at | Post-MVP: own_profile.read, own_sessions.read, own_invoices.read |
+| Client | client | client | intake_status, referral_source, emergency_contact_name, emergency_contact_phone, onboarded_at | Post-MVP: own_profile.read, own_sessions.read, own_invoices.read |
 | Guardian | client | guardian | intake_status, referral_source, relationship_to_minor | Post-MVP: same as client, scoped to dependent's records |
+
+**Note:** The "Key permissions" column above uses illustrative shorthand (e.g., `clients.rw`, `invoices.*`). These are not permission slugs. Authoritative permission slugs, role grants, and the complete seed matrix are defined in SPEC-002 Section 3. In any conflict, SPEC-002 takes precedence.
 
 A single person can hold multiple roles. A solo practice owner who is both a therapist and a practice admin gets one Person row, two EntityInstance rows (provider profile + admin profile), and two PersonRole rows (therapist + practice_admin). Their effective permissions are the union of both roles.
 
@@ -257,3 +259,4 @@ This spec lives in the repository at docs/SPEC-000-platform-overview.md. Every P
 | 0.3.0 | Renamed to Groundwork. Removed implementation code from test sections. |
 | 1.0.0 | Platform rewrite. EAV + concrete hybrid. Multi-tenancy. RBAC. 24 MVP tables. Master/sub-spec/ADR document structure. Supersedes monolithic spec. |
 | 1.1.0 | Updated BR-04 (amendment model), BR-05 (draft-only delete for notes). Added Pydantic type system requirement. Added granular billing permissions. Renamed conductor/attendee to provider/client in sessions. Added DocumentType and ConsentType reference tables (26 MVP tables). Updated persona permissions. Universal org-scoping enforced on all tables. |
+| 1.2.0 | Fixed Client persona emergency_contact to two fields (emergency_contact_name, emergency_contact_phone) matching SPEC-001 seed data. Added SPEC-002 authority note to personas table — Key permissions column is illustrative shorthand only; SPEC-002 Section 3 is authoritative. |

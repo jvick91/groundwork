@@ -1,7 +1,7 @@
 # SPEC-001: EAV Data Platform
 
 **Status:** Draft
-**Version:** 0.2.0
+**Version:** 0.4.0
 **Parent Spec:** [SPEC-000-platform-overview](./SPEC-000-platform-overview.md)
 **Scope:** Core data flexibility, multi-tenancy, and persona metadata.
 
@@ -87,6 +87,8 @@ The EAV (Entity-Attribute-Value) system is the architectural foundation that all
 | value | Text | NULLABLE | Stored as text, cast by field_type at app layer. See ADR-005. |
 
 **Unique constraint:** (entity_instance_id, entity_attribute_id). One value per field per instance.
+
+**Design note:** AttributeValue intentionally omits `created_at`, `updated_at`, and `deleted_at`. Value changes are tracked exclusively through AuditLog entries on the parent EntityInstance. Values are overwritten in place. To delete a value, set it to null. There is no soft-delete mechanism on individual values.
 
 ---
 
@@ -207,7 +209,7 @@ Note: Permissions are dynamically resolved based on the EntityType slug. When a 
 
 | ADR | Title | Impact on this spec |
 |---|---|---|
-| ADR-001 | Core MVP data model | Defines the 24-table inventory and EAV + concrete hybrid decision. |
+| ADR-001 | Core MVP data model | Defines the 26-table inventory and EAV + concrete hybrid decision. |
 | ADR-002 | EAV query performance | Determines denormalization strategy for filtered queries. Blocks Phase 1. |
 | ADR-005 | AttributeValue type safety | Decides DB constraints vs app-only casting. Blocks Phase 1. |
 | ADR-006 | Soft delete strategy | Decides where deleted_at lives across EAV tables. Blocks Phase 1. |
@@ -223,3 +225,4 @@ Note: Permissions are dynamically resolved based on the EntityType slug. When a 
 | 0.1.0 | Initial draft. Lean table definitions, basic business rules. |
 | 0.2.0 | Full field definitions for all 5 tables. Added seed data section, API surface, canonical query patterns, implementation constraints. Added missing fields: Organization (npi, timezone, etc.), EntityType (slug, is_system_type, is_person_subtype, organization_id), EntityAttribute (is_required, options, display_order, display_name, field_type expanded), EntityInstance (person_id, is_active, deleted_at), AttributeValue unique constraint. |
 | 0.3.0 | Changed EntityType and EntityAttribute path parameters from {id}/{type_id} to {slug} throughout API surface. Added slug-change note for PATCH. Aligns with SPEC-007 endpoint inventory and system-wide slug-based lookup convention. |
+| 0.4.0 | Updated ADR-001 table count from 24 to 26 (DocumentType and ConsentType added in SPEC-000 v1.1.0). Added design note to AttributeValue clarifying intentional omission of timestamps — value changes tracked through AuditLog on parent EntityInstance. |

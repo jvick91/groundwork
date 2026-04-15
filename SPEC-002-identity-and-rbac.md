@@ -1,7 +1,7 @@
 # SPEC-002: Identity and RBAC
 
 **Status:** Draft
-**Version:** 0.4.0
+**Version:** 0.5.0
 **Parent Spec:** [SPEC-000-platform-overview](./SPEC-000-platform-overview.md)
 **Scope:** Human identity, role assignment, permission grants, and access enforcement across all domains.
 
@@ -412,7 +412,7 @@ All endpoints require a valid Auth0 JWT unless explicitly marked.
 | POST | /roles | Create organization custom role | roles.write |
 | PATCH | /roles/{id} | Update role metadata or parent (hierarchy invariant enforced) | roles.write |
 | DELETE | /roles/{id} | Delete custom role (system roles blocked) | roles.delete |
-| GET | /permissions | List available permissions | permissions.read |
+| GET | /permissions | List available permissions | roles.read |
 | POST | /roles/{id}/permissions | Grant permission to role | roles.write |
 | DELETE | /roles/{id}/permissions/{permission_id} | Revoke permission from role | roles.write |
 
@@ -433,7 +433,7 @@ All endpoints require a valid Auth0 JWT unless explicitly marked.
 
 ### /auth/me response shape
 
-The response includes person identity, active roles with their EntityInstance bindings, and the current organization context.
+The response matches SPEC-007 Section 3.4. It includes person identity and all organizations with their roles. `GET /auth/me` does not require `X-Organization-Id` and returns all organizations where the person has active roles. For the resolved effective permission set within a specific org, use `GET /auth/me/permissions` with `X-Organization-Id`.
 
 | Field | Type | Description |
 |---|---|---|
@@ -441,14 +441,14 @@ The response includes person identity, active roles with their EntityInstance bi
 | person.first_name | String | First name. |
 | person.last_name | String | Last name. |
 | person.email | String | Email address. |
-| organization.id | UUID | Current org context. |
-| organization.name | String | Practice name. |
-| roles | Array | Active PersonRole records. |
-| roles[].role_slug | String | Role machine identifier. |
-| roles[].role_name | String | Role display name. |
-| roles[].primary_domain | Enum | admin, provider, or client. |
-| roles[].entity_instance_id | UUID, nullable | Bound profile instance. |
-| effective_permissions | Array of String | Flattened list of permission slugs (e.g., ["clients.read", "notes.sign"]). |
+| organizations | Array | All orgs where the person has active roles. |
+| organizations[].id | UUID | Organization primary key. |
+| organizations[].name | String | Practice name. |
+| organizations[].roles | Array | Active PersonRole records in this org. |
+| organizations[].roles[].role_slug | String | Role machine identifier. |
+| organizations[].roles[].role_name | String | Role display name. |
+| organizations[].roles[].primary_domain | Enum | admin, provider, or client. |
+| organizations[].roles[].entity_instance_id | UUID, nullable | Bound profile instance. |
 
 ### /auth/me/permissions response shape
 
@@ -494,3 +494,4 @@ The response includes person identity, active roles with their EntityInstance bi
 | 0.2.0 | Removed organization_id from Person (tenant scoping via PersonRole). Made auth_subject nullable for non-authenticating personas. Documented entity_instance_id rules on PersonRole. Specified partial unique indexes for PersonRole and RolePermission. Added primary_domain hierarchy invariant. Added role-permission seed matrix. Added missing seed permissions (people.*, roles.*, entity_types.*). Added row-level filtering section with conditions JSONB on RolePermission. Added SPEC-001 integration contract. Added /auth/me and /auth/me/permissions response shapes. Resolved biller/receptionist inheritance model (Option A: standalone roles, not admin children). Added auth subject rule for non-authenticating personas. Added Person query scoping constraint. |
 | 0.3.0 | Replaced coarse billing.read/billing.write with 9 granular billing permissions: invoices.read, invoices.create, invoices.write, invoices.void, payments.read, payments.record, insurance.read, insurance.write, codes.read. Updated seed matrix and biller standalone grants. Updated row-level filtering seed conditions. |
 | 0.4.0 | Added 11 SPEC-006 permissions: documents.read, documents.write, documents.delete, consents.read, consents.write, consents.sign, consents.revoke, forms.read, forms.write, forms.send, audit.read. Updated seed matrix and receptionist standalone grants. |
+| 0.5.0 | Fixed GET /permissions required permission from permissions.read (undefined) to roles.read. Replaced /auth/me response shape: removed flat single-org structure, adopted SPEC-007 Section 3.4 multi-org array shape. |

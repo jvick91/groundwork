@@ -1,7 +1,7 @@
 # SPEC-004: Clinical Notes
 
 **Status:** Draft
-**Version:** 0.2.0
+**Version:** 0.3.0
 **Parent Spec:** [SPEC-000-platform-overview](./SPEC-000-platform-overview.md)
 **Scope:** Clinical documentation authoring, note formats, signing, co-signing, and amendment lifecycle.
 
@@ -93,7 +93,8 @@ Notes move through statuses in one forward direction. The allowed transitions ar
 | signed | amendment_pending | Author or practice admin (notes.write permission) |
 | cosigned | amendment_pending | Author or practice admin (notes.write permission) |
 | amendment_pending | signed | Author (notes.sign permission) re-signs after amendment |
-| amendment_pending | cosigned | Any person with notes.cosign permission co-signs amended note |
+
+An amended note must be re-signed by the author before it can be co-signed. The path is always: `amendment_pending → signed → cosigned`.
 
 Signing is always irreversible. The original signed content is never overwritten. When an amendment is submitted, the amendment_note field is appended and the note re-enters the signing cycle. The original content field is locked at first signing and must not change thereafter.
 
@@ -220,6 +221,7 @@ Every business rule and constraint maps to at least one test case per SPEC-000 �
 | ClinicalNote | `deleted_at` | `test_soft_delete_draft_note_succeeds` | Integration | Only draft notes can be deleted |
 | ClinicalNote | `deleted_at` | `test_soft_delete_signed_note_returns_409` | Integration | Signed notes protected from deletion |
 | ClinicalNote | `deleted_at` | `test_soft_delete_cosigned_note_returns_409` | Integration | Cosigned notes protected from deletion |
+| ClinicalNote | `deleted_at` | `test_soft_delete_amendment_pending_note_returns_409` | Integration | Amendment_pending notes protected from deletion |
 | ClinicalNote | `deleted_at` | `test_soft_deleted_note_excluded_from_list` | Integration | BR-05: soft-deleted records hidden from lists |
 | ClinicalNote | `content` JSONB (SOAP) | `test_create_soap_note_missing_subjective_returns_422` | Integration | SOAP schema validation |
 | ClinicalNote | `content` JSONB (DAP) | `test_create_dap_note_missing_data_returns_422` | Integration | DAP schema validation |
@@ -239,3 +241,4 @@ Every business rule and constraint maps to at least one test case per SPEC-000 �
 |---|---|
 | 0.1.0 | Initial draft. Full ClinicalNote model, three note format schemas, status lifecycle, BR-04 and supporting rules, amendment model, API surface, and ADR mapping. |
 | 0.2.0 | Clarified co-sign eligibility: any person with notes.cosign permission, not limited to assigned supervisor. Added test table mapping all constraints to test cases. Aligned with SPEC-000 updates to BR-04 and BR-05. |
+| 0.3.0 | Removed invalid amendment_pending → cosigned lifecycle transition. Amended notes must follow amendment_pending → signed → cosigned path. Added test_soft_delete_amendment_pending_note_returns_409 to test table. |

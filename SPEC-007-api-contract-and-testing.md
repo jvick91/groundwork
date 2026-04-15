@@ -1,7 +1,7 @@
 # SPEC-007: API Contract and Testing
 
 **Status:** Draft
-**Version:** 0.1.0
+**Version:** 0.3.0
 **Parent Spec:** [SPEC-000-platform-overview](./SPEC-000-platform-overview.md)
 **Scope:** Cross-cutting API conventions, endpoint inventory, error handling, authentication flow, pagination, background tasks, database indexing, CI pipeline, and test infrastructure.
 
@@ -276,7 +276,7 @@ For 422 validation errors, the `details` array contains field-level errors:
 | 409 | `state_transition_denied` | Status transition not allowed (e.g., signing a cosigned note) |
 | 409 | `resource_locked` | Record is in a state that prevents modification (e.g., signed note content) |
 | 422 | `validation_error` | Pydantic validation or business rule violation |
-| 422 | `bridge_rule_violation` | EntityInstance type mismatch (e.g., non-provider as session conductor) |
+| 422 | `bridge_rule_violation` | EntityInstance type mismatch (e.g., non-provider instance used as session provider_instance_id) |
 | 422 | `prerequisite_not_met` | Required precondition missing (e.g., no treatment consent for session completion) |
 | 429 | `rate_limited` | Too many requests (post-MVP) |
 | 500 | `internal_error` | Unhandled server error. Message is generic; details are logged, not exposed. |
@@ -859,3 +859,4 @@ API responses must never include fields marked as PHI-excluded in BR-08 in conte
 |---|---|
 | 0.1.0 | Initial draft. API versioning (/api/v1/), org context via X-Organization-Id header, cursor-based pagination, standard error envelope, complete 100+ endpoint inventory, auth flow, permission caching, Celery + Redis background tasks, database indexing strategy, application structure, test infrastructure, CI pipeline, security constraints, and health check endpoints. |
 | 0.2.0 | Aligned EAV endpoint inventory with SPEC-001: changed entity-type path parameters from {id}/{type_id} to {slug}, added missing GET /entity-types/{slug}/attributes endpoint, renamed attribute path parameter from {attr_id} to {id} for consistency. Resolves issues 2 and 3 from consistency review. |
+| 0.3.0 | Fixed stale "conductor" terminology in bridge_rule_violation error description — updated to provider_instance_id to match SPEC-003 v0.2.0 rename. |
