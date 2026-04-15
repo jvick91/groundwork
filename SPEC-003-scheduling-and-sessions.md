@@ -1,7 +1,7 @@
 # SPEC-003: Scheduling and Sessions
 
 **Status:** Draft
-**Version:** 0.3.0
+**Version:** 0.4.0
 **Parent Spec:** [SPEC-000-platform-overview](./SPEC-000-platform-overview.md)
 **Scope:** Session scheduling, appointment types, availability, and cancellation lifecycle.
 
@@ -160,10 +160,50 @@ Explicit transition endpoints are preferred over a generic PATCH on status to en
 
 ---
 
-## 9. Spec Versioning
+## 9. Test Table
+
+Every business rule and constraint maps to at least one test case per SPEC-000 §5.
+
+| Table | Column / Constraint | Test Case | Type | Validates |
+|---|---|---|---|---|
+| Session | `start_time` < `end_time` | `test_create_session_end_before_start_returns_422` | Integration | BR-01 |
+| Session | `start_time` = `end_time` | `test_create_session_zero_duration_returns_422` | Integration | BR-01 |
+| Session | `organization_id` match | `test_create_session_client_different_org_returns_422` | Integration | BR-02 |
+| Session | `organization_id` match | `test_create_session_provider_different_org_returns_422` | Integration | BR-02 |
+| Session | provider overlap | `test_create_overlapping_session_returns_409` | Integration | BR-03 |
+| Session | provider overlap | `test_create_session_adjacent_no_overlap_succeeds` | Integration | BR-03 boundary |
+| Session | provider overlap | `test_cancelled_session_not_counted_in_overlap` | Integration | BR-03 |
+| Session | provider overlap | `test_no_show_session_not_counted_in_overlap` | Integration | BR-03 |
+| Session | provider overlap | `test_overlap_check_concurrent_booking_uses_transaction` | Integration | BR-03 race condition |
+| Session | `provider_instance_id` bridge | `test_create_session_provider_not_provider_type_returns_422` | Integration | Bridge rule |
+| Session | `client_instance_id` bridge | `test_create_session_client_not_client_type_returns_422` | Integration | Bridge rule |
+| Session | `status` lifecycle | `test_confirm_scheduled_succeeds` | Integration | scheduled → confirmed |
+| Session | `status` lifecycle | `test_start_confirmed_succeeds` | Integration | confirmed → in_progress |
+| Session | `status` lifecycle | `test_complete_in_progress_succeeds` | Integration | in_progress → completed |
+| Session | `status` lifecycle | `test_cancel_with_reason_succeeds` | Integration | Cancel transition |
+| Session | `status` lifecycle | `test_cancel_without_reason_returns_422` | Integration | Cancellation reason required |
+| Session | `status` lifecycle | `test_no_show_with_reason_succeeds` | Integration | No-show transition |
+| Session | `status` lifecycle | `test_no_show_without_reason_returns_422` | Integration | Cancellation reason required |
+| Session | `status` lifecycle | `test_transition_out_of_completed_returns_409` | Integration | Terminal status |
+| Session | `status` lifecycle | `test_transition_out_of_cancelled_returns_409` | Integration | Terminal status |
+| Session | `status` lifecycle | `test_transition_out_of_no_show_returns_409` | Integration | Terminal status |
+| Session | consent gate | `test_complete_session_without_treatment_consent_returns_422` | Integration | Consent gate (SPEC-006) |
+| Session | consent gate | `test_complete_session_with_expired_consent_returns_422` | Integration | Consent gate expiry check |
+| Session | consent gate | `test_complete_session_with_valid_consent_succeeds` | Integration | Consent gate happy path |
+| AppointmentType | `is_active` | `test_create_session_with_inactive_type_returns_422` | Integration | AppointmentType guard |
+| Session | `deleted_at` | `test_soft_deleted_session_excluded_from_list` | Integration | BR-05 |
+| Session | `deleted_at` | `test_soft_deleted_session_excluded_from_overlap` | Integration | Soft delete rule |
+| Session | `organization_id` | `test_list_sessions_filters_by_org` | Integration | Multi-tenancy isolation |
+| All tables | all state changes | `test_create_session_writes_audit_log` | Integration | BR-07 |
+| All tables | all state changes | `test_cancel_session_writes_audit_log` | Integration | BR-07 |
+
+---
+
+## 10. Spec Versioning
 
 | Version | Changes |
 |---|---|
 | 0.1.0 | Initial draft. Full model definitions for Session and AppointmentType. Status lifecycle, business rules BR-01 through BR-03, API surface, scheduling constraints, and ADR mapping. |
 | 0.2.0 | Renamed conductor_instance_id to provider_instance_id and attendee_instance_id to client_instance_id. Aligns field naming with SPEC-005 Invoice and cross-spec consistency. |
 | 0.3.0 | Added consent gate business rule: session completion requires active signed treatment consent per SPEC-006. |
+| 0.4.0 | Added Test Table (Section 9) with 30 test cases covering BR-01 time order, BR-02 org membership, BR-03 provider overlap (with boundary and race condition cases), bridge rule validation, all 11 status lifecycle transitions, consent gate (happy path + expired + missing), AppointmentType guard, soft delete, multi-tenancy isolation, and 2 BR-07 audit log tests. |

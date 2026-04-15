@@ -1,7 +1,7 @@
 # SPEC-001: EAV Data Platform
 
 **Status:** Draft
-**Version:** 0.4.0
+**Version:** 0.6.0
 **Parent Spec:** [SPEC-000-platform-overview](./SPEC-000-platform-overview.md)
 **Scope:** Core data flexibility, multi-tenancy, and persona metadata.
 
@@ -89,6 +89,22 @@ The EAV (Entity-Attribute-Value) system is the architectural foundation that all
 **Unique constraint:** (entity_instance_id, entity_attribute_id). One value per field per instance.
 
 **Design note:** AttributeValue intentionally omits `created_at`, `updated_at`, and `deleted_at`. Value changes are tracked exclusively through AuditLog entries on the parent EntityInstance. Values are overwritten in place. To delete a value, set it to null. There is no soft-delete mechanism on individual values.
+
+### AttributeValue Type Casting Rules
+
+The `value` column is always stored as text. The application layer casts and validates the value against the parent EntityAttribute's `field_type` before saving. The rules below are the authoritative mapping from field_type to Python type and validation constraints. This supersedes ADR-005 (pending) for MVP.
+
+| field_type | Storage format | Python type after cast | Validation rules |
+|---|---|---|---|
+| text | Raw string | str | Max 10,000 characters. Empty string is not a valid substitute for null — use null to represent absence. |
+| number | Decimal string, e.g. "123.45" | Decimal | Must parse as a valid decimal number. Max 10 significant digits, max 4 decimal places. No NaN, Infinity, or exponential notation. |
+| date | ISO 8601 date string, e.g. "2026-04-15" | date | Must parse as YYYY-MM-DD. Must be a real calendar date. No time component. |
+| bool | Lowercase string "true" or "false" | bool | Must be exactly the string "true" or "false". Any other value, including "True", "1", "yes", is rejected with HTTP 422. |
+| enum | One of the string values listed in EntityAttribute.options | str | Must be an exact case-sensitive match to a value in the options array. The options array must be non-empty when field_type is enum. |
+| fk | UUID string in standard 8-4-4-4-12 format | UUID | Must parse as a valid UUID v4. The referenced EntityInstance must exist, must not be soft-deleted, must belong to the same organization, and must match the EntityType slug specified in EntityAttribute.options. |
+| jsonb | Valid JSON string | dict or list | Must parse as valid JSON. The top-level value must be an object (dict) or array (list). Scalar JSON values (strings, numbers) are not permitted at the top level. Max serialized size 100 KB. |
+
+**Error behavior:** A value that fails its field_type validation returns HTTP 422 with error code `validation_error`. The error detail must identify the attribute name and the reason (e.g., "license_expiry: date value '2026-13-01' is not a valid calendar date").
 
 ---
 
@@ -218,7 +234,35 @@ Note: Permissions are dynamically resolved based on the EntityType slug. When a 
 
 ---
 
-## 9. Spec Versioning
+## 9. Test Table
+
+Every business rule and constraint maps to at least one test case per SPEC-000 §5.
+
+| Table | Column / Constraint | Test Case | Type | Validates |
+|---|---|---|---|---|
+| EntityType | `is_system_type` | `test_delete_system_entity_type_returns_409` | Integration | System type protection |
+| EntityType | `is_system_type` | `test_rename_system_entity_type_returns_409` | Integration | System type protection |
+| EntityType | `UNIQUE(organization_id, slug)` | `test_duplicate_slug_same_org_returns_409` | Integration | Unique slug constraint |
+| EntityType | `slug` | `test_system_type_slug_reserved_across_orgs` | Integration | Global slug reservation |
+| EntityAttribute | `is_system_type` parent | `test_delete_seed_attribute_on_system_type_returns_409` | Integration | Seed attribute protection |
+| EntityAttribute | `is_system_type` parent | `test_add_attribute_to_system_type_succeeds` | Integration | System types are extensible |
+| EntityInstance | `deleted_at` | `test_soft_deleted_instance_excluded_from_list` | Integration | BR-05 |
+| EntityInstance | `organization_id` | `test_list_instances_filters_by_org` | Integration | Multi-tenancy isolation |
+| EntityInstance | `organization_id` | `test_create_instance_cross_tenant_returns_403` | Integration | Multi-tenancy isolation |
+| EntityInstance | `entity_type_id` bridge | `test_session_with_non_provider_instance_returns_422` | Integration | Bridge rule validation |
+| EntityInstance | `entity_type_id` bridge | `test_session_with_wrong_org_instance_returns_422` | Integration | Bridge rule + org check |
+| AttributeValue | `UNIQUE(entity_instance_id, entity_attribute_id)` | `test_duplicate_value_same_instance_attribute_returns_409` | Integration | Unique constraint |
+| AttributeValue | `is_required` parent | `test_create_instance_missing_required_field_returns_422` | Integration | Required field enforcement |
+| AttributeValue | `field_type` | `test_create_value_wrong_type_returns_422` | Integration | Type validation (ADR-005) |
+| AttributeValue | `field_type` enum | `test_create_enum_value_not_in_options_returns_422` | Integration | Enum option validation |
+| EntityType | POST auto-permissions | `test_create_custom_type_generates_three_permissions` | Integration | ADR-004 auto-generation |
+| All EAV tables | all state changes | `test_create_entity_type_writes_audit_log` | Integration | BR-07 |
+| All EAV tables | all state changes | `test_update_instance_writes_audit_log` | Integration | BR-07 |
+| All EAV tables | all state changes | `test_delete_instance_writes_audit_log` | Integration | BR-07 |
+
+---
+
+## 10. Spec Versioning
 
 | Version | Changes |
 |---|---|
@@ -226,3 +270,5 @@ Note: Permissions are dynamically resolved based on the EntityType slug. When a 
 | 0.2.0 | Full field definitions for all 5 tables. Added seed data section, API surface, canonical query patterns, implementation constraints. Added missing fields: Organization (npi, timezone, etc.), EntityType (slug, is_system_type, is_person_subtype, organization_id), EntityAttribute (is_required, options, display_order, display_name, field_type expanded), EntityInstance (person_id, is_active, deleted_at), AttributeValue unique constraint. |
 | 0.3.0 | Changed EntityType and EntityAttribute path parameters from {id}/{type_id} to {slug} throughout API surface. Added slug-change note for PATCH. Aligns with SPEC-007 endpoint inventory and system-wide slug-based lookup convention. |
 | 0.4.0 | Updated ADR-001 table count from 24 to 26 (DocumentType and ConsentType added in SPEC-000 v1.1.0). Added design note to AttributeValue clarifying intentional omission of timestamps — value changes tracked through AuditLog on parent EntityInstance. |
+| 0.5.0 | Added Test Table (Section 9) with 19 test cases covering system type protection, slug uniqueness, multi-tenancy isolation, bridge rule validation, required field enforcement, type validation, enum validation, ADR-004 auto-permission generation, and BR-07 audit logging. |
+| 0.6.0 | Added AttributeValue Type Casting Rules table to Section 2. Defines storage format, Python type, and validation constraints for all 7 field_type values (text, number, date, bool, enum, fk, jsonb). Supersedes ADR-005 pending for MVP. Includes error behavior specification (HTTP 422 with attribute name and reason). |

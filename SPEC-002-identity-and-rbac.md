@@ -1,7 +1,7 @@
 # SPEC-002: Identity and RBAC
 
 **Status:** Draft
-**Version:** 0.5.0
+**Version:** 0.6.0
 **Parent Spec:** [SPEC-000-platform-overview](./SPEC-000-platform-overview.md)
 **Scope:** Human identity, role assignment, permission grants, and access enforcement across all domains.
 
@@ -486,7 +486,39 @@ The response matches SPEC-007 Section 3.4. It includes person identity and all o
 
 ---
 
-## 11. Spec Versioning
+## 11. Test Table
+
+Every business rule and constraint maps to at least one test case per SPEC-000 §5.
+
+| Table | Column / Constraint | Test Case | Type | Validates |
+|---|---|---|---|---|
+| PersonRole | `UNIQUE(org, person, role, instance) WHERE revoked_at IS NULL` | `test_duplicate_active_role_returns_409` | Integration | Unique constraint |
+| PersonRole | `entity_instance_id` rules | `test_assign_provider_role_without_entity_instance_returns_422` | Integration | entity_instance_id required for person subtypes |
+| PersonRole | `entity_instance_id` rules | `test_assign_provider_role_with_client_instance_returns_422` | Integration | Instance type must match role domain |
+| PersonRole | `entity_instance_id` rules | `test_assign_provider_role_with_wrong_org_instance_returns_422` | Integration | Instance must be same org |
+| PersonRole | `entity_instance_id` rules | `test_assign_system_admin_without_entity_instance_succeeds` | Integration | system_admin allows null instance |
+| PersonRole | `revoked_at` | `test_revoke_role_sets_revoked_at` | Integration | Revocation rule |
+| PersonRole | `revoked_at` | `test_revoked_role_excluded_from_permission_resolution` | Integration | Revocation removes access |
+| Role | `primary_domain` hierarchy | `test_create_child_role_different_domain_returns_422` | Integration | Hierarchy invariant |
+| Role | `is_system_role` | `test_delete_system_role_returns_409` | Integration | System role protection |
+| Role | `UNIQUE(organization_id, slug)` | `test_duplicate_role_slug_same_org_returns_409` | Integration | Unique slug constraint |
+| Permission | auto-generation | `test_create_entity_type_generates_read_write_delete_permissions` | Integration | ADR-004 contract |
+| RolePermission | `UNIQUE(org, role, permission) WHERE revoked_at IS NULL` | `test_duplicate_active_grant_returns_409` | Integration | Unique constraint |
+| RolePermission | `revoked_at` | `test_revoked_grant_excluded_from_effective_permissions` | Integration | Revocation rule |
+| Person | `auth_subject` | `test_person_without_auth_subject_cannot_authenticate` | Integration | Auth subject rule |
+| Person | `is_active` | `test_inactive_person_returns_401` | Integration | Soft toggle |
+| Person | `deleted_at` | `test_soft_deleted_person_returns_401` | Integration | Soft delete rule |
+| Person | `deleted_at` | `test_soft_deleted_person_excluded_from_list` | Integration | BR-05 |
+| Authorization | multi-role union | `test_person_with_two_roles_gets_union_permissions` | Integration | Role union rule |
+| Authorization | hierarchy | `test_child_role_inherits_parent_permissions` | Integration | Inheritance rule |
+| Authorization | tenant isolation | `test_person_role_cross_tenant_returns_403` | Integration | Tenant isolation |
+| All tables | all state changes | `test_assign_role_writes_audit_log` | Integration | BR-07 |
+| All tables | all state changes | `test_revoke_role_writes_audit_log` | Integration | BR-07 |
+| All tables | all state changes | `test_grant_permission_writes_audit_log` | Integration | BR-07 |
+
+---
+
+## 12. Spec Versioning
 
 | Version | Changes |
 |---|---|
@@ -495,3 +527,4 @@ The response matches SPEC-007 Section 3.4. It includes person identity and all o
 | 0.3.0 | Replaced coarse billing.read/billing.write with 9 granular billing permissions: invoices.read, invoices.create, invoices.write, invoices.void, payments.read, payments.record, insurance.read, insurance.write, codes.read. Updated seed matrix and biller standalone grants. Updated row-level filtering seed conditions. |
 | 0.4.0 | Added 11 SPEC-006 permissions: documents.read, documents.write, documents.delete, consents.read, consents.write, consents.sign, consents.revoke, forms.read, forms.write, forms.send, audit.read. Updated seed matrix and receptionist standalone grants. |
 | 0.5.0 | Fixed GET /permissions required permission from permissions.read (undefined) to roles.read. Replaced /auth/me response shape: removed flat single-org structure, adopted SPEC-007 Section 3.4 multi-org array shape. |
+| 0.6.0 | Added Test Table (Section 11) with 23 test cases covering PersonRole unique constraint, entity_instance_id rules (4 variants), role revocation, hierarchy invariant, system role protection, unique role slug, ADR-004 auto-permission generation, RolePermission unique constraint and revocation, auth_subject rule, is_active toggle, soft delete, multi-role permission union, hierarchy inheritance, tenant isolation, and 3 BR-07 audit log tests. |
