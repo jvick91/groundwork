@@ -25,9 +25,13 @@ htmlcov/
 coverage.xml
 *.cover
 
-# IDE
+# IDE / AI tools
 .idea/
 .vscode/
+.claude/
+.cursorrules
+.cursorignore
+.cursor/
 *.swp
 *.swo
 *~
