@@ -1,7 +1,7 @@
 # SPEC-004: Clinical Notes
 
 **Status:** Draft
-**Version:** 0.3.0
+**Version:** 0.5.0
 **Parent Spec:** [SPEC-000-platform-overview](./SPEC-000-platform-overview.md)
 **Scope:** Clinical documentation authoring, note formats, signing, co-signing, and amendment lifecycle.
 
@@ -153,6 +153,22 @@ Notes are addressed through their parent session rather than by their own ID to 
 | POST | /sessions/{session_id}/note/cosign | Co-sign the note as supervisor | notes.cosign |
 | POST | /sessions/{session_id}/note/amend | Submit an amendment and re-enter signing cycle | notes.write |
 
+### POST /sessions/{session_id}/note/amend request body
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| amendment_text | String | Yes | The addendum text. Min 1 character, max 10,000 characters. |
+
+The backend appends amendment_text to the existing amendment_note field using this exact format:
+
+```
+[AMENDMENT {ISO 8601 UTC timestamp} by {person first_name last_name}]
+{amendment_text}
+
+```
+
+The client never sends the full amendment_note. The backend always appends server-side. If the request body includes an `amendment_note` field (attempting to overwrite), return HTTP 422, error code `validation_error`, message: "amendment_note cannot be set directly. Use amendment_text."
+
 ### Cross-entity note listing
 
 | Method | Path | Description | Permission |
@@ -165,6 +181,7 @@ The flat list endpoint exists to support dashboard views and billing workflows t
 
 ## 8. Implementation Constraints
 
+- Row-level filtering: Permission conditions such as `own_notes` are defined in SPEC-002 §3. Any agent implementing a list or retrieve endpoint for clinical notes must consult SPEC-002 §3 to determine which `RolePermission.conditions` apply and how to translate them into query predicates before building the query.
 - Content lock enforcement: The backend must check note status before applying any PATCH to content. This check must happen inside the update transaction, not as a prior guard that could be bypassed by concurrent requests.
 - Amendment append-only: The amendment_note field must only accept append operations. Any request that replaces or truncates existing amendment_note content must be rejected.
 - PHI-safe logging: The content field, all note format keys, and amendment_note must be excluded from all application log output per BR-08.
@@ -242,3 +259,5 @@ Every business rule and constraint maps to at least one test case per SPEC-000 �
 | 0.1.0 | Initial draft. Full ClinicalNote model, three note format schemas, status lifecycle, BR-04 and supporting rules, amendment model, API surface, and ADR mapping. |
 | 0.2.0 | Clarified co-sign eligibility: any person with notes.cosign permission, not limited to assigned supervisor. Added test table mapping all constraints to test cases. Aligned with SPEC-000 updates to BR-04 and BR-05. |
 | 0.3.0 | Removed invalid amendment_pending → cosigned lifecycle transition. Amended notes must follow amendment_pending → signed → cosigned path. Added test_soft_delete_amendment_pending_note_returns_409 to test table. |
+| 0.4.0 | Added POST /sessions/{session_id}/note/amend explicit request body schema: amendment_text field (min 1, max 10,000 chars) with server-side append format. Prohibited direct amendment_note writes in the request. |
+| 0.5.0 | Added row-level filtering cross-reference to Implementation Constraints: agents must consult SPEC-002 §3 for own_notes condition definitions before building list endpoints. |

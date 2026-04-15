@@ -1,7 +1,7 @@
 # SPEC-002: Identity and RBAC
 
 **Status:** Draft
-**Version:** 0.6.0
+**Version:** 0.7.0
 **Parent Spec:** [SPEC-000-platform-overview](./SPEC-000-platform-overview.md)
 **Scope:** Human identity, role assignment, permission grants, and access enforcement across all domains.
 
@@ -169,6 +169,8 @@ On platform initialization, the system seeds baseline roles, permissions, and ro
 | insurance.read | insurance | read | Read insurance payers and client coverage records. |
 | insurance.write | insurance | write | Create and update insurance payers and client coverage. |
 | codes.read | codes | read | Read CPT and ICD reference code tables. |
+| codes.write | codes | write | Create or update CPT and ICD codes. |
+| codes.delete | codes | delete | Deactivate CPT and ICD codes. |
 | settings.read | settings | read | Read organization configuration. |
 | settings.write | settings | write | Update organization configuration. |
 | people.read | people | read | Read person identity records. |
@@ -206,8 +208,8 @@ Y = granted. Blank = not granted. Child roles inherit all parent grants (inherit
 | clients.delete | Y | inh | inh | | | | | | | | |
 | sessions.read | Y | inh | inh | | Y | Y | inh | inh | inh | | |
 | sessions.write | Y | inh | inh | | Y | Y | inh | inh | inh | | |
-| notes.read | | | | | | Y | inh | inh | inh | | |
-| notes.write | | | | | | Y | inh | inh | inh | | |
+| notes.read | Y | inh | inh | | | Y | inh | inh | inh | | |
+| notes.write | | Y | | | | Y | inh | inh | inh | | |
 | notes.sign | | | | | | | Y | inh | inh | | |
 | notes.cosign | | | | | | | | Y | | | |
 | invoices.read | Y | inh | inh | Y | | | | | | | |
@@ -219,6 +221,8 @@ Y = granted. Blank = not granted. Child roles inherit all parent grants (inherit
 | insurance.read | Y | inh | inh | Y | | | | | | | |
 | insurance.write | Y | inh | inh | Y | | | | | | | |
 | codes.read | Y | inh | inh | Y | | | | | | | |
+| codes.write | Y | inh | inh | Y | | | | | | | |
+| codes.delete | Y | inh | inh | Y | | | | | | | |
 | settings.read | Y | inh | inh | | | | | | | | |
 | settings.write | Y | inh | inh | | | | | | | | |
 | people.read | Y | inh | inh | | Y | | | | | | |
@@ -239,7 +243,7 @@ Y = granted. Blank = not granted. Child roles inherit all parent grants (inherit
 | forms.write | Y | inh | inh | | | | | | | | |
 | forms.send | Y | inh | inh | | Y | | | | | | |
 | audit.read | Y | inh | inh | | | | | | | | |
-| entity_types.read | Y | inh | inh | | | | | | | | |
+| entity_types.read | Y | inh | inh | | Y | Y | inh | inh | inh | | |
 | entity_types.write | | | Y | | | | | | | | |
 | entity_types.delete | | | Y | | | | | | | | |
 | tenants.manage | | | Y | | | | | | | | |
@@ -252,6 +256,12 @@ Notes on the matrix:
 - "inh" means the permission comes from the parent chain, not a direct grant. The seed migration only creates direct grants (Y). Inheritance is resolved at runtime.
 - Biller inherits admin's billing grants but does not get clients.write, sessions.write, or any clinical permissions. The biller role only receives the grants its parent (admin) has that fall within billing scope. This means biller must NOT inherit all admin grants. See inheritance model below.
 - Receptionist gets clients.read, clients.write, sessions.read, sessions.write, and people.read as direct grants. It does NOT inherit admin's full permission set. See inheritance model below.
+
+**Design note on `notes.delete`:** A dedicated `notes.delete` permission is intentionally omitted. Only draft notes may be soft-deleted (BR-05), and only the author may delete their own drafts. The `notes.write` permission covers this action because draft deletion is semantically equivalent to discarding an unfinished edit, not destroying a clinical record.
+
+**Design note on `practice_admin` and notes:** `practice_admin` receives `notes.read` (via admin inheritance) and `notes.write` (direct grant). This allows practice admins to draft notes on behalf of providers and participate in amendment workflows. However, `practice_admin` does not receive `notes.sign` or `notes.cosign` â€” only providers with the appropriate clinical credentials may sign or co-sign clinical notes. Practice admins cannot finalize clinical documentation.
+
+**Design note on `payments.void`:** A dedicated `payments.void` permission is intentionally omitted. Payment voiding is bundled with `payments.record` because the void-and-rerecord workflow is a single logical operation performed by the same billing staff. All payment voids are tracked in AuditLog with the void reason, providing full accountability without a separate permission gate.
 
 ### Inheritance model clarification
 
@@ -294,11 +304,14 @@ Under Option A, the corrected matrix for biller and receptionist uses direct gra
 | insurance.read | Y | |
 | insurance.write | Y | |
 | codes.read | Y | |
+| codes.write | Y | |
+| codes.delete | Y | |
 | consents.read | | Y |
 | consents.write | | Y |
 | consents.sign | | Y |
 | forms.read | | Y |
 | forms.send | | Y |
+| entity_types.read | | Y |
 | people.read | | Y |
 
 ---
@@ -528,3 +541,4 @@ Every business rule and constraint maps to at least one test case per SPEC-000 Â
 | 0.4.0 | Added 11 SPEC-006 permissions: documents.read, documents.write, documents.delete, consents.read, consents.write, consents.sign, consents.revoke, forms.read, forms.write, forms.send, audit.read. Updated seed matrix and receptionist standalone grants. |
 | 0.5.0 | Fixed GET /permissions required permission from permissions.read (undefined) to roles.read. Replaced /auth/me response shape: removed flat single-org structure, adopted SPEC-007 Section 3.4 multi-org array shape. |
 | 0.6.0 | Added Test Table (Section 11) with 23 test cases covering PersonRole unique constraint, entity_instance_id rules (4 variants), role revocation, hierarchy invariant, system role protection, unique role slug, ADR-004 auto-permission generation, RolePermission unique constraint and revocation, auth_subject rule, is_active toggle, soft delete, multi-role permission union, hierarchy inheritance, tenant isolation, and 3 BR-07 audit log tests. |
+| 0.7.0 | Added codes.write and codes.delete permissions with admin/biller grants for CPT/ICD code management. Granted entity_types.read to provider and receptionist roles. Granted notes.read to admin (via inheritance) and notes.write to practice_admin (direct grant) for clinical documentation support. Added three design notes: notes.delete intentionally omitted (draft deletion covered by notes.write), practice_admin notes access boundary, and payments.void intentionally bundled with payments.record. |

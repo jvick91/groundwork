@@ -1,7 +1,7 @@
 # SPEC-007: API Contract and Testing
 
 **Status:** Draft
-**Version:** 0.3.0
+**Version:** 0.5.0
 **Parent Spec:** [SPEC-000-platform-overview](./SPEC-000-platform-overview.md)
 **Scope:** Cross-cutting API conventions, endpoint inventory, error handling, authentication flow, pagination, background tasks, database indexing, CI pipeline, and test infrastructure.
 
@@ -81,7 +81,7 @@ Resolution steps:
 
 **Caching:** The resolved permission set is cached in-process using a TTL cache keyed by `(person_id, organization_id)`. TTL is 60 seconds. Cache entries are invalidated immediately when the current request modifies PersonRole, RolePermission, or Role records. This prevents stale permissions within the same process. Cross-process staleness is bounded by the TTL.
 
-The cache implementation must use a thread-safe LRU cache with TTL (e.g., `cachetools.TTLCache`). Maximum cache size is 10,000 entries.
+The cache implementation must be thread-safe, support TTL-based expiration, and have a bounded maximum size to prevent unbounded memory growth. Recommended: 10,000 entry maximum.
 
 ### 3.4 /auth/me response
 
@@ -291,6 +291,8 @@ Error messages and details must never contain PHI. A validation error on a clini
 
 All paths are relative to `/api/v1/`. Every endpoint requires Auth0 JWT and `X-Organization-Id` unless noted.
 
+**Request body schema authority:** The authoritative request body schemas for each domain are defined in the owning spec, not repeated here. SPEC-003 §6 defines schemas for `POST /sessions` and `PATCH /sessions/{id}`. SPEC-004 §7 defines the schema for `POST /sessions/{session_id}/note/amend`. SPEC-005 §5 defines the schema for `POST /invoices`. Where an endpoint is not covered by an explicit schema in its domain spec, the required fields are the NOT NULL columns in the owning table, and all NULLABLE columns are optional. This inference rule applies to all other POST and PATCH endpoints until explicit schemas are added.
+
 ### 8.1 Auth (SPEC-002)
 
 | Method | Path | Description | Permission | Org Header |
@@ -375,7 +377,13 @@ All paths are relative to `/api/v1/`. Every endpoint requires Auth0 JWT and `X-O
 | Method | Path | Description | Permission |
 |---|---|---|---|
 | GET | /cpt-codes | List CPT codes | codes.read |
+| POST | /cpt-codes | Create CPT code | codes.write |
+| PATCH | /cpt-codes/{id} | Update CPT code | codes.write |
+| DELETE | /cpt-codes/{id} | Deactivate CPT code | codes.delete |
 | GET | /icd-codes | List ICD codes | codes.read |
+| POST | /icd-codes | Create ICD code | codes.write |
+| PATCH | /icd-codes/{id} | Update ICD code | codes.write |
+| DELETE | /icd-codes/{id} | Deactivate ICD code | codes.delete |
 | GET | /insurance-payers | List payers | insurance.read |
 | POST | /insurance-payers | Create payer | insurance.write |
 | GET | /insurance-payers/{id} | Retrieve payer | insurance.read |
@@ -568,6 +576,8 @@ The EAV join pattern (EntityInstance → AttributeValue per field) is inherently
 ---
 
 ## 12. Application Structure
+
+> **Non-normative:** Sections 12 and 13.5–13.6 are reference implementations, not normative requirements. Agents may deviate from the directory structure and factory patterns provided they satisfy the behavioral contracts in all other sections.
 
 ### 12.1 FastAPI project layout
 
@@ -860,3 +870,5 @@ API responses must never include fields marked as PHI-excluded in BR-08 in conte
 | 0.1.0 | Initial draft. API versioning (/api/v1/), org context via X-Organization-Id header, cursor-based pagination, standard error envelope, complete 100+ endpoint inventory, auth flow, permission caching, Celery + Redis background tasks, database indexing strategy, application structure, test infrastructure, CI pipeline, security constraints, and health check endpoints. |
 | 0.2.0 | Aligned EAV endpoint inventory with SPEC-001: changed entity-type path parameters from {id}/{type_id} to {slug}, added missing GET /entity-types/{slug}/attributes endpoint, renamed attribute path parameter from {attr_id} to {id} for consistency. Resolves issues 2 and 3 from consistency review. |
 | 0.3.0 | Fixed stale "conductor" terminology in bridge_rule_violation error description — updated to provider_instance_id to match SPEC-003 v0.2.0 rename. |
+| 0.4.0 | Added schema authority note to Section 8: SPEC-003, SPEC-004, and SPEC-005 are the authoritative sources for request body schemas; all other endpoints follow the NOT NULL = required, NULLABLE = optional inference rule until explicit schemas are added. |
+| 0.5.0 | Added CPT/ICD write endpoints (POST, PATCH, DELETE for /cpt-codes and /icd-codes) to Section 8.6. Replaced cachetools.TTLCache prescription with behavioral requirements (thread-safe, TTL, bounded size). Added non-normative notice to Sections 12 and 13.5-13.6 (reference implementations, not mandatory). |

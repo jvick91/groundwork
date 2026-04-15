@@ -1,7 +1,7 @@
 # SPEC-001: EAV Data Platform
 
 **Status:** Draft
-**Version:** 0.6.0
+**Version:** 0.9.0
 **Parent Spec:** [SPEC-000-platform-overview](./SPEC-000-platform-overview.md)
 **Scope:** Core data flexibility, multi-tenancy, and persona metadata.
 
@@ -129,6 +129,7 @@ On platform initialization, the following system types and attributes are create
 | npi_number | NPI Number | text | false |
 | specialty | Specialty | text | false |
 | taxonomy_code | Taxonomy Code | text | false |
+| dea_number | DEA Number | text | false |
 
 ### Client EntityAttributes
 
@@ -187,7 +188,20 @@ All endpoints require Auth0 JWT. All endpoints scope to the authenticated user's
 | PATCH | /entity-types/{slug} | Update a custom type (system types blocked) | entity_types.write |
 | DELETE | /entity-types/{slug} | Delete a custom type (system types blocked) | entity_types.delete |
 
-Note: Slug is used as the path parameter because it is the natural lookup key across the system — permission generation, instance routing, and bridge rule validation all reference entity types by slug. When a PATCH changes a custom type's slug, the request must use the old slug in the path.
+Note: Slug is used as the path parameter because it is the natural lookup key across the system — permission generation, instance routing, and bridge rule validation all reference entity types by slug.
+
+**Slug change rules (applies when a PATCH changes `slug`):**
+
+1. The request path uses the current (old) slug, e.g. `PATCH /entity-types/nutritionist` with body `{"slug": "dietitian"}`.
+2. The entire operation executes as a single atomic database transaction:
+   - Updates `EntityType.slug` to the new value.
+   - Finds all `Permission` rows where `resource_slug` equals the old slug.
+   - Updates each: sets `resource_slug` to the new slug, recomputes `Permission.slug` as `{new_slug}.{action}`.
+   - Writes one `AuditLog` entry recording the rename: old slug, new slug, and count of Permission rows updated.
+3. System types (`is_system_type = true`) cannot have their slug changed. Return HTTP 409, error code `resource_locked`.
+4. If the new slug is already taken by another EntityType in the same organization, return HTTP 409, error code `conflict`.
+5. All requests using the old slug path will receive HTTP 404 after the transaction commits. Clients must switch to the new slug immediately — there is no redirect or grace period.
+6. `RolePermission.conditions` do not reference EntityType slugs in MVP. No conditions update is required. If slug-based conditions are introduced in a future phase, this rule must be revisited before that feature ships.
 
 ### EntityAttribute management
 
@@ -216,6 +230,7 @@ Note: Permissions are dynamically resolved based on the EntityType slug. When a 
 
 - Type safety: FastAPI Pydantic schemas must use EntityAttribute.field_type to perform runtime validation of values before saving to AttributeValue. See ADR-005 for the decision on whether DB-level constraints supplement this.
 - Audit trails: Every state-changing API call (POST, PATCH, DELETE) on EAV tables must generate a record in AuditLog per BR-07.
+- Audit PHI filtering for AttributeValue: AuditLog `previous_state` and `next_state` snapshots for AttributeValue changes must exclude the `value` field entirely. The snapshot records `entity_attribute_id`, `entity_instance_id`, and `action` to establish what changed and when, but never the `value` content. This ensures that practice-defined custom fields containing PHI cannot leak into the audit trail regardless of field configuration. This exclusion is in addition to the platform-wide PHI exclusion list defined in SPEC-006 BR-08.
 - Timestamps: All timestamps stored in UTC. Organization.timezone used for display only at the frontend layer.
 - Unique slugs: EntityType.slug must be unique within an organization. System types use global slugs (provider, client, admin) that are reserved across all orgs.
 
@@ -272,3 +287,6 @@ Every business rule and constraint maps to at least one test case per SPEC-000 �
 | 0.4.0 | Updated ADR-001 table count from 24 to 26 (DocumentType and ConsentType added in SPEC-000 v1.1.0). Added design note to AttributeValue clarifying intentional omission of timestamps — value changes tracked through AuditLog on parent EntityInstance. |
 | 0.5.0 | Added Test Table (Section 9) with 19 test cases covering system type protection, slug uniqueness, multi-tenancy isolation, bridge rule validation, required field enforcement, type validation, enum validation, ADR-004 auto-permission generation, and BR-07 audit logging. |
 | 0.6.0 | Added AttributeValue Type Casting Rules table to Section 2. Defines storage format, Python type, and validation constraints for all 7 field_type values (text, number, date, bool, enum, fk, jsonb). Supersedes ADR-005 pending for MVP. Includes error behavior specification (HTTP 422 with attribute name and reason). |
+| 0.7.0 | Replaced vague slug PATCH note with full auto-cascade slug change rules (Section 6). Decision: slug renames are allowed on custom types and execute as an atomic transaction that updates the EntityType and all downstream Permission rows in one operation. System types blocked (409). Slug conflicts blocked (409). No redirect grace period. RolePermission.conditions not affected in MVP. |
+| 0.8.0 | Added AttributeValue PHI audit filtering rule: previous_state and next_state snapshots for AttributeValue changes must exclude the value field entirely; only entity_attribute_id, entity_instance_id, and action are captured. |
+| 0.9.0 | Added dea_number to Provider seed attributes (resolves SPEC-000 Prescriber persona field gap). |

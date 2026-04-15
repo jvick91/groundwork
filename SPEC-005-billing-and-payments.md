@@ -1,7 +1,7 @@
 # SPEC-005: Billing and Payments
 
 **Status:** Draft
-**Version:** 0.4.0
+**Version:** 0.7.0
 **Parent Spec:** [SPEC-000-platform-overview](./SPEC-000-platform-overview.md)
 **Scope:** Invoice generation, line item coding, payment recording, insurance coverage, and reference code tables.
 
@@ -186,6 +186,7 @@ Status transitions to partial and paid are computed automatically when payments 
 - Client bridge rule: client_instance_id on Invoice must reference an EntityInstance of type client. Validated at write time.
 - Provider bridge rule: provider_instance_id on Invoice must reference an EntityInstance of type provider. Validated at write time.
 - Session-invoice consistency: Invoice's client_instance_id and provider_instance_id must match the linked Session's client_instance_id and provider_instance_id. The backend must validate this at invoice creation time. These values are derived from the session, not accepted as independent input.
+- Soft delete restriction: Only invoices in draft status may be soft-deleted via `DELETE /invoices/{id}`. Invoices in sent, partial, paid, or void status must not be soft-deleted. To remove a non-draft invoice from active use, void it via `POST /invoices/{id}/void`. Attempts to soft-delete a non-draft invoice return HTTP 409, error code `state_transition_denied`, message: "Only draft invoices may be deleted. Use the void endpoint for non-draft invoices."
 - Soft delete rule: Soft-deleted invoices and soft-deleted line items must not appear in list endpoints.
 - Payment void reason required: When voiding a payment, void_reason must be provided. Requests without a reason are rejected.
 - Payment void recalculation: When a payment is voided, invoice.amount_paid_cents must be recomputed by summing only posted (non-voided) payments, and invoice status must be recalculated in the same transaction. A voided payment on a paid invoice may transition the invoice back to partial or sent.
@@ -204,9 +205,15 @@ All endpoints require Auth0 JWT. All endpoints scope to the authenticated user's
 | Method | Path | Description | Permission |
 |---|---|---|---|
 | GET | /cpt-codes | List active CPT codes (searchable) | codes.read |
+| POST | /cpt-codes | Create a CPT code | codes.write |
+| PATCH | /cpt-codes/{id} | Update a CPT code | codes.write |
+| DELETE | /cpt-codes/{id} | Deactivate a CPT code (sets is_active = false) | codes.delete |
 | GET | /icd-codes | List active ICD-10 codes (searchable) | codes.read |
+| POST | /icd-codes | Create an ICD-10 code | codes.write |
+| PATCH | /icd-codes/{id} | Update an ICD-10 code | codes.write |
+| DELETE | /icd-codes/{id} | Deactivate an ICD-10 code (sets is_active = false) | codes.delete |
 
-CPT and ICD codes are organization-scoped reference data. Practices manage their own code tables. All queries filter by organization_id.
+CPT and ICD codes are organization-scoped reference data. Practices manage their own code tables. All queries filter by organization_id. DELETE endpoints deactivate codes (set `is_active = false`) rather than soft-deleting them, because deactivated codes must remain visible on historical invoice line items.
 
 ### Insurance payer management
 
@@ -240,6 +247,18 @@ Client insurance endpoints follow EAV routing conventions from SPEC-001. The `ty
 | POST | /invoices/{id}/send | Transition draft to sent | invoices.write |
 | POST | /invoices/{id}/void | Void an invoice with required reason | invoices.void |
 
+### POST /invoices request body
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| session_id | UUID | Yes | Must reference a completed session in the same org. |
+| notes | String | No | Internal billing notes. Max 2,000 characters. |
+| due_date | Date | No | Payment due date. ISO 8601 YYYY-MM-DD. |
+
+`client_instance_id` and `provider_instance_id` are derived server-side from the referenced Session. They are not accepted in the request body. If submitted, they are silently ignored.
+
+The response returns the full Invoice object with all fields and an empty `line_items` array.
+
 ### Invoice line item management
 
 | Method | Path | Description | Permission |
@@ -262,6 +281,7 @@ Client insurance endpoints follow EAV routing conventions from SPEC-001. The `ty
 
 ## 6. Implementation Constraints
 
+- Row-level filtering: Permission conditions such as `own_invoices` are defined in SPEC-002 §3. Any agent implementing a list endpoint for invoices or payments must consult SPEC-002 §3 to determine which `RolePermission.conditions` apply and how to translate them into query predicates before building the query.
 - Atomic total recomputation: Any write to InvoiceLineItem must recompute and persist invoice.total_cents and balance_cents within the same database transaction. These values must never be computed on-the-fly at read time.
 - Payment status automation: Recording or voiding a payment must trigger invoice status recalculation (sent, partial, or paid) inside the same transaction as the payment insert or void. Only posted (non-voided) payments count toward amount_paid_cents.
 - Audit requirements: All state-changing calls (POST, PATCH, DELETE, void, send) must write an AuditLog entry per BR-07.
@@ -344,3 +364,6 @@ Every business rule and constraint maps to at least one test case per SPEC-000 �
 | 0.2.0 | Changed one-invoice-per-session from absolute UNIQUE to partial unique index excluding voided invoices. Billers can now void and rebill a session. Replaced coarse billing.read/billing.write with granular permissions: invoices.read, invoices.create, invoices.write, invoices.void, payments.read, payments.record, insurance.read, insurance.write, codes.read. All API endpoints updated to use granular permissions. |
 | 0.3.0 | Added organization_id to CPTCode, ICDCode, InsurancePayer (all tables now org-scoped). Added deleted_at to InvoiceLineItem. Added Payment void mechanism (status, voided_at, voided_by_person_id, void_reason) with recalculation rules. Added session-invoice consistency rule. Updated client insurance URLs to EAV routing convention. Added test table with 43 test cases. Renamed conductor/attendee to provider/client across SPEC-003 for naming consistency. |
 | 0.4.0 | Fixed locked invoice editing rule to explicitly include partial status as locked (previously ambiguous — first sentence allowed partial, second sentence blocked it). Added insurance payer required business rule (payer_type=insurance requires non-null insurance_payer_id). Added note independence rule (ClinicalNote not required for invoice creation). |
+| 0.5.0 | Added soft delete restriction: only draft invoices may be soft-deleted; non-draft must use void endpoint. Added POST /invoices explicit request body schema: session_id and optional notes/due_date accepted; client_instance_id and provider_instance_id are server-derived. |
+| 0.6.0 | Added row-level filtering cross-reference to Implementation Constraints: agents must consult SPEC-002 §3 for own_invoices condition definitions before building list endpoints. |
+| 0.7.0 | Added POST, PATCH, DELETE endpoints for /cpt-codes and /icd-codes with codes.write and codes.delete permissions. DELETE deactivates (is_active=false) rather than soft-deleting to preserve historical line item references. |

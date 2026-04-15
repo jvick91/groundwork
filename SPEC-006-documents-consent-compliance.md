@@ -1,7 +1,7 @@
 # SPEC-006: Documents, Consent, and Compliance
 
 **Status:** Draft
-**Version:** 0.2.0
+**Version:** 0.4.0
 **Parent Spec:** [SPEC-000-platform-overview](./SPEC-000-platform-overview.md)
 **Scope:** File storage, client consent tracking, audit logging, and intake form management.
 
@@ -57,7 +57,7 @@ AuditLog rows are never updated or deleted. There are no updated_at or deleted_a
 | organization_id | UUID | FK -> Organization, NOT NULL | Scopes document type to a tenant. |
 | name | String | NOT NULL | Human label (for example Session Document, Consent Form, Insurance Card, Referral Letter). |
 | slug | String | NOT NULL | Stable machine identifier (for example session_document, consent_form). |
-| linked_resource_table | String | NULLABLE | The table name this type links to (for example Session, ClinicalNote, ClientConsent, EntityInstance). Null means the type can be used for unlinked documents. |
+| linked_resource_table | String | NULLABLE | The table name this type links to. Valid values: `session`, `clinical_note`, `invoice`, `entity_instance`, `person`. Null means the type can be used for unlinked documents. Any value outside this list is rejected with HTTP 422. |
 | is_system_type | Boolean | NOT NULL, default false | Protected seed types that cannot be deleted. |
 | is_active | Boolean | NOT NULL, default true | Inactive types cannot be used on new documents. |
 | created_at | Timestamp | NOT NULL, default now | Record creation time in UTC. |
@@ -157,6 +157,34 @@ All constraints are enforced server-side before the presigned S3 upload URL is g
 
 **Unique constraint:** (organization_id, slug). Slug is unique within an organization. System template slugs are globally reserved.
 
+### FormTemplate Schema Structure
+
+The `schema` JSONB field must conform to the following structure. Pydantic validation is applied at create and update time.
+
+```
+{
+  "fields": [
+    {
+      "name": "string — required, machine name, must match [a-z][a-z0-9_]{0,63}",
+      "label": "string — required, human-readable display label",
+      "type": "string — required, one of: text, textarea, number, date, boolean, select, multiselect, email, phone",
+      "required": "boolean — required, default false",
+      "options": "array of strings — required when type is select or multiselect, must be null otherwise",
+      "placeholder": "string — optional",
+      "max_length": "integer — optional, max character length for text and textarea fields",
+      "validation_regex": "string — optional, regex pattern applied to text field values at submission time"
+    }
+  ]
+}
+```
+
+Validation rules:
+- The `fields` array must contain at least one field.
+- Field `name` values must be unique within a single template.
+- `select` and `multiselect` types must have a non-empty `options` array.
+- All other types must have `options = null`.
+- Providing an unrecognized `type` value returns HTTP 422, error code `validation_error`.
+
 ---
 
 ## 3. Consent Status Lifecycle
@@ -168,7 +196,11 @@ All constraints are enforced server-side before the presigned S3 upload URL is g
 | revoked | none (terminal) | — |
 | expired | none (terminal) | — |
 
+**Design note on `pending → revoked`:** The `revoked` terminal status covers both declined-before-signing and withdrawn-after-signing cases. The distinction is deterministic from the data: if `signed_at IS NULL` and `status = revoked`, the consent was declined before signing. If `signed_at IS NOT NULL` and `status = revoked`, the consent was withdrawn after signing. Agents and reports must use this field-level distinction rather than relying on status alone.
+
 Expiry is handled by a Celery Beat scheduled task (`expire_consents`). The task runs daily at 00:00 UTC, queries all ClientConsent records where `status = 'signed'` and `expiration_date < CURRENT_DATE`, transitions each to `expired`, and writes an AuditLog entry per record with `actor_person_id = NULL` (system-triggered event). See SPEC-007 §10 for task infrastructure. As a defense-in-depth measure, all consent gate checks must also verify `expiration_date IS NULL OR expiration_date >= CURRENT_DATE` in addition to checking `status = 'signed'`, so an expired consent is never treated as valid even if the cron job has not yet run.
+
+**expire_consents error handling:** Each consent record is expired in its own database transaction. A failure on one record (for example a constraint violation or database error) is logged at ERROR level with the consent ID and reason. It does not prevent processing of the remaining records. Failed records are retried on the next scheduled run. The task reports the total count of successfully expired records and the count of failures in its Celery result metadata.
 
 ---
 
@@ -308,7 +340,7 @@ AuditLog has no write endpoints. Entries are written only by internal service ca
 
 - Audit atomicity: AuditLog writes must be in the same database transaction as the state change they record. An audit failure must roll back the whole transaction. Callers must never suppress audit errors to allow a business operation to succeed silently.
 - PHI field exclusion list: A single centralized exclusion list must define which fields are stripped from previous_state and next_state before the AuditLog row is written. This list is a platform configuration concern, not a per-endpoint concern.
-- Presigned URL expiry: S3 presigned download URLs must have a short expiry. The exact window is defined in ADR-009 but must be measured in minutes, not hours.
+- Presigned URL expiry: S3 presigned download URLs expire after 15 minutes. S3 presigned upload URLs (used in the two-step document upload flow) expire after 60 minutes. These values are the platform defaults and apply until ADR-009 is finalized; if ADR-009 specifies different values, ADR-009 overrides these.
 - S3 key opacity: The s3_key column must be marked as excluded from all serialization schemas that produce API responses. It is only used internally when generating presigned URLs.
 - Consent session gate: The session completion path in SPEC-003 must consult the consent service to verify an active signed treatment consent exists before allowing the transition to completed. The check must verify `status = 'signed'` AND `expiration_date IS NULL OR expiration_date >= CURRENT_DATE` on a ConsentType with slug = 'treatment'. This is a service-layer dependency, not enforced by a foreign key.
 - FormTemplate versioning: Any PATCH to a FormTemplate schema field must increment the version automatically if the caller does not supply an updated version. Auto-increment uses semantic minor version bumping.
@@ -386,3 +418,5 @@ Every business rule and constraint maps to at least one test case per SPEC-000 �
 |---|---|
 | 0.1.0 | Initial draft. Full model definitions for AuditLog, Document, ClientConsent, and FormTemplate. Consent lifecycle, BR-07 and BR-08 full specifications, audit coverage matrix, two-step document upload pattern, API surface, and ADR mapping. |
 | 0.2.0 | Added DocumentType and ConsentType reference tables replacing free-form strings and hardcoded enums. Made FormTemplate organization_id NOT NULL (system templates seeded per-org). Added deleted_at to ClientConsent and FormTemplate. Defined cron job for consent expiry with defense-in-depth read-time check. Added file upload constraints (25MB max, MIME allowlist, filename sanitization). Updated consent URLs to EAV routing. Added DocumentType and ConsentType management APIs. Updated audit coverage matrix. Clarified consent session gate (SPEC-003 only, not billing). Added test table with 45 test cases. Introduced granular consent permissions (consents.read, consents.write, consents.sign, consents.revoke). |
+| 0.3.0 | Added FormTemplate schema JSONB structure with field types, validation rules, and field name uniqueness constraint. Added per-record error handling rule to expire_consents cron task (individual transactions, failed records retried next run). Locked presigned URL expiry to concrete defaults: 15 minutes for downloads, 60 minutes for uploads. Narrowed linked_resource_table to explicit valid values (session, clinical_note, invoice, entity_instance, person) with HTTP 422 on invalid input. |
+| 0.4.0 | Added design note disambiguating pending-to-revoked consent transition: revoked covers both declined-before-signing (signed_at IS NULL) and withdrawn-after-signing (signed_at IS NOT NULL). |

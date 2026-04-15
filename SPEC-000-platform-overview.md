@@ -1,6 +1,6 @@
 # Groundwork — Practice Management Platform Specification
 
-**Version:** 1.2.0
+**Version:** 1.3.0
 **Status:** Draft
 **Supersedes:** practice_management_spec v0.3.0
 **Stack:** Next.js (App Router) · FastAPI · PostgreSQL · Redis · Celery · Docker
@@ -209,6 +209,17 @@ Sub-spec: SPEC-007 (API contract and testing)
 
 ADR: ADR-009 (File storage and encryption)
 
+### HIPAA-ready acceptance criteria (MVP)
+
+The MVP is considered HIPAA-ready when ALL of the following are true:
+
+1. Auth0 is configured with MFA enabled for all provider and admin roles.
+2. Every table containing PHI has a `deleted_at` column and no hard-delete endpoint.
+3. Every state-changing API call produces an AuditLog row (verified by SPEC-006 test suite).
+4. The structlog configuration excludes all fields listed in BR-08 (verified by PHI exclusion tests).
+5. S3 buckets have SSE-S3 or SSE-KMS encryption enabled (verified by infrastructure test).
+6. ClientConsent table has seed ConsentType records for `treatment`, `telehealth`, and `release_of_information`.
+
 ---
 
 ## 7. Domain sub-specs
@@ -260,3 +271,4 @@ This spec lives in the repository at docs/SPEC-000-platform-overview.md. Every P
 | 1.0.0 | Platform rewrite. EAV + concrete hybrid. Multi-tenancy. RBAC. 24 MVP tables. Master/sub-spec/ADR document structure. Supersedes monolithic spec. |
 | 1.1.0 | Updated BR-04 (amendment model), BR-05 (draft-only delete for notes). Added Pydantic type system requirement. Added granular billing permissions. Renamed conductor/attendee to provider/client in sessions. Added DocumentType and ConsentType reference tables (26 MVP tables). Updated persona permissions. Universal org-scoping enforced on all tables. |
 | 1.2.0 | Fixed Client persona emergency_contact to two fields (emergency_contact_name, emergency_contact_phone) matching SPEC-001 seed data. Added SPEC-002 authority note to personas table — Key permissions column is illustrative shorthand only; SPEC-002 Section 3 is authoritative. |
+| 1.3.0 | Added HIPAA-ready acceptance criteria subsection to Section 6 with 6 concrete MVP pass/fail gates. |

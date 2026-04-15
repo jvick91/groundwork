@@ -1,7 +1,7 @@
 # SPEC-003: Scheduling and Sessions
 
 **Status:** Draft
-**Version:** 0.4.0
+**Version:** 0.8.0
 **Parent Spec:** [SPEC-000-platform-overview](./SPEC-000-platform-overview.md)
 **Scope:** Session scheduling, appointment types, availability, and cancellation lifecycle.
 
@@ -32,6 +32,7 @@ Sessions are the primary transactional unit connecting the identity layer (SPEC-
 | default_duration_minutes | Integer | NOT NULL | Default session length in minutes. |
 | cpt_code_id | UUID | FK -> CPTCode, NULLABLE | Default billing code associated with this appointment kind. |
 | is_telehealth | Boolean | NOT NULL, default false | Whether this type is delivered via telehealth. |
+| is_intake | Boolean | NOT NULL, default false | When true, this type may be scheduled for clients with any intake_status, including new. When false, the client must have intake_status of in_progress or complete before booking. |
 | is_active | Boolean | NOT NULL, default true | Soft toggle. Inactive types cannot be used for new sessions. |
 | created_at | Timestamp | NOT NULL, default now | Record creation time in UTC. |
 | updated_at | Timestamp | NOT NULL, default now | Last modification time in UTC. |
@@ -95,8 +96,8 @@ Terminal statuses cannot be updated. Any attempt to transition out of a terminal
 The following constraints apply at the service layer before a session is committed:
 
 - The provider's organization membership must be confirmed active via their PersonRole assignment before a session is booked on their behalf.
-- A client must have an EntityInstance with intake_status of complete or in_progress before a non-intake session type can be scheduled for them.
-- End-to-end duration consistency: the difference between end_time and start_time must equal or exceed the AppointmentType's default_duration_minutes. Shorter durations are allowed only if explicitly set by a user with sessions.write permission.
+- Intake status gate: A client with intake_status = "new" may only be scheduled for AppointmentTypes where is_intake = true. Clients with intake_status = "in_progress" or "complete" may be scheduled for any active AppointmentType. Requests violating this rule are rejected with HTTP 422, error code `prerequisite_not_met`, message: "Client intake_status must be 'in_progress' or 'complete' for non-intake appointment types."
+- End-to-end duration consistency: The difference between end_time and start_time must equal or exceed the AppointmentType's `default_duration_minutes`. If the submitted duration is shorter, the request must include `override_duration: true` in the request body. Requests with a shorter duration that omit this flag are rejected with HTTP 422, error code `validation_error`, detail: "Session duration is shorter than the appointment type default. Set override_duration to true to confirm."
 
 ---
 
@@ -105,6 +106,8 @@ The following constraints apply at the service layer before a session is committ
 All endpoints require Auth0 JWT. All endpoints scope to the authenticated user's organization.
 
 ### AppointmentType management
+
+**Permission note:** AppointmentType management uses `settings.write` because appointment types are organizational configuration, not clinical data. Only users with administrative access to organization settings should create or modify appointment types. Billers and receptionists who need appointment type changes must request them through a practice admin.
 
 | Method | Path | Description | Permission |
 |---|---|---|---|
@@ -136,10 +139,48 @@ All endpoints require Auth0 JWT. All endpoints scope to the authenticated user's
 
 Explicit transition endpoints are preferred over a generic PATCH on status to enforce lifecycle rules at the routing layer rather than in application service logic.
 
+### POST /sessions request body
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| appointment_type_id | UUID | Yes | Must reference an active AppointmentType in the same org. |
+| provider_instance_id | UUID | Yes | Must reference an EntityInstance of type provider in the same org. |
+| client_instance_id | UUID | Yes | Must reference an EntityInstance of type client in the same org. |
+| start_time | Timestamp (ISO 8601 UTC) | Yes | Session start time. |
+| end_time | Timestamp (ISO 8601 UTC) | Yes | Session end time. Must be after start_time. |
+| override_duration | Boolean | No | Must be true when the duration is shorter than the AppointmentType default. Omitting this flag with a short duration returns HTTP 422. |
+| location | String | No | Physical address or telehealth platform identifier. |
+| notes | String | No | Internal scheduling notes. Max 2,000 characters. Not PHI. |
+
+### PATCH /sessions/{id} request body
+
+All fields are optional. Only provided fields are updated. Status cannot be changed via PATCH — use the explicit transition endpoints. `provider_instance_id` and `client_instance_id` are immutable after creation; any attempt to change them returns HTTP 409, error code `resource_locked`.
+
+### Session response body
+
+| Field | Type | Description |
+|---|---|---|
+| id | UUID | Session primary key. |
+| organization_id | UUID | Tenant. |
+| appointment_type_id | UUID | Template reference. |
+| provider_instance_id | UUID | Provider profile instance. |
+| client_instance_id | UUID | Client profile instance. |
+| start_time | Timestamp | ISO 8601 UTC. |
+| end_time | Timestamp | ISO 8601 UTC. |
+| status | String | Current lifecycle status. |
+| cancellation_reason | String, nullable | Set when cancelled or no_show. |
+| cancelled_at | Timestamp, nullable | When cancellation was recorded. |
+| cancelled_by_person_id | UUID, nullable | Who recorded the cancellation. |
+| location | String, nullable | Location or telehealth identifier. |
+| notes | String, nullable | Internal scheduling notes. |
+| created_at | Timestamp | Record creation time in UTC. |
+| updated_at | Timestamp | Last modification time in UTC. |
+
 ---
 
 ## 7. Implementation Constraints
 
+- Row-level filtering: Permission conditions such as `own_sessions` are defined in SPEC-002 §3. Any agent implementing a list endpoint for sessions must consult SPEC-002 §3 to determine which `RolePermission.conditions` apply and how to translate them into query predicates before building the query.
 - Overlap detection: BR-03 must be enforced inside a database transaction to prevent race conditions on concurrent booking requests.
 - Audit requirements: All state-changing calls (POST, PATCH, DELETE, and all transition endpoints) must write an AuditLog entry per BR-07.
 - PHI-safe logging: Session.notes is not PHI, but client identity details must never appear in application logs per BR-08.
@@ -207,3 +248,7 @@ Every business rule and constraint maps to at least one test case per SPEC-000 �
 | 0.2.0 | Renamed conductor_instance_id to provider_instance_id and attendee_instance_id to client_instance_id. Aligns field naming with SPEC-005 Invoice and cross-spec consistency. |
 | 0.3.0 | Added consent gate business rule: session completion requires active signed treatment consent per SPEC-006. |
 | 0.4.0 | Added Test Table (Section 9) with 30 test cases covering BR-01 time order, BR-02 org membership, BR-03 provider overlap (with boundary and race condition cases), bridge rule validation, all 11 status lifecycle transitions, consent gate (happy path + expired + missing), AppointmentType guard, soft delete, multi-tenancy isolation, and 2 BR-07 audit log tests. |
+| 0.5.0 | Added is_intake field to AppointmentType. Rewrote intake status gate to explicitly reference is_intake (replacing vague "non-intake session type" prose). |
+| 0.6.0 | Replaced vague duration consistency rule with explicit override_duration flag mechanism. Added POST /sessions and PATCH /sessions/{id} explicit request and response body schemas (Section 6). |
+| 0.7.0 | Added row-level filtering cross-reference to Implementation Constraints: agents must consult SPEC-002 §3 for own_sessions condition definitions before building list endpoints. |
+| 0.8.0 | Added settings.write permission rationale design note to AppointmentType management section. |
