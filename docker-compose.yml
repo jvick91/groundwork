@@ -12,7 +12,7 @@ services:
     env_file:
       - .env
       - ./backend/.env.backend
-    entrypoint: ["/app/docker-entrypoint.sh"]
+    entrypoint: ["bash", "/app/docker-entrypoint.sh"]
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     depends_on:
       db:
@@ -47,7 +47,7 @@ services:
     tmpfs:
       - /var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-groundwork}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-groundwork} -d groundwork_test"]
       interval: 5s
       timeout: 5s
       retries: 5
