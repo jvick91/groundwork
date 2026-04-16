@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     database_url_sync: str = "postgresql+psycopg2://groundwork:groundwork@db:5432/groundwork"
 
     # Test database
-    test_database_url: str = "postgresql+asyncpg://groundwork:groundwork@db-test:5433/groundwork_test"
+    test_database_url: str = "postgresql+asyncpg://groundwork:groundwork@db-test:5432/groundwork_test"
 
     # Auth0
     auth0_domain: str = ""

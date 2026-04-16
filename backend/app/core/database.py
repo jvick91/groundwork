@@ -1,47 +1,147 @@
 """
 Async database engine and session management.
 
-Provides the async SQLAlchemy engine, session factory, declarative Base,
-and the get_db dependency for FastAPI route injection.
+Provides a thread-safe Database singleton for deferred initialization,
+the declarative Base with async support and naming conventions,
+reusable model mixins, and the get_db dependency for FastAPI route injection.
+
+Engine creation is deferred to application startup via Database.initialize(),
+not at module import time. This ensures proper lifecycle management.
 """
 
-from collections.abc import AsyncGenerator
+import uuid
+from datetime import datetime
+from threading import Lock
 
+from sqlalchemy import DateTime, MetaData, String, text
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.ext.asyncio import AsyncAttrs
 
-from app.core.settings import settings
+from app.core.logger import get_logger
 
-engine = create_async_engine(
-    settings.database_url,
-    pool_pre_ping=True,
-    echo=settings.debug,
-)
+logger = get_logger(__name__)
 
-async_session_factory = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-)
-
-
-class Base(DeclarativeBase):
-    """Base class for all SQLAlchemy ORM models."""
-
-    pass
+# PostgreSQL naming convention for consistent constraint names in Alembic migrations
+naming_convention = {
+    "ix": "ix_%(table_name)s_%(column_0_N_name)s",
+    "uq": "uq_%(table_name)s_%(column_0_N_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s",
+}
 
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """FastAPI dependency that yields an async database session.
+class Base(DeclarativeBase, AsyncAttrs):
+    """Base class for all SQLAlchemy ORM models.
 
-    Commits on success, rolls back on exception, and always closes the session.
+    Includes AsyncAttrs for safe lazy-load access in async context
+    and a naming convention for predictable constraint names.
     """
-    async with async_session_factory() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+
+    metadata = MetaData(naming_convention=naming_convention)
+
+
+class IdMixin:
+    """Provides a UUID primary key column."""
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        nullable=False,
+    )
+
+
+class TimestampMixin:
+    """Provides created_at and updated_at timestamp columns."""
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("NOW()"),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        server_default=None,
+        onupdate=text("NOW()"),
+    )
+
+
+class SoftDeleteMixin:
+    """Provides a deleted_at column for soft-delete support (HIPAA requirement)."""
+
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
+    )
+
+
+class Database:
+    """Thread-safe singleton managing the async engine and session factory.
+
+    Usage:
+        # In lifespan startup:
+        Database.initialize(settings.database_url, echo=settings.debug)
+
+        # In dependencies:
+        factory = Database.get_session_factory()
+
+        # In lifespan shutdown:
+        await Database.dispose()
+    """
+
+    _engine = None
+    _session_factory = None
+    _lock = Lock()
+
+    @classmethod
+    def initialize(cls, database_url: str, echo: bool = False) -> None:
+        """Initialize the async engine and session factory. Thread-safe."""
+        with cls._lock:
+            if cls._engine is None:
+                logger.info("initializing_database_engine", url=database_url.split("@")[-1])
+                cls._engine = create_async_engine(
+                    database_url,
+                    echo=echo,
+                    pool_pre_ping=True,
+                    future=True,
+                )
+                cls._session_factory = async_sessionmaker(
+                    bind=cls._engine,
+                    class_=AsyncSession,
+                    expire_on_commit=False,
+                )
+
+    @classmethod
+    def get_session_factory(cls) -> async_sessionmaker[AsyncSession]:
+        """Return the session factory, raising if not yet initialized."""
+        with cls._lock:
+            if cls._session_factory is None:
+                raise RuntimeError(
+                    "Database not initialized. Call Database.initialize() first."
+                )
+            return cls._session_factory
+
+    @classmethod
+    def get_engine(cls):
+        """Return the async engine, raising if not yet initialized."""
+        with cls._lock:
+            if cls._engine is None:
+                raise RuntimeError(
+                    "Database not initialized. Call Database.initialize() first."
+                )
+            return cls._engine
+
+    @classmethod
+    async def dispose(cls) -> None:
+        """Dispose of the engine and reset state. Call during shutdown."""
+        with cls._lock:
+            if cls._engine is not None:
+                logger.info("disposing_database_engine")
+                await cls._engine.dispose()
+                cls._engine = None
+                cls._session_factory = None

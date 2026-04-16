@@ -12,5 +12,11 @@ This module is intentionally empty in the scaffold. Models are added per phase:
 - Phase 4 (Compliance - SPEC-006): AuditLog, ConsentRecord, DataRetentionPolicy
 - Phase 5 (API - SPEC-007): RateLimitRule, ApiKey
 
-All models should inherit from app.core.database.Base.
+All models should inherit from Base and use the provided mixins:
+
+    from app.core.database import Base, IdMixin, SoftDeleteMixin, TimestampMixin
+
+    class Organization(Base, IdMixin, TimestampMixin, SoftDeleteMixin):
+        __tablename__ = "organizations"
+        ...
 """

@@ -5,40 +5,35 @@ Each test runs inside a transaction that is rolled back after the test completes
 ensuring full isolation without needing to recreate tables between tests.
 """
 
-import asyncio
 from collections.abc import AsyncGenerator
 
-import pytest
+import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    create_async_engine,
+)
 
-from app.core.database import Base, get_db
+from app.core.database import Base
+from app.core.dependencies import get_db
 from app.core.settings import settings
 from app.main import create_app
 
-test_engine = create_async_engine(
-    settings.test_database_url,
-    pool_pre_ping=True,
-    echo=False,
-)
 
-TestSessionFactory = async_sessionmaker(
-    test_engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-)
-
-
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create a single event loop for the entire test session."""
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
+async def test_engine():
+    """Create a single async engine for the entire test session."""
+    engine = create_async_engine(
+        settings.test_database_url,
+        pool_pre_ping=True,
+        echo=False,
+    )
+    yield engine
+    await engine.dispose()
 
 
-@pytest.fixture(scope="session", autouse=True)
-async def create_tables():
+@pytest_asyncio.fixture(scope="session", loop_scope="session", autouse=True)
+async def create_tables(test_engine):
     """Create all tables once at the start of the test session."""
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -47,8 +42,8 @@ async def create_tables():
         await conn.run_sync(Base.metadata.drop_all)
 
 
-@pytest.fixture
-async def db_session() -> AsyncGenerator[AsyncSession, None]:
+@pytest_asyncio.fixture(loop_scope="session")
+async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
     """Per-test database session with transaction rollback for isolation."""
     async with test_engine.connect() as conn:
         transaction = await conn.begin()
@@ -60,7 +55,7 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
         await transaction.rollback()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture(loop_scope="session")
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """httpx AsyncClient wired to the test app with db dependency override."""
     app = create_app()
