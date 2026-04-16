@@ -1,28 +1,29 @@
 # SPEC Review — Issue Digest
 
 **Date:** 2026-04-15
-**Total:** 46 issues (45 open, 1 fixed)
+**Total:** 46 issues (13 fixed, 33 open)
 
 ---
 
-## Quick Resolve (no design decision needed — clear, mechanical fix)
+## Quick Resolve — ALL FIXED
 
+All 13 mechanical issues have been resolved in the specs.
 
-| #   | ID       | Spec         | Severity     | Issue                                                                                                                          |
-| --- | -------- | ------------ | ------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | 000-01   | SPEC-000     | Major        | `emergency_contact` in persona table doesn't match SPEC-001 seed data (`emergency_contact_name` + `emergency_contact_phone`)   |
-| 2   | 000-02   | SPEC-000/001 | Minor        | SPEC-001 ADR-001 says "24 tables" but SPEC-000 says 26                                                                         |
-| 3   | 001-02   | SPEC-001     | Minor        | AttributeValue has no timestamps, and no design note explaining the intentional omission                                       |
-| 4   | 002-02   | SPEC-002/007 | Major        | `permissions.read` required for `GET /permissions` but never defined as a seed permission — SPEC-007 already uses `roles.read` |
-| 5   | 002-06   | SPEC-002/007 | Major        | `/auth/me` response shape conflicts — SPEC-002 has flat single-org, SPEC-007 has nested multi-org array                        |
-| 6   | 002-07   | SPEC-000/002 | Major        | Two competing role-permission representations (SPEC-000 personas table vs SPEC-002 seed matrix) with no stated authority       |
-| 7   | 004-01   | SPEC-004     | **Critical** | Lifecycle table allows `amendment_pending -> cosigned` but amendment model requires re-signing first                           |
-| 8   | 004-02   | SPEC-004     | Minor        | Missing test for `test_soft_delete_amendment_pending_note_returns_409`                                                         |
-| 9   | 005-02   | SPEC-005     | Major        | Line item lock rule contradicts itself — first sentence allows `partial`, second sentence blocks it                            |
-| 10  | 005-04   | SPEC-005     | Minor        | Test table tests `insurance_payer_id` required when `payer_type=insurance` but no business rule states this                    |
-| 11  | 007-01   | SPEC-007     | Minor        | Stale "conductor" terminology in `bridge_rule_violation` error description                                                     |
-| 12  | 007-03   | SPEC-007     | —            | `GET /entity-types/{slug}/attributes` missing from endpoint inventory — **already fixed in v0.2.0**                            |
-| 13  | XSPEC-01 | Cross-spec   | Minor        | No spec explicitly states that notes are optional for invoicing                                                                |
+| #   | ID       | Spec         | Severity     | Issue                                                                                                                          | Status    |
+| --- | -------- | ------------ | ------------ | ------------------------------------------------------------------------------------------------------------------------------ | --------- |
+| 1   | 000-01   | SPEC-000     | Major        | `emergency_contact` in persona table doesn't match SPEC-001 seed data (`emergency_contact_name` + `emergency_contact_phone`)   | **FIXED** |
+| 2   | 000-02   | SPEC-000/001 | Minor        | SPEC-001 ADR-001 says "24 tables" but SPEC-000 says 26                                                                         | **FIXED** |
+| 3   | 001-02   | SPEC-001     | Minor        | AttributeValue has no timestamps, and no design note explaining the intentional omission                                       | **FIXED** |
+| 4   | 002-02   | SPEC-002/007 | Major        | `permissions.read` required for `GET /permissions` but never defined as a seed permission — SPEC-007 already uses `roles.read` | **FIXED** |
+| 5   | 002-06   | SPEC-002/007 | Major        | `/auth/me` response shape conflicts — SPEC-002 has flat single-org, SPEC-007 has nested multi-org array                        | **FIXED** |
+| 6   | 002-07   | SPEC-000/002 | Major        | Two competing role-permission representations (SPEC-000 personas table vs SPEC-002 seed matrix) with no stated authority       | **FIXED** |
+| 7   | 004-01   | SPEC-004     | **Critical** | Lifecycle table allows `amendment_pending -> cosigned` but amendment model requires re-signing first                           | **FIXED** |
+| 8   | 004-02   | SPEC-004     | Minor        | Missing test for `test_soft_delete_amendment_pending_note_returns_409`                                                         | **FIXED** |
+| 9   | 005-02   | SPEC-005     | Major        | Line item lock rule contradicts itself — first sentence allows `partial`, second sentence blocks it                            | **FIXED** |
+| 10  | 005-04   | SPEC-005     | Minor        | Test table tests `insurance_payer_id` required when `payer_type=insurance` but no business rule states this                    | **FIXED** |
+| 11  | 007-01   | SPEC-007     | Minor        | Stale "conductor" terminology in `bridge_rule_violation` error description                                                     | **FIXED** |
+| 12  | 007-03   | SPEC-007     | —            | `GET /entity-types/{slug}/attributes` missing from endpoint inventory                                                          | **FIXED** |
+| 13  | XSPEC-01 | Cross-spec   | Minor        | No spec explicitly states that notes are optional for invoicing                                                                | **FIXED** |
 
 
 ---
