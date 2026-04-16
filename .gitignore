@@ -1,0 +1,40 @@
+# Review and decision artifacts (not source of truth — specs are)
+SPEC-REVIEW.md
+SPEC-REVIEW-FINAL.md
+SPEC-REVIEW-DIGEST.md
+GROUP-3-DECISIONS.md
+
+# Cursor
+.cursor/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+*.egg
+
+# Node
+node_modules/
+.next/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
