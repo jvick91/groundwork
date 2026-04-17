@@ -154,6 +154,19 @@ All monetary values are integers representing cents. No floating-point money val
 
 Every request body, response body, query parameter set, and internal service contract is defined as a Pydantic model. No endpoint accepts or returns raw dicts or untyped JSON. All Pydantic models use strict mode where applicable.
 
+### 4.6 Enum values — storage and wire format
+
+All status and type columns use uppercase string storage. The SQLAlchemy ORM stores the enum member **name** (e.g. `"DRAFT"`, `"SCHEDULED"`) because `native_enum=False` is used throughout and each `StrEnum` sets its value equal to its name in uppercase.
+
+| Layer | Example |
+|---|---|
+| Database (VARCHAR with CHECK constraint) | `"DRAFT"` |
+| SQLAlchemy ORM read | `NoteStatus.DRAFT` |
+| Pydantic JSON serialisation | `"DRAFT"` |
+| Accepted API input | `"DRAFT"` |
+
+Implementors must import enum classes from `app.models.models` (re-exported via `app.schemas.schemas`) rather than redefining them. Introducing a second copy of any enum class is a spec violation.
+
 ---
 
 ## 5. Pagination
