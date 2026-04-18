@@ -8,7 +8,6 @@ Multi-tenant mental health practice management platform backend.
 - **Database**: PostgreSQL 16 with SQLAlchemy 2.0 (async)
 - **Migrations**: Alembic (async)
 - **Auth**: Auth0 JWT validation
-- **Background Tasks**: Celery 5 + Redis 7
 - **Logging**: structlog (JSON)
 
 ## Development
@@ -26,9 +25,6 @@ docker compose up --build
 | backend       | 8000 | FastAPI application            |
 | db            | 5432 | PostgreSQL (development)       |
 | db-test       | 5433 | PostgreSQL (testing, ephemeral)|
-| redis         | 6379 | Celery broker + result backend |
-| celery-worker | -    | Task execution                 |
-| celery-beat   | -    | Periodic task scheduler        |
 
 ### Running Tests
 

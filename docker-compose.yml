@@ -17,8 +17,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      redis:
-        condition: service_healthy
 
   db:
     image: postgres:16-alpine
@@ -51,48 +49,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  celery-worker:
-    build:
-      context: ./backend
-      dockerfile: dockerfile
-    command: celery -A app.core.celery_app worker --loglevel=info
-    volumes:
-      - ./backend/app:/app/app
-    env_file:
-      - .env
-      - ./backend/.env.backend
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  celery-beat:
-    build:
-      context: ./backend
-      dockerfile: dockerfile
-    command: celery -A app.core.celery_app beat --loglevel=info
-    volumes:
-      - ./backend/app:/app/app
-    env_file:
-      - .env
-      - ./backend/.env.backend
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
 
 volumes:
   pgdata:
