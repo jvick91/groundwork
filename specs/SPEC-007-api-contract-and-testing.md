@@ -21,7 +21,7 @@ All API endpoints are served under the `/api/v1/` prefix. Sub-spec endpoint tabl
 
 Example: SPEC-003 lists `GET /sessions`. The actual URL is `GET /api/v1/sessions`.
 
-Versioning strategy follows ADR-010. When breaking changes are introduced, a new version prefix (`/api/v2/`) is added while the previous version remains available for a deprecation period.
+Versioning strategy: /api/v1/ prefix for MVP. When breaking changes are introduced, a new version prefix (`/api/v2/`) is added while the previous version remains available for a deprecation period.
 
 ---
 
@@ -571,7 +571,7 @@ Every table with `created_at` must have an index on `(organization_id, created_a
 
 ### 11.3 EAV query performance
 
-The EAV join pattern (EntityInstance → AttributeValue per field) is inherently expensive for list views. The indexing above helps, but ADR-002 must define the full query strategy. Options under consideration include materialized views, JSONB aggregation, or denormalized search columns. SPEC-007 does not prescribe the solution — ADR-002 owns this decision.
+The EAV join pattern (EntityInstance → AttributeValue per field) is inherently expensive for list views. The indexing above helps, and ADR-004 defines the full query strategy: JSONB aggregation at query time for MVP, with an upgrade path to materialized views at scale.
 
 ---
 
@@ -854,12 +854,8 @@ API responses must never include fields marked as PHI-excluded in BR-08 in conte
 
 | ADR | Title | Impact on this spec |
 |---|---|---|
-| ADR-002 | EAV query performance | Defines the query optimization strategy for EAV joins. Blocks efficient list views. |
-| ADR-003 | Session FK semantics | Defines bridge rule validation approach used across scheduling, clinical, and billing domains. |
-| ADR-010 | API versioning strategy | Defines the versioning prefix, deprecation policy, and breaking change criteria. |
-| ADR-011 | Multi-tenancy isolation | Defines the tenant boundary enforcement strategy that this spec's middleware implements. |
-| ADR-013 | CI/CD and deployment | Defines the full deployment pipeline, container registry, and environment management. |
-| ADR-014 | Monitoring and observability | Defines logging, metrics, and alerting infrastructure. |
+| ADR-003 | Partial unique indexes for revocable records | Partial indexes used across PersonRole, RolePermission, Invoice. |
+| ADR-004 | EAV query performance | JSONB aggregation strategy for EAV list views. |
 
 ---
 

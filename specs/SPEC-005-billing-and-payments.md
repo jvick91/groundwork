@@ -114,7 +114,7 @@ Insurance coverage is tracked per client via ClientInsurance, which links a clie
 | void_reason | Text | NULLABLE | Required when status is void. |
 | created_at | Timestamp | NOT NULL, default now | Record creation time in UTC. |
 | updated_at | Timestamp | NOT NULL, default now | Last modification time in UTC. |
-| deleted_at | Timestamp | NULLABLE | Soft delete marker. See BR-05 and ADR-006. |
+| deleted_at | Timestamp | NULLABLE | Soft delete marker. See BR-05. |
 
 **Unique constraint:** Partial unique index: `UNIQUE (session_id) WHERE status != 'void'`. Only one non-voided Invoice may exist per session. Voided invoices do not block creation of a replacement. A session may accumulate multiple voided invoices over time.
 
@@ -134,7 +134,7 @@ Insurance coverage is tracked per client via ClientInsurance, which links a clie
 | service_date | Date | NOT NULL | Date the service was delivered. Defaults to the session date. |
 | created_at | Timestamp | NOT NULL, default now | Record creation time in UTC. |
 | updated_at | Timestamp | NOT NULL, default now | Last modification time in UTC. |
-| deleted_at | Timestamp | NULLABLE | Soft delete marker. Line items carry PHI (ICD codes). See BR-05 and ADR-006. |
+| deleted_at | Timestamp | NULLABLE | Soft delete marker. Line items carry PHI (ICD codes). See BR-05. |
 
 ### Payment
 
@@ -286,7 +286,7 @@ The response returns the full Invoice object with all fields and an empty `line_
 - Payment status automation: Recording or voiding a payment must trigger invoice status recalculation (sent, partial, or paid) inside the same transaction as the payment insert or void. Only posted (non-voided) payments count toward amount_paid_cents.
 - Audit requirements: All state-changing calls (POST, PATCH, DELETE, void, send) must write an AuditLog entry per BR-07.
 - PHI considerations: Diagnosis codes (ICD) linked to a client are PHI. They must not appear in application logs per BR-08.
-- Payment processor: MVP records payments manually. Automated payment processing is deferred to a later phase. See ADR-008 for the decision on payment processor integration.
+- Payment processor: MVP records payments manually. Automated payment processing is deferred to a later phase.
 - Currency: All monetary values are stored as integer cents in the currency of the organization's locale. No floating-point money values are permitted anywhere in the system.
 
 ---
@@ -295,11 +295,8 @@ The response returns the full Invoice object with all fields and an empty `line_
 
 | ADR | Title | Impact on this spec |
 |---|---|---|
-| ADR-001 | Core MVP data model | Establishes billing tables as part of the concrete layer and scopes them to the MVP. |
-| ADR-008 | Payment processor integration | Decides whether automated payment collection is in scope and which processor is used. Blocks post-MVP payment automation. |
-| ADR-006 | Soft delete strategy | Defines delete semantics for invoices. |
-| ADR-011 | Multi-tenancy isolation | Requires all billing queries to filter by organization_id. |
-| ADR-003 | Session FK semantics | Defines how session-to-provider and session-to-client linkage is resolved; used by invoice bridge rule validation. |
+| ADR-001 | Hybrid EAV + concrete data model | Billing tables are part of the concrete layer. |
+| ADR-003 | Partial unique indexes for revocable records | Invoice partial unique index excludes voided rows. |
 
 ---
 

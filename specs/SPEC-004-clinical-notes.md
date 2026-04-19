@@ -42,7 +42,7 @@ The signing lifecycle is the central constraint of this domain. A note transitio
 | amendment_note | Text | NULLABLE | Explanation appended when an addendum is submitted post-signing. Not a replacement of signed content. |
 | created_at | Timestamp | NOT NULL, default now | Record creation time in UTC. |
 | updated_at | Timestamp | NOT NULL, default now | Last modification time in UTC. |
-| deleted_at | Timestamp | NULLABLE | Soft delete marker. See BR-05 and ADR-006. |
+| deleted_at | Timestamp | NULLABLE | Soft delete marker. See BR-05. |
 
 **Unique constraint:** (session_id). Only one ClinicalNote may exist per session, including soft-deleted records. A session cannot have a second note created after its first is soft-deleted.
 
@@ -194,11 +194,7 @@ The flat list endpoint exists to support dashboard views and billing workflows t
 
 | ADR | Title | Impact on this spec |
 |---|---|---|
-| ADR-001 | Core MVP data model | Establishes ClinicalNote as a concrete table scoped to a session. |
-| ADR-006 | Soft delete strategy | Defines delete semantics for notes and interaction with the one-note-per-session constraint. |
-| ADR-011 | Multi-tenancy isolation | Requires all note queries to filter by organization_id. |
-| ADR-003 | Session FK semantics | Defines how the session-to-provider and session-to-client linkage is validated, which this domain depends on for author and session prerequisite checks. |
-| ADR-009 | File storage and encryption | Relevant if note attachments or document exports are added in a future phase. Not blocking MVP. |
+| ADR-001 | Hybrid EAV + concrete data model | ClinicalNote is a concrete table scoped to a session. |
 
 ---
 
@@ -244,7 +240,7 @@ Every business rule and constraint maps to at least one test case per SPEC-000 Â
 | ClinicalNote | `content` JSONB (DAP) | `test_create_dap_note_missing_data_returns_422` | Integration | DAP schema validation |
 | ClinicalNote | `content` JSONB (BIRP) | `test_create_birp_note_missing_behavior_returns_422` | Integration | BIRP schema validation |
 | ClinicalNote | `content` JSONB | `test_create_note_empty_string_field_returns_422` | Integration | Empty strings not accepted as substitutes for null |
-| ClinicalNote | `organization_id` | `test_list_notes_filters_by_org` | Integration | Multi-tenant isolation (ADR-011) |
+| ClinicalNote | `organization_id` | `test_list_notes_filters_by_org` | Integration | Multi-tenant isolation |
 | ClinicalNote | all state changes | `test_sign_writes_audit_log_entry` | Integration | BR-07: audit log on sign |
 | ClinicalNote | all state changes | `test_cosign_writes_audit_log_entry` | Integration | BR-07: audit log on co-sign |
 | ClinicalNote | all state changes | `test_amend_writes_audit_log_entry` | Integration | BR-07: audit log on amendment |
