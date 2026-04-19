@@ -1,8 +1,6 @@
 [run]
 source = app
 omit =
-    app/core/celery_app.py
-    app/tasks/*
     */alembic/*
     */tests/*
 

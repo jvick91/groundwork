@@ -3,7 +3,7 @@
 **Version:** 1.3.0
 **Status:** Draft
 **Supersedes:** practice_management_spec v0.3.0
-**Stack:** Next.js (App Router) · FastAPI · PostgreSQL · Redis · Celery · Docker
+**Stack:** Next.js (App Router) · FastAPI · PostgreSQL · Docker
 **Type System:** Pydantic for all data validation, serialization, and API schemas. Every model, request body, response body, and internal service contract uses Pydantic types. No untyped dicts or raw JSON handling.
 **Test Frameworks:** pytest + httpx (backend) · Vitest (frontend unit) · Playwright (E2E)
 **No mocks policy:** All tests run against real DBs, real HTTP, real browser.
@@ -77,14 +77,8 @@ Three primary roles. All others are subordinate to one of them.
     Auth0 (SSO/MFA)                                      │              │
                                                 ┌────────┘              └────────┐
                                                 │                                │
-                                       ┌──────────────────┐          ┌──────────────────┐
-                                       │  PostgreSQL 16   │          │  Redis 7         │
-                                       └──────────────────┘          │  - Celery broker │
-                                                                     │  - Cache (future)│
-                                       ┌──────────────────┐          └──────────────────┘
-                                       │  Celery Worker   │                  │
-                                       │  - Task queue    │◄─────────────────┘
-                                       │  - Beat scheduler│
+                                       ┌──────────────────┐
+                                       │  PostgreSQL 16   │
                                        └──────────────────┘
                                        AWS S3 (documents, encrypted at rest)
 ```
@@ -93,7 +87,7 @@ Three primary roles. All others are subordinate to one of them.
 
 All services run in Docker containers orchestrated by Docker Compose. There is no "run it locally outside Docker" workflow. Docker is the development environment.
 
-The development compose file defines six services: a Next.js frontend dev server with hot reload on port 3000, a FastAPI backend via uvicorn with hot reload on port 8000, a persistent PostgreSQL 16 database on port 5432, an ephemeral PostgreSQL 16 test database on port 5433 used only during test runs, a Redis 7 instance on port 6379 for the Celery broker, and a Celery worker with Beat scheduler for background tasks.
+The development compose file defines three services: a FastAPI backend via uvicorn with hot reload on port 8000, a persistent PostgreSQL 16 database on port 5432, and an ephemeral PostgreSQL 16 test database on port 5433 used only during test runs.
 
 A separate test compose override defines a backend test runner that executes pytest against the test database and exits when complete, and an E2E runner that executes Playwright against the live frontend and backend containers.
 

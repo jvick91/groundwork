@@ -457,7 +457,7 @@ All paths are relative to `/api/v1/`. Every endpoint requires Auth0 JWT and `X-O
 | Method | Path | Description | Permission | Org Header |
 |---|---|---|---|---|
 | GET | /health | Health check | none (public) | No |
-| GET | /health/ready | Readiness check (DB + Redis) | none (public) | No |
+| GET | /health/ready | Readiness check (DB) | none (public) | No |
 
 ---
 
@@ -476,14 +476,13 @@ Returns 200 if the API process is running. No authentication required. No databa
 
 ### GET /api/v1/health/ready
 
-Returns 200 if the API can serve requests: database is reachable, Redis is connected, Auth0 JWKS is cached. Returns 503 if any dependency is unhealthy. Used for readiness probes.
+Returns 200 if the API can serve requests: database is reachable, Auth0 JWKS is cached. Returns 503 if any dependency is unhealthy. Used for readiness probes.
 
 ```json
 {
   "status": "ready",
   "checks": {
     "database": "ok",
-    "redis": "ok",
     "auth0_jwks": "ok"
   }
 }
@@ -491,53 +490,15 @@ Returns 200 if the API can serve requests: database is reachable, Redis is conne
 
 ---
 
-## 10. Background Task Infrastructure
+## 10. Docker Services
 
-### 10.1 Stack
-
-Background tasks use Celery with Redis as the message broker. This provides task queuing, scheduling, retries, and monitoring.
-
-| Component | Role |
-|---|---|
-| Redis | Message broker for Celery. Also used for permission cache when scaling to multiple API replicas (post-MVP). |
-| Celery Worker | Processes queued tasks. Runs as a separate Docker container with access to the same database. |
-| Celery Beat | Scheduler for periodic tasks. Runs inside the worker container. |
-
-### 10.2 Docker services
-
-The development Docker Compose file defines six services:
+The development Docker Compose file defines three services:
 
 | Service | Image | Port | Purpose |
 |---|---|---|---|
-| frontend | Next.js dev server | 3000 | Frontend with hot reload |
 | backend | FastAPI via uvicorn | 8000 | API server with hot reload |
 | db | PostgreSQL 16 | 5432 | Persistent development database |
 | db-test | PostgreSQL 16 | 5433 | Ephemeral test database |
-| redis | Redis 7 | 6379 | Celery broker and cache |
-| worker | Celery worker + Beat | — | Background task processing and scheduling |
-
-The test compose override adds:
-
-| Service | Purpose |
-|---|---|
-| test-backend | Executes pytest against db-test |
-| test-e2e | Executes Playwright against live frontend + backend |
-
-### 10.3 Registered tasks
-
-| Task | Schedule | Description | Source |
-|---|---|---|---|
-| `expire_consents` | Daily at 00:00 UTC | Transitions expired ClientConsent records to `expired` status. Writes AuditLog with null actor. | SPEC-006 |
-
-Additional tasks will be registered as needed (e.g., email notifications, PDF generation, claim submission). All tasks must be idempotent — running the same task twice with the same inputs must produce the same result.
-
-### 10.4 Task conventions
-
-- All tasks are defined in a `tasks/` module within the backend package.
-- Every task accepts a Pydantic model as input, not raw dicts.
-- Every task that modifies data must write an AuditLog entry.
-- Failed tasks retry up to 3 times with exponential backoff (10s, 60s, 300s).
-- Task results are not stored in Redis by default. Tasks that need to report results use the database.
 
 ---
 
@@ -657,8 +618,6 @@ backend/
 │   │   ├── notes.py
 │   │   ├── billing.py
 │   │   └── compliance.py
-│   ├── tasks/                   # Celery task definitions
-│   │   └── consent_tasks.py
 │   ├── permissions.py           # Permission checking utilities
 │   └── exceptions.py            # Custom exception classes mapping to error codes
 ├── migrations/                  # Alembic migration files
@@ -676,7 +635,6 @@ backend/
 ├── alembic.ini
 ├── pyproject.toml
 ├── Dockerfile
-└── celery_app.py                # Celery app factory and configuration
 ```
 
 ### 12.2 Layer responsibilities
@@ -845,7 +803,7 @@ The backend configures CORS to allow requests only from the frontend origin. In 
 
 ### 15.2 Rate limiting
 
-Post-MVP. When implemented, rate limits will be enforced per (person_id, organization_id) combination using Redis as the counter store. Rate limit headers (`X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`) will be included in responses.
+Post-MVP. When implemented, rate limits will be enforced per (person_id, organization_id) combination. Rate limit headers (`X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`) will be included in responses.
 
 ### 15.3 Input validation
 
@@ -880,7 +838,7 @@ API responses must never include fields marked as PHI-excluded in BR-08 in conte
 
 | Version | Changes |
 |---|---|
-| 0.1.0 | Initial draft. API versioning (/api/v1/), org context via X-Organization-Id header, cursor-based pagination, standard error envelope, complete 100+ endpoint inventory, auth flow, permission caching, Celery + Redis background tasks, database indexing strategy, application structure, test infrastructure, CI pipeline, security constraints, and health check endpoints. |
+| 0.1.0 | Initial draft. API versioning (/api/v1/), org context via X-Organization-Id header, cursor-based pagination, standard error envelope, complete 100+ endpoint inventory, auth flow, permission caching, database indexing strategy, application structure, test infrastructure, CI pipeline, security constraints, and health check endpoints. |
 | 0.2.0 | Aligned EAV endpoint inventory with SPEC-001: changed entity-type path parameters from {id}/{type_id} to {slug}, added missing GET /entity-types/{slug}/attributes endpoint, renamed attribute path parameter from {attr_id} to {id} for consistency. Resolves issues 2 and 3 from consistency review. |
 | 0.3.0 | Fixed stale "conductor" terminology in bridge_rule_violation error description — updated to provider_instance_id to match SPEC-003 v0.2.0 rename. |
 | 0.4.0 | Added schema authority note to Section 8: SPEC-003, SPEC-004, and SPEC-005 are the authoritative sources for request body schemas; all other endpoints follow the NOT NULL = required, NULLABLE = optional inference rule until explicit schemas are added. |

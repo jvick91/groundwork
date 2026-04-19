@@ -198,9 +198,7 @@ Validation rules:
 
 **Design note on `pending → revoked`:** The `revoked` terminal status covers both declined-before-signing and withdrawn-after-signing cases. The distinction is deterministic from the data: if `signed_at IS NULL` and `status = revoked`, the consent was declined before signing. If `signed_at IS NOT NULL` and `status = revoked`, the consent was withdrawn after signing. Agents and reports must use this field-level distinction rather than relying on status alone.
 
-Expiry is handled by a Celery Beat scheduled task (`expire_consents`). The task runs daily at 00:00 UTC, queries all ClientConsent records where `status = 'signed'` and `expiration_date < CURRENT_DATE`, transitions each to `expired`, and writes an AuditLog entry per record with `actor_person_id = NULL` (system-triggered event). See SPEC-007 §10 for task infrastructure. As a defense-in-depth measure, all consent gate checks must also verify `expiration_date IS NULL OR expiration_date >= CURRENT_DATE` in addition to checking `status = 'signed'`, so an expired consent is never treated as valid even if the cron job has not yet run.
-
-**expire_consents error handling:** Each consent record is expired in its own database transaction. A failure on one record (for example a constraint violation or database error) is logged at ERROR level with the consent ID and reason. It does not prevent processing of the remaining records. Failed records are retried on the next scheduled run. The task reports the total count of successfully expired records and the count of failures in its Celery result metadata.
+Expiry is enforced at query time: all consent gate checks must verify `expiration_date IS NULL OR expiration_date >= CURRENT_DATE` in addition to checking `status = 'signed'`, so an expired consent is never treated as valid. The `expired` status transition is performed lazily — when a consent is queried and found to be past its expiration date, the service layer transitions it to `expired` and writes an AuditLog entry with `actor_person_id = NULL` (system-triggered event).
 
 ---
 
