@@ -56,7 +56,7 @@ Sessions are the primary transactional unit connecting the identity layer (SPEC-
 | notes | Text | NULLABLE | Internal scheduling notes. Not PHI. Not a clinical note. |
 | created_at | Timestamp | NOT NULL, default now | Record creation time in UTC. |
 | updated_at | Timestamp | NOT NULL, default now | Last modification time in UTC. |
-| deleted_at | Timestamp | NULLABLE | Soft delete marker. See BR-05 and ADR-006. |
+| deleted_at | Timestamp | NULLABLE | Soft delete marker. See BR-05. |
 
 ---
 
@@ -194,10 +194,7 @@ All fields are optional. Only provided fields are updated. Status cannot be chan
 
 | ADR | Title | Impact on this spec |
 |---|---|---|
-| ADR-003 | Session FK semantics | Defines how provider and client are referenced as EntityInstance IDs rather than Person IDs, and the bridge rule validation responsibility. |
-| ADR-001 | Core MVP data model | Establishes Session as a concrete table and AppointmentType as its template. |
-| ADR-006 | Soft delete strategy | Defines delete semantics and how deleted sessions are excluded from overlap checks. |
-| ADR-011 | Multi-tenancy isolation | Requires all session queries to filter by organization_id and prohibits cross-tenant access. |
+| ADR-003 | Partial unique indexes for revocable records | Session partial unique index pattern. |
 
 ---
 

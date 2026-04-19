@@ -103,7 +103,7 @@ Tests always run inside containers. There is no CI step that installs Python or 
 - Every record scopes to an Organization (multi-tenant isolation)
 - All backend data validation, API request/response schemas, and service-layer contracts use Pydantic models. No raw dicts, untyped JSON, or manual validation. Python type hints are mandatory throughout.
 
-ADR: ADR-007 (Auth provider), ADR-011 (Multi-tenancy isolation), ADR-013 (CI/CD)
+Multi-tenancy: shared DB with organization_id on every table. Auth: Auth0 JWT.
 
 ---
 
@@ -148,7 +148,7 @@ The data model is a hybrid of two patterns. See ADR-001 for the full rationale.
 | Compliance | ClientConsent | Consent tracking with type, signed date, expiry. Lifecycle: pending, signed, revoked, expired. |
 | Compliance | FormTemplate | Custom form definition for intake and assessments. System templates seeded per-org. |
 
-ADR: ADR-001 (Core data model), ADR-002 (EAV query performance), ADR-005 (AttributeValue type safety), ADR-006 (Soft delete strategy)
+ADR: ADR-001 (Hybrid EAV + concrete data model), ADR-004 (EAV query performance)
 
 ---
 
@@ -201,7 +201,7 @@ Sub-spec: SPEC-007 (API contract and testing)
 - AWS S3 with SSE-S3 or SSE-KMS for document storage
 - ClientConsent table tracks treatment, telehealth, and ROI consent with expiry and revocation
 
-ADR: ADR-009 (File storage and encryption)
+ADR: ADR-005 (File storage and encryption)
 
 ### HIPAA-ready acceptance criteria (MVP)
 
@@ -234,22 +234,13 @@ Each sub-spec owns its domain completely: entity definitions, field-level detail
 
 ## 8. ADR index
 
-| ADR | Title | Blocks | Status |
-|---|---|---|---|
-| ADR-001 | Core MVP data model | Phase 1 | Proposed |
-| ADR-002 | EAV query performance | Phase 1 | Pending |
-| ADR-003 | Session FK semantics | Phase 2, API contract | Pending |
-| ADR-004 | Permission auto-generation | Phase 1 seed logic | Pending |
-| ADR-005 | AttributeValue type safety | Phase 1 | Pending |
-| ADR-006 | Soft delete strategy | Phase 1, compliance | Pending |
-| ADR-007 | Auth provider and session management | SPEC-002 | Pending |
-| ADR-008 | Payment processor integration | SPEC-005 | Pending |
-| ADR-009 | File storage and encryption | SPEC-006 | Pending |
-| ADR-010 | API versioning strategy | SPEC-007 | Pending |
-| ADR-011 | Multi-tenancy isolation | Phase 1 | Pending |
-| ADR-012 | Migration from v1 schema | Phase 1 | Pending |
-| ADR-013 | CI/CD and deployment | All phases | Pending |
-| ADR-014 | Monitoring and observability | All phases | Pending |
+| ADR | Title | Status |
+|---|---|---|
+| ADR-001 | Hybrid EAV + concrete data model | Accepted |
+| ADR-002 | No relationship(), FK-only models | Accepted |
+| ADR-003 | Partial unique indexes for revocable records | Accepted |
+| ADR-004 | EAV query performance (JSONB aggregation) | Accepted |
+| ADR-005 | File storage and encryption (S3 + SSE-S3) | Accepted |
 
 ---
 

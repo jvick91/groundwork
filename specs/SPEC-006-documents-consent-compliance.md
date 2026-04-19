@@ -83,7 +83,7 @@ AuditLog rows are never updated or deleted. There are no updated_at or deleted_a
 | s3_bucket | String | NOT NULL | S3 bucket name. Allows bucket migration without data loss. |
 | is_encrypted | Boolean | NOT NULL, default true | Confirms server-side encryption is applied. |
 | created_at | Timestamp | NOT NULL, default now | Record creation time in UTC. |
-| deleted_at | Timestamp | NULLABLE | Soft delete marker. S3 object is not removed on soft delete. See ADR-009. |
+| deleted_at | Timestamp | NULLABLE | Soft delete marker. S3 object is not removed on soft delete. See ADR-005. |
 
 The s3_key is never returned in any API response. File access is provided via a time-limited presigned URL generated at request time.
 
@@ -136,7 +136,7 @@ All constraints are enforced server-side before the presigned S3 upload URL is g
 | notes | Text | NULLABLE | Internal notes on the consent record. PHI — excluded from logs per BR-08. |
 | created_at | Timestamp | NOT NULL, default now | Record creation time in UTC. |
 | updated_at | Timestamp | NOT NULL, default now | Last modification time in UTC. |
-| deleted_at | Timestamp | NULLABLE | Soft delete marker. See BR-05 and ADR-006. |
+| deleted_at | Timestamp | NULLABLE | Soft delete marker. See BR-05. |
 
 ### FormTemplate
 
@@ -153,7 +153,7 @@ All constraints are enforced server-side before the presigned S3 upload URL is g
 | is_active | Boolean | NOT NULL, default true | Inactive templates cannot be sent to new clients. |
 | created_at | Timestamp | NOT NULL, default now | Record creation time in UTC. |
 | updated_at | Timestamp | NOT NULL, default now | Last modification time in UTC. |
-| deleted_at | Timestamp | NULLABLE | Soft delete marker. See BR-05 and ADR-006. |
+| deleted_at | Timestamp | NULLABLE | Soft delete marker. See BR-05. |
 
 **Unique constraint:** (organization_id, slug). Slug is unique within an organization. System template slugs are globally reserved.
 
@@ -228,7 +228,7 @@ The AuditLog previous_state and next_state snapshots must be filtered at the app
 
 ### Document rules
 
-- The s3_key must never appear in any API response. File access is always mediated by a presigned URL with a short expiry window. See ADR-009.
+- The s3_key must never appear in any API response. File access is always mediated by a presigned URL with a short expiry window. See ADR-005.
 - Documents linked to soft-deleted records remain accessible to authorized users until explicitly soft-deleted themselves.
 - File size and MIME type must be validated server-side against the allowlist defined in the file upload constraints table before the presigned S3 upload URL is generated. Client-supplied values are not trusted.
 - DocumentType activity: Only active DocumentType records (is_active = true) may be used when creating new documents.
@@ -338,7 +338,7 @@ AuditLog has no write endpoints. Entries are written only by internal service ca
 
 - Audit atomicity: AuditLog writes must be in the same database transaction as the state change they record. An audit failure must roll back the whole transaction. Callers must never suppress audit errors to allow a business operation to succeed silently.
 - PHI field exclusion list: A single centralized exclusion list must define which fields are stripped from previous_state and next_state before the AuditLog row is written. This list is a platform configuration concern, not a per-endpoint concern.
-- Presigned URL expiry: S3 presigned download URLs expire after 15 minutes. S3 presigned upload URLs (used in the two-step document upload flow) expire after 60 minutes. These values are the platform defaults and apply until ADR-009 is finalized; if ADR-009 specifies different values, ADR-009 overrides these.
+- Presigned URL expiry: S3 presigned download URLs expire after 15 minutes. S3 presigned upload URLs (used in the two-step document upload flow) expire after 60 minutes. See ADR-005.
 - S3 key opacity: The s3_key column must be marked as excluded from all serialization schemas that produce API responses. It is only used internally when generating presigned URLs.
 - Consent session gate: The session completion path in SPEC-003 must consult the consent service to verify an active signed treatment consent exists before allowing the transition to completed. The check must verify `status = 'signed'` AND `expiration_date IS NULL OR expiration_date >= CURRENT_DATE` on a ConsentType with slug = 'treatment'. This is a service-layer dependency, not enforced by a foreign key.
 - FormTemplate versioning: Any PATCH to a FormTemplate schema field must increment the version automatically if the caller does not supply an updated version. Auto-increment uses semantic minor version bumping.
@@ -349,10 +349,8 @@ AuditLog has no write endpoints. Entries are written only by internal service ca
 
 | ADR | Title | Impact on this spec |
 |---|---|---|
-| ADR-009 | File storage and encryption | Defines S3 bucket configuration, SSE strategy, presigned URL lifetime, and key management. Blocks Document implementation. |
-| ADR-006 | Soft delete strategy | Defines how document and consent records are soft-deleted and whether S3 objects are removed on deletion. |
-| ADR-011 | Multi-tenancy isolation | Requires all document, consent, and audit queries to filter by organization_id. |
-| ADR-014 | Monitoring and observability | Defines how audit log data feeds into platform observability and alerting pipelines. |
+| ADR-003 | Partial unique indexes for revocable records | Used by ClientConsent (one signed per type per client). |
+| ADR-005 | File storage and encryption | S3 bucket layout, SSE-S3 encryption, presigned URL lifetimes. |
 
 ---
 

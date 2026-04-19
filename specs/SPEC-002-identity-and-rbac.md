@@ -37,7 +37,7 @@ Person is tenant-independent. A human exists once regardless of how many organiz
 | Field | Type | Constraints | Description |
 |---|---|---|---|
 | id | UUID | PK | Primary key for the person. |
-| auth_subject | String | UNIQUE, NULLABLE | Stable external auth subject from Auth0. Null for personas that do not authenticate (clients, guardians during MVP). See ADR-007. |
+| auth_subject | String | UNIQUE, NULLABLE | Stable external auth subject from Auth0. Null for personas that do not authenticate (clients, guardians during MVP). |
 | first_name | String | NOT NULL | Legal first name. |
 | last_name | String | NOT NULL | Legal last name. |
 | email | String | NOT NULL, UNIQUE | Primary email address for communication and login mapping. |
@@ -46,7 +46,7 @@ Person is tenant-independent. A human exists once regardless of how many organiz
 | is_active | Boolean | NOT NULL, default true | Soft toggle for account suspension without deletion. |
 | created_at | Timestamp | NOT NULL, default now | Record creation time in UTC. |
 | updated_at | Timestamp | NOT NULL, default now | Last modification time in UTC. |
-| deleted_at | Timestamp | NULLABLE | Soft delete marker. See BR-05 and ADR-006. |
+| deleted_at | Timestamp | NULLABLE | Soft delete marker. See BR-05. |
 
 Design note: Person has no organization_id. A therapist who works at two practices has one Person row and two PersonRole rows (one per org). Duplicating Person per tenant would defeat the polymorphic identity model.
 
@@ -263,15 +263,13 @@ Notes on the matrix:
 
 **Design note on `payments.void`:** A dedicated `payments.void` permission is intentionally omitted. Payment voiding is bundled with `payments.record` because the void-and-rerecord workflow is a single logical operation performed by the same billing staff. All payment voids are tracked in AuditLog with the void reason, providing full accountability without a separate permission gate.
 
-### Inheritance model clarification
+### Inheritance model
 
-The matrix above reveals a design tension: if biller and receptionist inherit everything from admin, they get permissions they shouldn't have (billers shouldn't manage people, receptionists shouldn't manage billing). Two options:
+Biller and receptionist are standalone roles — they are NOT children of admin. They share `primary_domain = admin` but have `parent_role_id = null`. Their permissions are direct grants only, not inherited. This avoids over-privileged roles (billers getting people management, receptionists getting billing) without introducing deny rules.
 
-**Option A (selective inheritance):** Child roles inherit all parent permissions. Biller and receptionist are NOT children of admin. They are standalone roles with primary_domain = admin but parent_role_id = null. Their permissions are direct grants only. The admin hierarchy is: admin -> practice_admin, admin -> system_admin. Biller and receptionist are siblings in the admin domain but not in the admin hierarchy.
+The admin hierarchy is: admin → practice_admin, admin → system_admin. Biller and receptionist are siblings in the admin domain but not in the admin hierarchy.
 
-**Option B (full inheritance + deny rules):** Keep the hierarchy but add a deny mechanism to RolePermission. This adds complexity.
-
-This spec recommends Option A. The updated seed roles table becomes:
+The seed roles table:
 
 | Slug | Domain | Parent | Notes |
 |---|---|---|---|
@@ -395,7 +393,7 @@ Permission slugs follow the pattern `{resource_slug}.{action}`. When SPEC-001 de
 
 ### Auto-generation trigger
 
-When SPEC-001's `POST /entity-types` creates a new custom EntityType with slug "nutritionist", three Permission rows must be created automatically: nutritionist.read, nutritionist.write, nutritionist.delete. These permissions have organization_id set to the creating org, is_system_permission = false, and are immediately available for assignment via RolePermission. The auto-generation logic is defined in ADR-004.
+When SPEC-001's `POST /entity-types` creates a new custom EntityType with slug "nutritionist", three Permission rows must be created automatically: nutritionist.read, nutritionist.write, nutritionist.delete. These permissions have organization_id set to the creating org, is_system_permission = false, and are immediately available for assignment via RolePermission. The auto-generation logic is defined in SPEC-002 §7.
 
 ### Row-level filtering integration
 
@@ -477,9 +475,9 @@ The response matches SPEC-007 Section 3.4. It includes person identity and all o
 
 ## 9. Implementation Constraints
 
-- Auth provider integration: JWT validation and subject resolution must follow ADR-007. The auth middleware extracts auth_subject from the JWT, queries Person, loads PersonRoles, and attaches the resolved identity to the request context.
-- Permission auto-generation: EntityType-driven permissions for custom types must follow ADR-004, so new practice-defined types gain RBAC support automatically.
-- Session-to-role consistency: Authorization checks for scheduling and clinical actions must align with session foreign key semantics in ADR-003.
+- Auth provider integration: JWT validation and subject resolution must use Auth0 JWT validation. The auth middleware extracts auth_subject from the JWT, queries Person, loads PersonRoles, and attaches the resolved identity to the request context.
+- Permission auto-generation: EntityType-driven permissions for custom types must auto-generate read/write/delete permissions so new practice-defined types gain RBAC support automatically.
+- Session-to-role consistency: Authorization checks for scheduling and clinical actions must align with session foreign key semantics (EntityInstance IDs, not Person IDs).
 - Audit requirements: Every role assignment, revocation, role-permission grant, and role-permission revocation is a state-changing action and must write an AuditLog entry per BR-07.
 - PHI-safe logging: Authorization failures and audit metadata must never include PHI fields, per BR-08.
 - Person query scoping: Since Person has no organization_id, the `GET /people` endpoint must join through PersonRole to find people with active roles in the requesting user's organization. A person with no PersonRole in the org is invisible to that org.
@@ -491,11 +489,7 @@ The response matches SPEC-007 Section 3.4. It includes person identity and all o
 
 | ADR | Title | Impact on this spec |
 |---|---|---|
-| ADR-004 | Permission auto-generation | Defines how dynamic EntityType permissions are created and maintained. Blocks full RBAC rollout. |
-| ADR-007 | Auth provider and session management | Defines Auth0 integration, JWT validation, and person identity resolution. |
-| ADR-011 | Multi-tenancy isolation | Defines tenant boundary strategy and authorization query scope. |
-| ADR-003 | Session FK semantics | Ensures role-based session actors map correctly to identity and entity instances. |
-| ADR-006 | Soft delete strategy | Defines delete semantics for Person and assignment lifecycle records. |
+| ADR-003 | Partial unique indexes for revocable records | PersonRole and RolePermission partial unique indexes. |
 
 ---
 

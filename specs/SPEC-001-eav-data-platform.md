@@ -84,7 +84,7 @@ The EAV (Entity-Attribute-Value) system is the architectural foundation that all
 | id | UUID | PK | Unique identifier for the value. |
 | entity_instance_id | UUID | FK -> EntityInstance, NOT NULL | The instance this value belongs to. |
 | entity_attribute_id | UUID | FK -> EntityAttribute, NOT NULL | The field definition this value satisfies. |
-| value | Text | NULLABLE | Stored as text, cast by field_type at app layer. See ADR-005. |
+| value | Text | NULLABLE | Stored as text, cast by field_type at app layer. |
 
 **Unique constraint:** (entity_instance_id, entity_attribute_id). One value per field per instance.
 
@@ -92,7 +92,7 @@ The EAV (Entity-Attribute-Value) system is the architectural foundation that all
 
 ### AttributeValue Type Casting Rules
 
-The `value` column is always stored as text. The application layer casts and validates the value against the parent EntityAttribute's `field_type` before saving. The rules below are the authoritative mapping from field_type to Python type and validation constraints. This supersedes ADR-005 (pending) for MVP.
+The `value` column is always stored as text. The application layer casts and validates the value against the parent EntityAttribute's `field_type` before saving. The rules below are the authoritative mapping from field_type to Python type and validation constraints. App-layer validation is the authoritative strategy for MVP.
 
 | field_type | Storage format | Python type after cast | Validation rules |
 |---|---|---|---|
@@ -154,8 +154,8 @@ intake_status options: ["new", "in_progress", "complete"]
 
 ## 4. Business Rules
 
-- BR-05 (Soft delete): EntityInstance includes a deleted_at column. API list endpoints must exclude records where deleted_at is not null. See ADR-006 for the full soft delete strategy across EAV tables.
-- Multi-tenancy isolation: All EntityInstance queries must filter by organization_id. No query may return instances belonging to a different tenant. See ADR-011.
+- BR-05 (Soft delete): EntityInstance includes a deleted_at column. API list endpoints must exclude records where deleted_at is not null.
+- Multi-tenancy isolation: All EntityInstance queries must filter by organization_id. No query may return instances belonging to a different tenant.
 - Bridge rule validation: When a concrete table (e.g., Session) references an EntityInstance, the backend must verify two things: (1) the instance belongs to the expected EntityType (e.g., provider_instance_id must be a provider type), and (2) the instance belongs to the same Organization as the requesting user.
 - System type protection: EntityTypes with is_system_type = true cannot be deleted or renamed. Their EntityAttributes can be extended (new fields added) but seed attributes cannot be removed.
 - Required field enforcement: When creating or updating an EntityInstance, the backend must verify that all EntityAttributes with is_required = true on the instance's EntityType have a corresponding non-null AttributeValue.
@@ -170,7 +170,7 @@ The primary cost of EAV is query complexity. The canonical join path for reading
 
 **Find all instances of a type matching a field value** (e.g., "all providers where license_state = NJ"): EntityInstance (filter by entity_type_id) -> AttributeValue (filter by value) -> EntityAttribute (filter by name = "license_state"). This requires a three-table join for every filtered query.
 
-See ADR-002 for the performance strategy (denormalization, materialized views, or search index). This decision must be finalized before Phase 1 implementation begins.
+See ADR-004 for the performance strategy. Decision: JSONB aggregation at query time for MVP, with an upgrade path to materialized views at scale.
 
 ---
 
@@ -222,13 +222,13 @@ Note: Slug is used as the path parameter because it is the natural lookup key ac
 | PATCH | /entities/{type_slug}/{id} | Update attribute values | {type_slug}.write |
 | DELETE | /entities/{type_slug}/{id} | Soft delete an instance | {type_slug}.delete |
 
-Note: Permissions are dynamically resolved based on the EntityType slug. When a practice creates a custom type with slug "nutritionist", the system generates permissions: nutritionist.read, nutritionist.write, nutritionist.delete. See ADR-004.
+Note: Permissions are dynamically resolved based on the EntityType slug. When a practice creates a custom type with slug "nutritionist", the system generates permissions: nutritionist.read, nutritionist.write, nutritionist.delete.
 
 ---
 
 ## 7. Implementation Constraints
 
-- Type safety: FastAPI Pydantic schemas must use EntityAttribute.field_type to perform runtime validation of values before saving to AttributeValue. See ADR-005 for the decision on whether DB-level constraints supplement this.
+- Type safety: FastAPI Pydantic schemas must use EntityAttribute.field_type to perform runtime validation of values before saving to AttributeValue.
 - Audit trails: Every state-changing API call (POST, PATCH, DELETE) on EAV tables must generate a record in AuditLog per BR-07.
 - Audit PHI filtering for AttributeValue: AuditLog `previous_state` and `next_state` snapshots for AttributeValue changes must exclude the `value` field entirely. The snapshot records `entity_attribute_id`, `entity_instance_id`, and `action` to establish what changed and when, but never the `value` content. This ensures that practice-defined custom fields containing PHI cannot leak into the audit trail regardless of field configuration. This exclusion is in addition to the platform-wide PHI exclusion list defined in SPEC-006 BR-08.
 - Timestamps: All timestamps stored in UTC. Organization.timezone used for display only at the frontend layer.
@@ -240,12 +240,9 @@ Note: Permissions are dynamically resolved based on the EntityType slug. When a 
 
 | ADR | Title | Impact on this spec |
 |---|---|---|
-| ADR-001 | Core MVP data model | Defines the 26-table inventory and EAV + concrete hybrid decision. |
-| ADR-002 | EAV query performance | Determines denormalization strategy for filtered queries. Blocks Phase 1. |
-| ADR-005 | AttributeValue type safety | Decides DB constraints vs app-only casting. Blocks Phase 1. |
-| ADR-006 | Soft delete strategy | Decides where deleted_at lives across EAV tables. Blocks Phase 1. |
-| ADR-011 | Multi-tenancy isolation | Decides shared DB + org_id vs schema-per-tenant. Blocks Phase 1. |
-| ADR-004 | Permission auto-generation | Decides how custom EntityTypes get RBAC permissions. Blocks SPEC-002. |
+| ADR-001 | Hybrid EAV + concrete data model | Defines the EAV + concrete hybrid architecture. |
+| ADR-002 | No relationship(), FK-only models | All EAV joins are explicit in queries. |
+| ADR-004 | EAV query performance | JSONB aggregation at query time for MVP. |
 
 ---
 
