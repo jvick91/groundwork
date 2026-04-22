@@ -771,11 +771,18 @@ Every PR triggers the following stages in order:
 | Lint | ruff | Any lint error |
 | Type check | mypy (strict mode) | Any type error |
 | Backend tests | pytest inside Docker | Any test failure or coverage below threshold |
-| Frontend tests | Vitest inside Docker | Any test failure |
-| E2E tests | Playwright inside Docker | Any test failure |
 | Build | Docker image build | Build failure |
 
 All stages run inside Docker containers. No CI runner installs Python or Node directly.
+
+#### Post-MVP pipeline stages
+
+The following stages are specified but **not active during MVP** because the repository does not yet contain a frontend. They activate automatically once a frontend is added to the repo. Until then, TASK-036 treats them as non-goals.
+
+| Stage | Tool | Fails on |
+|---|---|---|
+| Frontend tests | Vitest inside Docker | Any test failure |
+| E2E tests | Playwright inside Docker | Any test failure |
 
 ### 14.2 PR requirements
 
