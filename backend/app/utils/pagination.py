@@ -39,7 +39,7 @@ from datetime import date, datetime
 from typing import Any, TypeVar
 from uuid import UUID
 
-from sqlalchemy import Select, asc, desc
+from sqlalchemy import Date, DateTime, Select, asc, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 
@@ -98,7 +98,6 @@ def _coerce_cursor_value(raw: Any, sort_col: InstrumentedAttribute) -> Any:
     """Convert a raw JSON cursor value to the Python type that SQLAlchemy expects."""
     try:
         col_type = sort_col.property.columns[0].type  # type: ignore[attr-defined]
-        from sqlalchemy import Date, DateTime
         if isinstance(col_type, DateTime) and isinstance(raw, str):
             return datetime.fromisoformat(raw)
         if isinstance(col_type, Date) and isinstance(raw, str):

@@ -146,7 +146,7 @@ SORT_FIELDS = {
 }
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="session")
 async def test_paginate_first_page_returns_items(db_session: AsyncSession):
     orgs = await _make_orgs(db_session, 5)
     stmt = select(Organization).where(Organization.name.like("Org %"))
@@ -164,7 +164,7 @@ async def test_paginate_first_page_returns_items(db_session: AsyncSession):
     assert [o.name for o in items] == [orgs[0].name, orgs[1].name, orgs[2].name]
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="session")
 async def test_paginate_has_next_when_more_exist(db_session: AsyncSession):
     await _make_orgs(db_session, 5)
     stmt = select(Organization).where(Organization.name.like("Org %"))
@@ -178,7 +178,7 @@ async def test_paginate_has_next_when_more_exist(db_session: AsyncSession):
     assert meta.next_cursor is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="session")
 async def test_paginate_no_next_on_last_page(db_session: AsyncSession):
     await _make_orgs(db_session, 3)
     stmt = select(Organization).where(Organization.name.like("Org %"))
@@ -192,7 +192,7 @@ async def test_paginate_no_next_on_last_page(db_session: AsyncSession):
     assert meta.next_cursor is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="session")
 async def test_paginate_second_page_from_cursor(db_session: AsyncSession):
     orgs = await _make_orgs(db_session, 5)
     stmt = select(Organization).where(Organization.name.like("Org %"))
@@ -225,7 +225,7 @@ async def test_paginate_second_page_from_cursor(db_session: AsyncSession):
     assert meta_p2.previous_cursor is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="session")
 async def test_paginate_all_pages_cover_all_items_no_duplicates(db_session: AsyncSession):
     orgs = await _make_orgs(db_session, 7)
     all_expected = {o.id for o in orgs}
@@ -248,7 +248,7 @@ async def test_paginate_all_pages_cover_all_items_no_duplicates(db_session: Asyn
     assert collected == all_expected
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="session")
 async def test_paginate_stable_after_insert(db_session: AsyncSession):
     """Items inserted after page 1 is fetched must not appear on page 2."""
     await _make_orgs(db_session, 4)
@@ -282,7 +282,7 @@ async def test_paginate_stable_after_insert(db_session: AsyncSession):
     assert ids_p1.isdisjoint(ids_p2), "Page 1 items leaked into page 2 after insert"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="session")
 async def test_paginate_invalid_sort_field_raises_400(db_session: AsyncSession):
     stmt = select(Organization)
     params = PaginationParams(sort="not_a_real_column")
@@ -295,7 +295,7 @@ async def test_paginate_invalid_sort_field_raises_400(db_session: AsyncSession):
     assert "not_a_real_column" in str(exc_info.value)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="session")
 async def test_paginate_sort_ascending(db_session: AsyncSession):
     orgs = await _make_orgs(db_session, 4)
     stmt = select(Organization).where(Organization.name.like("Org %"))
