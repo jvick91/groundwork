@@ -3,7 +3,7 @@
 **Status:** Not started
 **Spec sections:** SPEC-005 §2 (Invoice, InvoiceLineItem), §4 (one active invoice per session, session prerequisite, line item total consistency, locked invoice editing, CPT/ICD activity, bridge rules, session-invoice consistency, soft delete restriction), §5 (invoice management, line item management, POST /invoices request body)
 **ADRs:** ADR-002, ADR-003 (partial unique index)
-**Depends on:** TASK-021, TASK-025, TASK-015
+**Depends on:** TASK-004, TASK-021, TASK-025, TASK-015
 
 ## Objective
 
@@ -19,6 +19,7 @@ Implement Invoice and InvoiceLineItem models with CRUD endpoints. Enforce one-ac
 - [ ] Session-invoice consistency: client_instance_id and provider_instance_id must match session per SPEC-005 §4
 - [ ] Only one non-voided invoice per session; duplicate returns 409 per SPEC-005 §4
 - [ ] `GET /api/v1/invoices` list with pagination, filterable by status, client, provider, date range per SPEC-005 §5
+- [ ] List endpoint (GET /api/v1/invoices) uses cursor-based pagination per TASK-004 and SPEC-007 §6 — `?cursor=...&limit=...`, returns `{data, next_cursor}`; never offset.
 - [ ] `GET /api/v1/invoices/{id}` retrieves invoice with line items per SPEC-005 §5
 - [ ] `PATCH /api/v1/invoices/{id}` updates metadata (notes, due_date) per SPEC-005 §5
 - [ ] `DELETE /api/v1/invoices/{id}` soft-deletes draft invoices only; non-draft returns 409 `state_transition_denied` per SPEC-005 §4

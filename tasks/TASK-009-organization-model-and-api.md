@@ -3,7 +3,7 @@
 **Status:** Not started
 **Spec sections:** SPEC-001 §2 (Organization), §6 (EntityType management — org-scoped context)
 **ADRs:** ADR-001, ADR-002
-**Depends on:** TASK-008A
+**Depends on:** TASK-004, TASK-008A
 
 ## Objective
 
@@ -15,6 +15,7 @@ Implement the Organization model — the root tenant record that every other tab
 - [ ] Alembic migration creates the organization table
 - [ ] Pydantic schemas for create, update, and response
 - [ ] CRUD endpoints under `/api/v1/organizations` (create, list, get, update) — scoped by `settings.write` / `settings.read` permissions
+- [ ] List endpoint (GET `/api/v1/organizations`) uses cursor-based pagination per TASK-004 and SPEC-007 §6 — `?cursor=...&limit=...`, returns `{data, next_cursor}`; never offset.
 - [ ] `timezone` field validates against IANA timezone identifiers
 - [ ] `is_active` toggle for tenant suspension
 - [ ] All state-changing operations write AuditLog entries per BR-07

@@ -7,7 +7,7 @@
 
 ## Objective
 
-Implement session status transitions via explicit endpoints and the provider overlap detection from BR-03. The consent gate for session completion depends on TASK-033 (ClientConsent) — until that task is done, the gate should be stubbed to always pass and marked with a TODO.
+Implement session status transitions via explicit endpoints and the provider overlap detection from BR-03. The consent gate for session completion depends on TASK-033 (ClientConsent); until that task lands this task ships a named stub (`consent_gate_stub`) that always allows completion, and TASK-033 replaces it with the real check.
 
 ## Acceptance Criteria
 

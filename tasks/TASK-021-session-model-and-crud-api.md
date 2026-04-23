@@ -3,7 +3,7 @@
 **Status:** Not started
 **Spec sections:** SPEC-003 §2 (Session), §4 (BR-01, BR-02, bridge rules, cancellation reason, AppointmentType guard, soft delete), §5 (intake status gate, duration override), §6 (Session management, POST/PATCH schemas, response body)
 **ADRs:** ADR-001, ADR-002
-**Depends on:** TASK-011C, TASK-015, TASK-020
+**Depends on:** TASK-004, TASK-011C, TASK-015, TASK-020
 
 ## Objective
 
@@ -14,6 +14,7 @@ Implement the Session model with CRUD endpoints. Enforce business rules at creat
 - [ ] Session model with all SPEC-003 §2 fields: id, organization_id, appointment_type_id, provider_instance_id, client_instance_id, start_time, end_time, status (SessionStatus enum, default SCHEDULED), cancellation_reason, cancelled_at, cancelled_by_person_id, location, notes (max 2000 chars), created_at, updated_at, deleted_at
 - [ ] `POST /api/v1/sessions` with request body per SPEC-003 §6: appointment_type_id, provider_instance_id, client_instance_id, start_time, end_time, override_duration (optional), location, notes
 - [ ] `GET /api/v1/sessions` lists sessions with pagination, filterable by status, provider, client, date range per SPEC-003 §6
+- [ ] List endpoint (GET /api/v1/sessions) uses cursor-based pagination per TASK-004 and SPEC-007 §6 — `?cursor=...&limit=...`, returns `{data, next_cursor}`; never offset.
 - [ ] `GET /api/v1/sessions/{id}` retrieves session detail
 - [ ] `PATCH /api/v1/sessions/{id}` updates fields; provider_instance_id and client_instance_id are immutable (409 `resource_locked`) per SPEC-003 §6
 - [ ] `DELETE /api/v1/sessions/{id}` soft deletes with `sessions.write`

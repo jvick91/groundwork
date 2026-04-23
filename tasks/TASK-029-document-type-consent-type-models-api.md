@@ -3,7 +3,7 @@
 **Status:** Not started
 **Spec sections:** SPEC-006 §2 (DocumentType, ConsentType), §4 (system type protection, activity checks), §6 (DocumentType management, ConsentType management)
 **ADRs:** ADR-002
-**Depends on:** TASK-009, TASK-015
+**Depends on:** TASK-004, TASK-009, TASK-015
 
 ## Objective
 
@@ -22,6 +22,7 @@ Implement DocumentType and ConsentType reference tables with seed data, system t
 - [ ] Test: backfill migration applied to a DB containing an org with no system types inserts the full set; applied to a DB where they already exist, inserts nothing
 - [ ] DocumentType CRUD: GET/POST/PATCH/DELETE with documents.read/write permissions per SPEC-006 §6
 - [ ] ConsentType CRUD: GET/POST/PATCH/DELETE with consents.read/write permissions per SPEC-006 §6
+- [ ] List endpoints (GET `/api/v1/document-types` and GET `/api/v1/consent-types`) use cursor-based pagination per TASK-004 and SPEC-007 §6 — `?cursor=...&limit=...`, returns `{data, next_cursor}`; never offset.
 - [ ] System types cannot be deleted or have slug changed — returns 409 per SPEC-006 §4
 - [ ] Only active types can be used for new records per SPEC-006 §4
 - [ ] All state-changing operations write AuditLog entries per BR-07

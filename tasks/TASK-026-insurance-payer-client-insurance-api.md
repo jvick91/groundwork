@@ -3,7 +3,7 @@
 **Status:** Not started
 **Spec sections:** SPEC-005 §2 (InsurancePayer, ClientInsurance), §4 (client bridge rule), §5 (insurance payer management, client insurance management)
 **ADRs:** ADR-001, ADR-002, ADR-003 (partial unique index for one-active-priority per client/payer)
-**Depends on:** TASK-011C, TASK-015
+**Depends on:** TASK-004, TASK-011C, TASK-015
 
 ## Objective
 
@@ -17,6 +17,7 @@ Implement InsurancePayer (reference directory) and ClientInsurance (client-to-pa
 - [ ] Money fields use Integer cents per SPEC-007 §4.4
 - [ ] InsurancePayer CRUD: GET/POST/GET/{id}/PATCH per SPEC-005 §5 with insurance.read/write permissions
 - [ ] ClientInsurance CRUD: GET/POST/PATCH/DELETE on `/entities/{type_slug}/{id}/insurance` per SPEC-005 §5
+- [ ] List endpoints (GET `/api/v1/insurance-payers` and GET `/entities/{type_slug}/{id}/insurance`) use cursor-based pagination per TASK-004 and SPEC-007 §6 — `?cursor=...&limit=...`, returns `{data, next_cursor}`; never offset.
 - [ ] type_slug must resolve to client; non-client type_slug rejected with 422 per SPEC-005 §5
 - [ ] Client bridge rule: client_instance_id must reference client-type EntityInstance per SPEC-005 §4
 - [ ] All state-changing operations write AuditLog entries per BR-07

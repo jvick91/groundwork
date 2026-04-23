@@ -3,7 +3,7 @@
 **Status:** Not started
 **Spec sections:** SPEC-006 §2 (FormTemplate, FormTemplate schema structure), §4 (FormTemplate rules), §6 (FormTemplate management), §7
 **ADRs:** ADR-002
-**Depends on:** TASK-009, TASK-015
+**Depends on:** TASK-004, TASK-009, TASK-015
 
 ## Objective
 
@@ -23,6 +23,7 @@ Implement the FormTemplate model with schema validation and CRUD API. FormTempla
 - [ ] Unrecognized type returns 422 `validation_error`
 - [ ] fields array must contain at least one field
 - [ ] `GET /api/v1/form-templates` lists active templates with `forms.read` per SPEC-006 §6
+- [ ] List endpoint (GET `/api/v1/form-templates`) uses cursor-based pagination per TASK-004 and SPEC-007 §6 — `?cursor=...&limit=...`, returns `{data, next_cursor}`; never offset.
 - [ ] `POST /api/v1/form-templates` creates with `forms.write`
 - [ ] `GET /api/v1/form-templates/{id}` retrieves with schema with `forms.read`
 - [ ] `PATCH /api/v1/form-templates/{id}` updates (system templates: slug/form_type blocked) with `forms.write`

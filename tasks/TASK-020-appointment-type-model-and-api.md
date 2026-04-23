@@ -3,7 +3,7 @@
 **Status:** Not started
 **Spec sections:** SPEC-003 §2 (AppointmentType), §5 (intake status gate, duration consistency), §6 (AppointmentType management)
 **ADRs:** ADR-002
-**Depends on:** TASK-009, TASK-015, TASK-025
+**Depends on:** TASK-004, TASK-009, TASK-015, TASK-025
 
 ## Objective
 
@@ -15,6 +15,7 @@ The dependency on TASK-025 is load-bearing: `AppointmentType.cpt_code_id` is a F
 
 - [ ] AppointmentType model with all SPEC-003 §2 fields: id, organization_id, name, default_duration_minutes, cpt_code_id (nullable FK to CPTCode), is_telehealth, is_intake, is_active, created_at, updated_at
 - [ ] `GET /api/v1/appointment-types` lists active types with `sessions.read` permission per SPEC-003 §6
+- [ ] List endpoint (GET `/api/v1/appointment-types`) uses cursor-based pagination per TASK-004 and SPEC-007 §6 — `?cursor=...&limit=...`, returns `{data, next_cursor}`; never offset.
 - [ ] `POST /api/v1/appointment-types` creates type with `settings.write` permission per SPEC-003 §6
 - [ ] `GET /api/v1/appointment-types/{id}` retrieves detail with `sessions.read`
 - [ ] `PATCH /api/v1/appointment-types/{id}` updates with `settings.write`

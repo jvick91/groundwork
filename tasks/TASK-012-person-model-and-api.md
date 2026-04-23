@@ -3,7 +3,7 @@
 **Status:** Not started
 **Spec sections:** SPEC-002 §2 (Person), §4 (soft delete rule, auth subject rule), §8 (Person management), §9 (Person query scoping)
 **ADRs:** ADR-002
-**Depends on:** TASK-009, TASK-006, TASK-008
+**Depends on:** TASK-004, TASK-009, TASK-006, TASK-008
 
 ## Objective
 
@@ -14,6 +14,7 @@ Implement the Person model — the tenant-independent canonical identity record 
 - [ ] Person model with all SPEC-002 §2 fields: id, auth_subject (unique, nullable), first_name, last_name, email (unique), phone, date_of_birth (nullable, PHI), is_active, created_at, updated_at, deleted_at
 - [ ] Person has no organization_id — tenant-independent per SPEC-002 §2 design note
 - [ ] `GET /api/v1/people` lists people with active PersonRole in the requesting org per SPEC-002 §9
+- [ ] List endpoint (GET `/api/v1/people`) uses cursor-based pagination per TASK-004 and SPEC-007 §6 — `?cursor=...&limit=...`, returns `{data, next_cursor}`; never offset.
 - [ ] `POST /api/v1/people` creates a person record with `people.write` permission
 - [ ] `GET /api/v1/people/{id}` retrieves person with `people.read` permission
 - [ ] `PATCH /api/v1/people/{id}` updates person fields with `people.write` permission

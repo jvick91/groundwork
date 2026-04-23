@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-007 §11 (all subsections)
-**ADRs:** ADR-004 (EAV query performance)
+**ADRs:** ADR-003, ADR-004 (EAV query performance)
 **Depends on:** TASK-011C, TASK-013, TASK-020, TASK-021, TASK-023, TASK-025, TASK-026, TASK-027, TASK-028, TASK-029, TASK-030, TASK-031, TASK-032
 
 ## Objective
@@ -31,6 +31,7 @@ Create an Alembic migration that adds all indexes defined in SPEC-007 §11. This
   - [ ] ClientConsent: (organization_id, client_instance_id, consent_type_id) WHERE status = 'signed'
   - [ ] AuditLog: (organization_id, occurred_at DESC); (organization_id, resource_type, resource_id)
   - [ ] Document: (organization_id, document_type_id) WHERE deleted_at IS NULL
+- [ ] Partial unique indexes on revocable-record tables (PersonRole, RolePermission, ClientInsurance, ClientConsent, Invoice) follow ADR-003's `WHERE deleted_at IS NULL` shape.
 - [ ] Migration applies cleanly to a fresh database
 - [ ] Migration applies cleanly as an upgrade from current schema
 - [ ] Downgrade removes all added indexes

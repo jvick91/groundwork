@@ -3,7 +3,7 @@
 **Status:** Not started
 **Spec sections:** SPEC-004 §2 (ClinicalNote), §3 (format content schemas), §5 (one-note-per-session, session prerequisite, author bridge rule, draft editability, soft delete rule), §7 (ClinicalNote management, cross-entity listing)
 **ADRs:** ADR-001, ADR-002
-**Depends on:** TASK-021, TASK-015
+**Depends on:** TASK-004, TASK-021, TASK-015
 
 ## Objective
 
@@ -18,6 +18,7 @@ Implement the ClinicalNote model and CRUD endpoints. Notes are addressed through
 - [ ] `PATCH /api/v1/sessions/{session_id}/note` updates draft content with `notes.write`
 - [ ] `DELETE /api/v1/sessions/{session_id}/note` soft-deletes draft only with `notes.write`
 - [ ] `GET /api/v1/notes` cross-entity listing with pagination, filterable by status, author, client, date range per SPEC-004 §7
+- [ ] List endpoint (GET /api/v1/notes) uses cursor-based pagination per TASK-004 and SPEC-007 §6 — `?cursor=...&limit=...`, returns `{data, next_cursor}`; never offset.
 - [ ] Session prerequisite: only in_progress or completed sessions allow note creation per SPEC-004 §5
 - [ ] One-note-per-session: second note on same session returns 409 per SPEC-004 §5
 - [ ] Soft-deleted note still blocks creation of a new note per SPEC-004 §5

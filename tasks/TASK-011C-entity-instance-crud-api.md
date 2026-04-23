@@ -4,7 +4,7 @@
 **Parent:** TASK-011
 **Spec sections:** SPEC-001 §2 (EntityInstance, AttributeValue), §4 (soft delete, multi-tenancy, bridge rule, required field enforcement), §6 (EntityInstance management), §7 (audit PHI filtering)
 **ADRs:** ADR-001, ADR-002
-**Depends on:** TASK-011A, TASK-008A
+**Depends on:** TASK-004, TASK-011A, TASK-008A
 
 ## Objective
 
@@ -18,6 +18,7 @@ Own the EntityInstance and AttributeValue models, their Alembic migration, and t
 - [ ] AttributeValue intentionally omits created_at, updated_at, deleted_at per SPEC-001 §2 design note
 - [ ] Alembic migration creates both tables and the unique constraint
 - [ ] `GET /api/v1/entities/{type_slug}` lists instances using a naive join-based query, paginated (TASK-011B replaces this with the aggregated query)
+- [ ] List endpoint (GET /api/v1/entities/{type_slug}) uses cursor-based pagination per TASK-004 and SPEC-007 §6 — `?cursor=...&limit=...`, returns `{data, next_cursor}`; the envelope is stable across the TASK-011B swap.
 - [ ] `POST /api/v1/entities/{type_slug}` creates instance with attribute values, validated by TASK-011A's casting engine
 - [ ] `GET /api/v1/entities/{type_slug}/{id}` retrieves instance with all attribute values
 - [ ] `PATCH /api/v1/entities/{type_slug}/{id}` updates attribute values with type validation

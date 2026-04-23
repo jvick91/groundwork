@@ -44,11 +44,11 @@
 
 | # | Task | Status | Depends on |
 |---|------|--------|------------|
-| 009 | [Organization model & CRUD API (first vertical slice)](tasks/TASK-009-organization-model-and-api.md) | Not started | 008A |
-| 010 | [EntityType & EntityAttribute models, seed data, & API](tasks/TASK-010-entity-type-attribute-models-api.md) | Not started | 009 |
+| 009 | [Organization model & CRUD API (first vertical slice)](tasks/TASK-009-organization-model-and-api.md) | Not started | 004, 008A |
+| 010 | [EntityType & EntityAttribute models, seed data, & API](tasks/TASK-010-entity-type-attribute-models-api.md) | Not started | 004, 009 |
 | 011 | [EntityInstance & AttributeValue (container — not executable)](tasks/TASK-011-entity-instance-attribute-value-api.md) | Container | — |
 | ↳ 011A | [AttributeValue type casting engine (shape only; fk existence hook deferred)](tasks/TASK-011A-attribute-value-type-casting.md) | Not started | 010 |
-| ↳ 011C | [EntityInstance & AttributeValue models, migration, CRUD, bridge rules](tasks/TASK-011C-entity-instance-crud-api.md) | Not started | 011A, 008A |
+| ↳ 011C | [EntityInstance & AttributeValue models, migration, CRUD, bridge rules](tasks/TASK-011C-entity-instance-crud-api.md) | Not started | 004, 011A, 008A |
 | ↳ 011B | [JSONB aggregation query builder + GET list swap](tasks/TASK-011B-jsonb-aggregation-query.md) | Not started | 011C |
 
 > **Parallelization note:** Phase 3 (Identity & RBAC) does **not** block on Phase 2 finishing. Once TASK-009 is complete, TASK-012 (Person) and TASK-013 (RBAC seed) can start in parallel with TASK-010/011A/B/C (EAV). Only TASK-014 (auth middleware) and later identity tasks require both Phase 2 and early Phase 3 foundations. The phase ordering below reflects conceptual grouping, not a strict sequential gate.
@@ -57,7 +57,7 @@
 
 | # | Task | Status | Depends on |
 |---|------|--------|------------|
-| 012 | [Person model & CRUD API](tasks/TASK-012-person-model-and-api.md) | Not started | 009, 006, 008 |
+| 012 | [Person model & CRUD API](tasks/TASK-012-person-model-and-api.md) | Not started | 004, 009, 006, 008 |
 | 013 | [RBAC models & seed data](tasks/TASK-013-rbac-models-and-seed-data.md) | Not started | 009, 012 |
 | 014 | [Auth middleware — JWT, person resolution, org context](tasks/TASK-014-auth-middleware.md) | Not started | 012, 013 |
 | 015 | [Permission resolution, caching, & row-level filtering](tasks/TASK-015-permission-resolution-and-caching.md) | Not started | 013, 014 |
@@ -70,34 +70,34 @@
 
 | # | Task | Status | Depends on |
 |---|------|--------|------------|
-| 020 | [AppointmentType model & API](tasks/TASK-020-appointment-type-model-and-api.md) | Not started | 009, 015, 025 |
-| 021 | [Session model & CRUD API](tasks/TASK-021-session-model-and-crud-api.md) | Not started | 011C, 015, 020 |
+| 020 | [AppointmentType model & API](tasks/TASK-020-appointment-type-model-and-api.md) | Not started | 004, 009, 015, 025 |
+| 021 | [Session model & CRUD API](tasks/TASK-021-session-model-and-crud-api.md) | Not started | 004, 011C, 015, 020 |
 | 022 | [Session lifecycle transitions & overlap detection](tasks/TASK-022-session-lifecycle-and-overlap.md) | Not started | 006, 021 |
 
 ### Phase 5: Clinical Notes (SPEC-004)
 
 | # | Task | Status | Depends on |
 |---|------|--------|------------|
-| 023 | [ClinicalNote model & CRUD API](tasks/TASK-023-clinical-note-model-and-crud-api.md) | Not started | 021, 015 |
+| 023 | [ClinicalNote model & CRUD API](tasks/TASK-023-clinical-note-model-and-crud-api.md) | Not started | 004, 021, 015 |
 | 024 | [Note lifecycle — sign, cosign, amend](tasks/TASK-024-note-lifecycle-sign-cosign-amend.md) | Not started | 023 |
 
 ### Phase 6: Billing & Payments (SPEC-005)
 
 | # | Task | Status | Depends on |
 |---|------|--------|------------|
-| 025 | [CPTCode & ICDCode models & API](tasks/TASK-025-cpt-icd-code-models-and-api.md) | Not started | 009, 015 |
-| 026 | [InsurancePayer & ClientInsurance models & API](tasks/TASK-026-insurance-payer-client-insurance-api.md) | Not started | 011C, 015 |
-| 027 | [Invoice & InvoiceLineItem models & CRUD API](tasks/TASK-027-invoice-line-item-models-and-api.md) | Not started | 021, 025, 015 |
+| 025 | [CPTCode & ICDCode models & API](tasks/TASK-025-cpt-icd-code-models-and-api.md) | Not started | 004, 009, 015 |
+| 026 | [InsurancePayer & ClientInsurance models & API](tasks/TASK-026-insurance-payer-client-insurance-api.md) | Not started | 004, 011C, 015 |
+| 027 | [Invoice & InvoiceLineItem models & CRUD API](tasks/TASK-027-invoice-line-item-models-and-api.md) | Not started | 004, 021, 025, 015 |
 | 028 | [Invoice lifecycle, payment recording, & void](tasks/TASK-028-invoice-lifecycle-payment-void.md) | Not started | 006, 026, 027 |
 
 ### Phase 7: Documents, Consent, & Compliance (SPEC-006)
 
 | # | Task | Status | Depends on |
 |---|------|--------|------------|
-| 029 | [DocumentType & ConsentType models, seed data, & API](tasks/TASK-029-document-type-consent-type-models-api.md) | Not started | 009, 015 |
-| 030 | [Document model & S3 upload flow API](tasks/TASK-030-document-model-and-upload-flow.md) | Not started | 012, 021, 023, 027, 029 |
-| 031 | [ClientConsent model & lifecycle API](tasks/TASK-031-client-consent-model-and-lifecycle.md) | Not started | 006, 011C, 029, 030, 032 |
-| 032 | [FormTemplate model & API](tasks/TASK-032-form-template-model-and-api.md) | Not started | 009, 015 |
+| 029 | [DocumentType & ConsentType models, seed data, & API](tasks/TASK-029-document-type-consent-type-models-api.md) | Not started | 004, 009, 015 |
+| 030 | [Document model & S3 upload flow API](tasks/TASK-030-document-model-and-upload-flow.md) | Not started | 004, 012, 021, 023, 027, 029 |
+| 031 | [ClientConsent model & lifecycle API](tasks/TASK-031-client-consent-model-and-lifecycle.md) | Not started | 004, 006, 011C, 029, 030, 032 |
+| 032 | [FormTemplate model & API](tasks/TASK-032-form-template-model-and-api.md) | Not started | 004, 009, 015 |
 | 033 | [Consent session gate & expiry sweep](tasks/TASK-033-consent-session-gate-and-expiry-cron.md) | Not started | 022, 031 |
 
 ### Phase 8: Cross-Cutting Verification (SPEC-007)
@@ -162,6 +162,8 @@
 **Critical path:** 001✓ → 002✓ → 006 → 008A → 009 → 010 → 011A → 011C → 013 → 014 → 015 → 025 → 020 → 021 → 022 → 031 (after 029, 030, 032) → 033
 
 Note: 025 is on the session critical path because AppointmentType.cpt_code_id FKs into CPTCode. 029/030/032 all precede 031 because ClientConsent FKs into DocumentType, Document, and FormTemplate.
+
+Note: TASK-004 (cursor pagination) is an explicit upstream for every domain CRUD task (009, 010, 011C, 012, 020, 021, 023, 025, 026, 027, 029, 030, 031, 032) — their list endpoints consume the pagination utility directly. The graph above omits those edges for readability; see each task's `Depends on:` header for the authoritative list.
 
 ---
 

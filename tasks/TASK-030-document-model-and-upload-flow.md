@@ -3,7 +3,7 @@
 **Status:** Not started
 **Spec sections:** SPEC-006 §2 (Document, file upload constraints), §4 (document rules), §6 (Document management), §7; SPEC-000 §6
 **ADRs:** ADR-002 (FK-only), ADR-005 (file storage and encryption)
-**Depends on:** TASK-012, TASK-021, TASK-023, TASK-027, TASK-029
+**Depends on:** TASK-004, TASK-012, TASK-021, TASK-023, TASK-027, TASK-029
 
 ## Objective
 
@@ -14,6 +14,7 @@ Implement the Document model and the two-step upload flow: metadata submission r
 - [ ] Document model with all SPEC-006 §2 fields: id, organization_id, document_type_id, uploaded_by_person_id, linked_resource_id (nullable), file_name, mime_type, size_bytes, s3_key, s3_bucket, is_encrypted (default true), created_at, deleted_at
 - [ ] Two-step upload: `POST /api/v1/documents` validates metadata and returns presigned upload URL; `POST /api/v1/documents/{id}/confirm` activates the record per SPEC-006 §6
 - [ ] `GET /api/v1/documents` lists documents with `documents.read`, filterable by linked resource
+- [ ] List endpoint (GET `/api/v1/documents`) uses cursor-based pagination per TASK-004 and SPEC-007 §6 — `?cursor=...&limit=...`, returns `{data, next_cursor}`; never offset.
 - [ ] `GET /api/v1/documents/{id}` returns metadata and a fresh presigned download URL per SPEC-006 §6
 - [ ] `DELETE /api/v1/documents/{id}` soft deletes (S3 object not removed) with `documents.delete` per ADR-005
 - [ ] s3_key never appears in any API response per SPEC-006 §4

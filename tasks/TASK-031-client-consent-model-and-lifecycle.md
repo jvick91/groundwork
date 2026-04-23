@@ -3,7 +3,7 @@
 **Status:** Not started
 **Spec sections:** SPEC-006 §2 (ClientConsent), §3 (consent status lifecycle), §4 (consent rules), §6 (ClientConsent management)
 **ADRs:** ADR-002, ADR-003 (partial unique indexes for one-signed-per-type)
-**Depends on:** TASK-006, TASK-011C, TASK-029, TASK-030, TASK-032
+**Depends on:** TASK-004, TASK-006, TASK-011C, TASK-029, TASK-030, TASK-032
 
 ## Dependency Note
 
@@ -19,6 +19,7 @@ Implement the ClientConsent model with its lifecycle (pending→signed→revoked
 - [ ] Consent endpoints on `/entities/{type_slug}/{id}/consents` per SPEC-006 §6
 - [ ] type_slug must resolve to client; non-client returns 422 per SPEC-006 §6
 - [ ] `GET .../consents` lists consent records with `consents.read`
+- [ ] List endpoint (GET `/entities/{type_slug}/{id}/consents`) uses cursor-based pagination per TASK-004 and SPEC-007 §6 — `?cursor=...&limit=...`, returns `{data, next_cursor}`; never offset.
 - [ ] `POST .../consents` creates consent with `consents.write`
 - [ ] `GET .../consents/{consent_id}` retrieves with `consents.read`
 - [ ] `PATCH .../consents/{consent_id}` updates pending consent with `consents.write`
