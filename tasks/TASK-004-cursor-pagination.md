@@ -1,6 +1,6 @@
 # TASK-004: Cursor Pagination Utility
 
-**Status:** Partial
+**Status:** Complete
 **Spec sections:** SPEC-007 §5, §6
 **ADRs:** —
 **Depends on:** TASK-001, TASK-003
@@ -11,17 +11,13 @@ Implement the cursor-based pagination contract defined in SPEC-007 §5 as a reus
 
 ## Acceptance Criteria
 
-- [ ] Pagination request parameters: `limit` (default 25, max 100), `cursor` (opaque string), `sort` (indexed column), `sort_dir` (asc/desc)
-- [x] Response envelope: `{data: [], pagination: {next_cursor, previous_cursor, has_next, has_previous, limit}}` — shipped as `PaginatedResponse` + `PaginationMeta` in `app/schemas/schemas.py`
-- [ ] Cursor is Base64-encoded JSON with sort value and record ID per SPEC-007 §5
-- [ ] Sort by non-indexed column returns 400 per SPEC-007 §6.2
-- [ ] Filter conventions supported: exact match, multiple values (comma-separated OR), date range (`date_from`/`date_to`), FK reference, text search (`q`) per SPEC-007 §6.1
-- [ ] Pagination produces stable results under concurrent inserts/deletes per SPEC-007 §5
-- [ ] Tests verify cursor encode/decode round-trip, boundary conditions, and stability
-
-**Done so far (in code):** response envelope schemas (`PaginationMeta`, `PaginatedResponse`) in `app/schemas/schemas.py`.
-
-**Remaining:** request query-parameter model, Base64 cursor encode/decode, sort-field allow-list validation, filter-builder helpers, `app/utils/pagination.py` module, and all tests.
+- [x] Pagination request parameters: `limit` (default 25, max 100), `cursor` (opaque string), `sort` (indexed column), `sort_dir` (asc/desc) — `PaginationParams` + `SortDir` added to `app/schemas/schemas.py`
+- [x] Response envelope: `{data: [], pagination: {next_cursor, previous_cursor, has_next, has_previous, limit}}` — `PaginatedResponse` + `PaginationMeta` in `app/schemas/schemas.py`
+- [x] Cursor is Base64-encoded JSON with sort value and record ID per SPEC-007 §5 — `encode_cursor` / `decode_cursor` in `app/utils/pagination.py`
+- [x] Sort by non-indexed column returns 400 per SPEC-007 §6.2 — `paginate()` validates `params.sort` against caller-provided `sort_fields` allow-list
+- [x] Filter conventions supported: exact match, multiple values (comma-separated OR), date range (`date_from`/`date_to`), FK reference, text search (`q`) per SPEC-007 §6.1 — helpers in `app/utils/pagination.py`
+- [x] Pagination produces stable results under concurrent inserts/deletes per SPEC-007 §5 — verified by `test_paginate_stable_after_insert`
+- [x] Tests verify cursor encode/decode round-trip, boundary conditions, and stability — 22 tests in `test_pagination.py`
 
 ## Files
 
