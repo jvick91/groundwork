@@ -13,9 +13,16 @@
 
 Implement the ClientConsent model with its lifecycle (pending→signed→revoked/expired) and CRUD/transition API. Endpoints follow EAV routing conventions. Enforce one-signed-per-type per client and revocation reason requirements.
 
+## Pre-existing artifacts (from TASK-002 scope expansion)
+
+- `ClientConsent` ORM model at `backend/app/models/models.py:784` (with `SoftDeleteMixin`), including FKs to `Document` and `FormTemplate`.
+- `ConsentStatus` enum at `:121`.
+- Table `client_consents` created by initial migration `a68701f39fed_initial_schema.py`.
+- Remaining work: Pydantic schemas, service (lifecycle transitions, one-signed-per-type partial unique indexes per ADR-003 — verify in migration; follow-up migration if missing), router, factory, client-bridge validation, `notes` PHI log exclusion, audit calls, tests.
+
 ## Acceptance Criteria
 
-- [ ] ClientConsent model with all SPEC-006 §2 fields: id, organization_id, client_instance_id, consent_type_id, status (ConsentStatus enum), signed_at, signed_by_person_id, effective_date, expiration_date, revoked_at, revoked_by_person_id, revocation_reason, document_id (nullable FK to Document), form_template_id (nullable FK to FormTemplate), notes (PHI — excluded from logs), created_at, updated_at, deleted_at
+- [x] ClientConsent model with all SPEC-006 §2 fields: id, organization_id, client_instance_id, consent_type_id, status (ConsentStatus enum), signed_at, signed_by_person_id, effective_date, expiration_date, revoked_at, revoked_by_person_id, revocation_reason, document_id (nullable FK to Document), form_template_id (nullable FK to FormTemplate), notes (PHI — excluded from logs), created_at, updated_at, deleted_at
 - [ ] Consent endpoints on `/entities/{type_slug}/{id}/consents` per SPEC-006 §6
 - [ ] type_slug must resolve to client; non-client returns 422 per SPEC-006 §6
 - [ ] `GET .../consents` lists consent records with `consents.read`

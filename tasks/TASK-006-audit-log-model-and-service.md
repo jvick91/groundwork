@@ -1,6 +1,6 @@
 # TASK-006: AuditLog Model & Audit Service
 
-**Status:** Not started
+**Status:** Partial
 **Spec sections:** SPEC-006 §2 (AuditLog), §4 (BR-07), §5 (audit coverage matrix), §7
 **ADRs:** ADR-002
 **Depends on:** TASK-001, TASK-002
@@ -9,10 +9,16 @@
 
 Implement the AuditLog model and a centralized audit service that all domain services will call for BR-07 compliance. The audit service writes an immutable log row in the same transaction as every state change. It applies the PHI field exclusion list to `previous_state` and `next_state` snapshots before writing. AuditLog rows can never be updated or deleted.
 
+## Pre-existing artifacts (from TASK-002 scope expansion)
+
+- `AuditLog` ORM model already exists at `backend/app/models/models.py:686` with all SPEC-006 §2 fields (organization_id, actor_person_id nullable, action, resource_type, resource_id, previous_state/next_state JSONB, ip_address, user_agent, occurred_at) and **no `updated_at`/`deleted_at`** — matches the immutable-row requirement.
+- Table `audit_logs` is created by the initial migration (`a68701f39fed_initial_schema.py`).
+- No DB-level revoke/trigger yet, no service, no endpoints, no tests.
+
 ## Acceptance Criteria
 
-- [ ] AuditLog model has all fields from SPEC-006 §2: id, organization_id, actor_person_id, action, resource_type, resource_id, previous_state (JSONB), next_state (JSONB), ip_address, user_agent, occurred_at
-- [ ] No `updated_at` or `deleted_at` columns on AuditLog — rows are immutable
+- [x] AuditLog model has all fields from SPEC-006 §2: id, organization_id, actor_person_id, action, resource_type, resource_id, previous_state (JSONB), next_state (JSONB), ip_address, user_agent, occurred_at
+- [x] No `updated_at` or `deleted_at` columns on AuditLog — rows are immutable
 - [ ] Audit service provides a `log_action()` method accepting resource, action, actor, previous/next state
 - [ ] PHI exclusion list is centralized and applied automatically before writing snapshots per SPEC-006 §4 BR-08
 - [ ] AttributeValue audit snapshots exclude the `value` field entirely per SPEC-001 §7

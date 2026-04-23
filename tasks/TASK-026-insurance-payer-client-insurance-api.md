@@ -9,10 +9,17 @@
 
 Implement InsurancePayer (reference directory) and ClientInsurance (client-to-payer linkage) models and APIs. ClientInsurance endpoints follow EAV routing conventions (`/entities/{type_slug}/{id}/insurance`).
 
+## Pre-existing artifacts (from TASK-002 scope expansion)
+
+- `InsurancePayer` ORM model at `backend/app/models/models.py:523`; `ClientInsurance` at `:538`.
+- `InsurancePriority` enum at `:87`.
+- Tables `insurance_payers`, `client_insurances` created by initial migration `a68701f39fed_initial_schema.py`.
+- Remaining work: Pydantic schemas, service, router, factory, partial unique index for one-active-priority per client/payer (ADR-003) — verify in migration; follow-up migration if missing; client-bridge validation, audit calls, tests.
+
 ## Acceptance Criteria
 
-- [ ] InsurancePayer model with all SPEC-005 §2 fields: id, organization_id, name, payer_id (nullable), phone, address, is_active, created_at, updated_at
-- [ ] ClientInsurance model with all SPEC-005 §2 fields: id, organization_id, client_instance_id, insurance_payer_id, member_id, group_number, plan_name, priority (InsurancePriority enum: primary/secondary), copay_cents, deductible_cents, deductible_met_cents, effective_date, termination_date, is_active, created_at, updated_at
+- [x] InsurancePayer model with all SPEC-005 §2 fields: id, organization_id, name, payer_id (nullable), phone, address, is_active, created_at, updated_at
+- [x] ClientInsurance model with all SPEC-005 §2 fields: id, organization_id, client_instance_id, insurance_payer_id, member_id, group_number, plan_name, priority (InsurancePriority enum: primary/secondary), copay_cents, deductible_cents, deductible_met_cents, effective_date, termination_date, is_active, created_at, updated_at
 - [ ] Unique constraint: no two active records of same priority with same payer for same client per SPEC-005 §2
 - [ ] Money fields use Integer cents per SPEC-007 §4.4
 - [ ] InsurancePayer CRUD: GET/POST/GET/{id}/PATCH per SPEC-005 §5 with insurance.read/write permissions

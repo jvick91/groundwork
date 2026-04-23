@@ -11,9 +11,15 @@ Implement the AppointmentType model and its management API. AppointmentTypes are
 
 The dependency on TASK-025 is load-bearing: `AppointmentType.cpt_code_id` is a FK to `CPTCode`, so the CPTCode table must exist before AppointmentType's migration runs. Phase ordering in STATE.md is conceptual grouping — the critical path for TASK-020 goes through TASK-025.
 
+## Pre-existing artifacts (from TASK-002 scope expansion)
+
+- `AppointmentType` ORM model at `backend/app/models/models.py:382`.
+- Table `appointment_types` created by initial migration `a68701f39fed_initial_schema.py`, including the FK to `cpt_codes`.
+- Remaining work: Pydantic schemas, service, router, factory, audit calls, tests.
+
 ## Acceptance Criteria
 
-- [ ] AppointmentType model with all SPEC-003 §2 fields: id, organization_id, name, default_duration_minutes, cpt_code_id (nullable FK to CPTCode), is_telehealth, is_intake, is_active, created_at, updated_at
+- [x] AppointmentType model with all SPEC-003 §2 fields: id, organization_id, name, default_duration_minutes, cpt_code_id (nullable FK to CPTCode), is_telehealth, is_intake, is_active, created_at, updated_at
 - [ ] `GET /api/v1/appointment-types` lists active types with `sessions.read` permission per SPEC-003 §6
 - [ ] List endpoint (GET `/api/v1/appointment-types`) uses cursor-based pagination per TASK-004 and SPEC-007 §6 — `?cursor=...&limit=...`, returns `{data, next_cursor}`; never offset.
 - [ ] `POST /api/v1/appointment-types` creates type with `settings.write` permission per SPEC-003 §6

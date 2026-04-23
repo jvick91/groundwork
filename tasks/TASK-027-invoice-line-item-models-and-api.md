@@ -9,11 +9,18 @@
 
 Implement Invoice and InvoiceLineItem models with CRUD endpoints. Enforce one-active-invoice-per-session via partial unique index, session completion prerequisite, atomic line item total recomputation, locked invoice editing rules, and session-invoice actor consistency.
 
+## Pre-existing artifacts (from TASK-002 scope expansion)
+
+- `Invoice` ORM model at `backend/app/models/models.py:576` (with `SoftDeleteMixin`); `InvoiceLineItem` at `:620`; `Payment` at `:644`.
+- `InvoiceStatus` enum at `:112`.
+- Tables `invoices`, `invoice_line_items`, `payments` created by initial migration `a68701f39fed_initial_schema.py`.
+- Remaining work: Pydantic schemas, service (atomic total recomputation, one-active-invoice-per-session partial unique index per ADR-003 — verify in migration; follow-up migration if missing), router, factory, draft-only soft-delete gate, CPT/ICD activity checks, bridge/consistency rules, audit calls, tests.
+
 ## Acceptance Criteria
 
-- [ ] Invoice model with all SPEC-005 §2 fields: id, organization_id, session_id, client_instance_id, provider_instance_id, status (InvoiceStatus enum, default DRAFT), issued_date, due_date, total_cents (default 0), amount_paid_cents (default 0), balance_cents (default 0), notes, voided_at, voided_by_person_id, void_reason, created_at, updated_at, deleted_at
+- [x] Invoice model with all SPEC-005 §2 fields: id, organization_id, session_id, client_instance_id, provider_instance_id, status (InvoiceStatus enum, default DRAFT), issued_date, due_date, total_cents (default 0), amount_paid_cents (default 0), balance_cents (default 0), notes, voided_at, voided_by_person_id, void_reason, created_at, updated_at, deleted_at
 - [ ] Partial unique index: `UNIQUE(session_id) WHERE status != 'void'` per ADR-003, SPEC-005 §2
-- [ ] InvoiceLineItem model with all SPEC-005 §2 fields: id, organization_id, invoice_id, cpt_code_id, icd_code_id (nullable), description, unit_rate_cents, units (default 1), amount_cents, service_date, created_at, updated_at, deleted_at
+- [x] InvoiceLineItem model with all SPEC-005 §2 fields: id, organization_id, invoice_id, cpt_code_id, icd_code_id (nullable), description, unit_rate_cents, units (default 1), amount_cents, service_date, created_at, updated_at, deleted_at
 - [ ] `POST /api/v1/invoices` accepts session_id, notes, due_date — derives client/provider from session per SPEC-005 §5
 - [ ] Session must be completed for invoice creation per SPEC-005 §4
 - [ ] Session-invoice consistency: client_instance_id and provider_instance_id must match session per SPEC-005 §4

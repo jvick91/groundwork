@@ -11,14 +11,14 @@ Establish the foundational project structure: Docker Compose services (backend, 
 
 ## Acceptance Criteria
 
-- [ ] `docker compose up --build` starts backend (port 8000), db (port 5432), and db-test (port 5433) with health checks
-- [ ] FastAPI app serves all routes under `/api/v1/` prefix per SPEC-007 §2
-- [ ] Async SQLAlchemy engine connects to PostgreSQL using env-based config
-- [ ] Pydantic Settings class reads all env vars from `.env` files
-- [ ] Alembic is configured with async engine support and can run `upgrade head`
-- [ ] Entrypoint script runs `alembic upgrade head` before starting uvicorn
-- [ ] Hot reload works via volume mounts
-- [ ] Directory layout matches SPEC-007 §12.1 (app/core, models, schemas, services, routers, middleware)
+- [x] `docker compose up --build` starts backend (port 8000), db (port 5432), and db-test (port 5433) with health checks
+- [x] FastAPI app serves all routes under `/api/v1/` prefix per SPEC-007 §2
+- [x] Async SQLAlchemy engine connects to PostgreSQL using env-based config
+- [x] Pydantic Settings class reads all env vars from `.env` files
+- [x] Alembic is configured with async engine support and can run `upgrade head`
+- [x] Entrypoint script runs `alembic upgrade head` before starting uvicorn
+- [x] Hot reload works via volume mounts
+- [x] Directory layout matches SPEC-007 §12.1 (app/core, models, schemas, services, routers, middleware)
 
 ## Files
 

@@ -9,12 +9,19 @@
 
 Implement the four RBAC tables — Role, Permission, PersonRole, RolePermission — with their partial unique indexes, and seed all 11 roles, 44 permissions, and the complete role-permission grant matrix from SPEC-002 §3. This includes the standalone biller/receptionist model (not children of admin) per SPEC-002 §3 inheritance model.
 
+## Pre-existing artifacts (from TASK-002 scope expansion)
+
+- `Role` ORM model at `backend/app/models/models.py:257`; `Permission` at `:282`; `PersonRole` at `:302`; `RolePermission` at `:342`.
+- `RoleDomain` enum at `:56` — note: shipped as `RoleDomain`, not `PrimaryDomain` as originally specced; update any references accordingly.
+- Tables `roles`, `permissions`, `person_roles`, `role_permissions` created by initial migration `a68701f39fed_initial_schema.py`.
+- Remaining work: **seed migration** (11 roles, all system permissions, full role-permission matrix with conditions), verify partial unique indexes per ADR-003 are present (check migration; add a follow-up migration if missing), Pydantic schemas, factory. No API endpoints in this task — those belong to 016/017.
+
 ## Acceptance Criteria
 
-- [ ] Role model with all SPEC-002 §2 fields: id, organization_id (nullable), name, slug, primary_domain (PrimaryDomain enum), parent_role_id (self-FK), is_system_role, description, created_at, updated_at
-- [ ] Permission model with all SPEC-002 §2 fields: id, organization_id (nullable), resource_slug, action (String — see TASK-002 rationale; the §2 enum description is advisory, the §3 seed matrix is authoritative), slug, description, is_system_permission, created_at
-- [ ] PersonRole model with all SPEC-002 §2 fields: id, organization_id, person_id, role_id, entity_instance_id (nullable), assigned_at, assigned_by_person_id (nullable), revoked_at
-- [ ] RolePermission model with all SPEC-002 §2 fields: id, organization_id, role_id, permission_id, conditions (JSONB, nullable), granted_at, granted_by_person_id (nullable), revoked_at
+- [x] Role model with all SPEC-002 §2 fields: id, organization_id (nullable), name, slug, primary_domain (`RoleDomain` enum — renamed from `PrimaryDomain` during implementation), parent_role_id (self-FK), is_system_role, description, created_at, updated_at
+- [x] Permission model with all SPEC-002 §2 fields: id, organization_id (nullable), resource_slug, action (String — see TASK-002 rationale; the §2 enum description is advisory, the §3 seed matrix is authoritative), slug, description, is_system_permission, created_at
+- [x] PersonRole model with all SPEC-002 §2 fields: id, organization_id, person_id, role_id, entity_instance_id (nullable), assigned_at, assigned_by_person_id (nullable), revoked_at
+- [x] RolePermission model with all SPEC-002 §2 fields: id, organization_id, role_id, permission_id, conditions (JSONB, nullable), granted_at, granted_by_person_id (nullable), revoked_at
 - [ ] Partial unique index on PersonRole: `UNIQUE(organization_id, person_id, role_id, entity_instance_id) WHERE revoked_at IS NULL` per ADR-003
 - [ ] Partial unique index on RolePermission: `UNIQUE(organization_id, role_id, permission_id) WHERE revoked_at IS NULL` per ADR-003
 - [ ] UNIQUE(organization_id, slug) on Role; system role slugs globally reserved

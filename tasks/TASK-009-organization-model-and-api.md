@@ -9,10 +9,16 @@
 
 Implement the Organization model — the root tenant record that every other table references via `organization_id` — and serve as the first consumer of the TASK-008A conventions. This task produces the first working router + service + schema + factory + tests in the repo; if anything in the 008A conventions is awkward, fix it here and update `docs/conventions.md` before moving on. Also land the `on_organization_created(db, org_id)` hook surface that later tasks (029, 032) will subscribe to for per-org seed data.
 
+## Pre-existing artifacts (from TASK-002 scope expansion)
+
+- `Organization` ORM model at `backend/app/models/models.py:139` with all SPEC-001 §2 fields.
+- Table `organizations` created by initial migration `a68701f39fed_initial_schema.py`.
+- Remaining work: Pydantic schemas, service (incl. `on_organization_created` hook surface), router, factory, pagination wiring, timezone validation, audit calls, tests.
+
 ## Acceptance Criteria
 
-- [ ] Organization model with all SPEC-001 §2 fields: id, name, npi_number, tax_id, phone, address, timezone (default "UTC"), is_active, created_at, updated_at
-- [ ] Alembic migration creates the organization table
+- [x] Organization model with all SPEC-001 §2 fields: id, name, npi_number, tax_id, phone, address, timezone (default "UTC"), is_active, created_at, updated_at
+- [x] Alembic migration creates the organization table
 - [ ] Pydantic schemas for create, update, and response
 - [ ] CRUD endpoints under `/api/v1/organizations` (create, list, get, update) — scoped by `settings.write` / `settings.read` permissions
 - [ ] List endpoint (GET `/api/v1/organizations`) uses cursor-based pagination per TASK-004 and SPEC-007 §6 — `?cursor=...&limit=...`, returns `{data, next_cursor}`; never offset.

@@ -9,9 +9,16 @@
 
 Implement the Session model with CRUD endpoints. Enforce business rules at create time: time order (BR-01), org membership (BR-02), bridge rules for provider/client instances, inactive AppointmentType guard, intake status gate, and duration override flag. Session status transitions are handled in TASK-022.
 
+## Pre-existing artifacts (from TASK-002 scope expansion)
+
+- `Session` ORM model at `backend/app/models/models.py:404` (with `SoftDeleteMixin`).
+- `SessionStatus` enum at `:63`.
+- Table `sessions` created by initial migration `a68701f39fed_initial_schema.py`.
+- Remaining work: Pydantic schemas, service (BR-01/BR-02/bridge rules/intake gate/duration override), router, factory, row-level `own_sessions` filtering, audit calls, tests.
+
 ## Acceptance Criteria
 
-- [ ] Session model with all SPEC-003 §2 fields: id, organization_id, appointment_type_id, provider_instance_id, client_instance_id, start_time, end_time, status (SessionStatus enum, default SCHEDULED), cancellation_reason, cancelled_at, cancelled_by_person_id, location, notes (max 2000 chars), created_at, updated_at, deleted_at
+- [x] Session model with all SPEC-003 §2 fields: id, organization_id, appointment_type_id, provider_instance_id, client_instance_id, start_time, end_time, status (SessionStatus enum, default SCHEDULED), cancellation_reason, cancelled_at, cancelled_by_person_id, location, notes (max 2000 chars), created_at, updated_at, deleted_at
 - [ ] `POST /api/v1/sessions` with request body per SPEC-003 §6: appointment_type_id, provider_instance_id, client_instance_id, start_time, end_time, override_duration (optional), location, notes
 - [ ] `GET /api/v1/sessions` lists sessions with pagination, filterable by status, provider, client, date range per SPEC-003 §6
 - [ ] List endpoint (GET /api/v1/sessions) uses cursor-based pagination per TASK-004 and SPEC-007 §6 — `?cursor=...&limit=...`, returns `{data, next_cursor}`; never offset.

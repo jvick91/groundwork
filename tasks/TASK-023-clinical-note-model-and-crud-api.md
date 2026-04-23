@@ -9,9 +9,16 @@
 
 Implement the ClinicalNote model and CRUD endpoints. Notes are addressed through their parent session (`/sessions/{session_id}/note`). Enforce one-note-per-session, session status prerequisite (in_progress or completed), format immutability, author bridge rule, and content format validation for SOAP/DAP/BIRP schemas.
 
+## Pre-existing artifacts (from TASK-002 scope expansion)
+
+- `ClinicalNote` ORM model at `backend/app/models/models.py:442` (with `SoftDeleteMixin`).
+- `NoteFormat` enum at `:73`; `NoteStatus` enum at `:79`.
+- Table `clinical_notes` created by initial migration `a68701f39fed_initial_schema.py`.
+- Remaining work: Pydantic schemas (incl. SOAP/DAP/BIRP content validators), service, router, factory, one-note-per-session enforcement, session-prerequisite / author-bridge / format-immutability rules, row-level `own_notes` filtering, audit calls, content exclusion from logs, tests.
+
 ## Acceptance Criteria
 
-- [ ] ClinicalNote model with all SPEC-004 §2 fields: id, organization_id, session_id (unique), author_instance_id, note_format (NoteFormat enum — immutable after creation), status (NoteStatus enum, default DRAFT), content (JSONB), signed_at, signed_by_person_id, cosigned_at, cosigned_by_person_id, cosign_required, amendment_note, created_at, updated_at, deleted_at
+- [x] ClinicalNote model with all SPEC-004 §2 fields: id, organization_id, session_id (unique), author_instance_id, note_format (NoteFormat enum — immutable after creation), status (NoteStatus enum, default DRAFT), content (JSONB), signed_at, signed_by_person_id, cosigned_at, cosigned_by_person_id, cosign_required, amendment_note, created_at, updated_at, deleted_at
 - [ ] UNIQUE(session_id) including soft-deleted records per SPEC-004 §2
 - [ ] `GET /api/v1/sessions/{session_id}/note` retrieves note with `notes.read`
 - [ ] `POST /api/v1/sessions/{session_id}/note` creates draft note with `notes.write`

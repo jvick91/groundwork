@@ -9,9 +9,15 @@
 
 Implement the Document model and the two-step upload flow: metadata submission returns a presigned S3 upload URL, then the caller confirms upload completion. File access is mediated exclusively by presigned download URLs — the s3_key is never exposed in API responses.
 
+## Pre-existing artifacts (from TASK-002 scope expansion)
+
+- `Document` ORM model at `backend/app/models/models.py:737` (with `SoftDeleteMixin`).
+- Table `documents` created by initial migration `a68701f39fed_initial_schema.py`.
+- Remaining work: two-step upload API, S3 integration (presigned URLs), Pydantic schemas (never expose `s3_key`), service, router, file-constraint validation, linked-resource validation, audit calls, tests.
+
 ## Acceptance Criteria
 
-- [ ] Document model with all SPEC-006 §2 fields: id, organization_id, document_type_id, uploaded_by_person_id, linked_resource_id (nullable), file_name, mime_type, size_bytes, s3_key, s3_bucket, is_encrypted (default true), created_at, deleted_at
+- [x] Document model with all SPEC-006 §2 fields: id, organization_id, document_type_id, uploaded_by_person_id, linked_resource_id (nullable), file_name, mime_type, size_bytes, s3_key, s3_bucket, is_encrypted (default true), created_at, deleted_at
 - [ ] Two-step upload: `POST /api/v1/documents` validates metadata and returns presigned upload URL; `POST /api/v1/documents/{id}/confirm` activates the record per SPEC-006 §6
 - [ ] `GET /api/v1/documents` lists documents with `documents.read`, filterable by linked resource
 - [ ] List endpoint (GET `/api/v1/documents`) uses cursor-based pagination per TASK-004 and SPEC-007 §6 — `?cursor=...&limit=...`, returns `{data, next_cursor}`; never offset.

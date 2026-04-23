@@ -9,10 +9,16 @@
 
 Implement the Person model — the tenant-independent canonical identity record — and its CRUD API. Person has no `organization_id`; tenant scoping is enforced through PersonRole joins. The `GET /people` endpoint must join through PersonRole to find people with active roles in the requesting user's organization.
 
+## Pre-existing artifacts (from TASK-002 scope expansion)
+
+- `Person` ORM model at `backend/app/models/models.py:236` — tenant-independent, with `SoftDeleteMixin`.
+- Table `people` created by initial migration `a68701f39fed_initial_schema.py`.
+- Remaining work: Pydantic schemas, service, router, factory, PersonRole join for GET list scoping, PHI filter for `date_of_birth` in audit snapshots, audit calls, tests.
+
 ## Acceptance Criteria
 
-- [ ] Person model with all SPEC-002 §2 fields: id, auth_subject (unique, nullable), first_name, last_name, email (unique), phone, date_of_birth (nullable, PHI), is_active, created_at, updated_at, deleted_at
-- [ ] Person has no organization_id — tenant-independent per SPEC-002 §2 design note
+- [x] Person model with all SPEC-002 §2 fields: id, auth_subject (unique, nullable), first_name, last_name, email (unique), phone, date_of_birth (nullable, PHI), is_active, created_at, updated_at, deleted_at
+- [x] Person has no organization_id — tenant-independent per SPEC-002 §2 design note
 - [ ] `GET /api/v1/people` lists people with active PersonRole in the requesting org per SPEC-002 §9
 - [ ] List endpoint (GET `/api/v1/people`) uses cursor-based pagination per TASK-004 and SPEC-007 §6 — `?cursor=...&limit=...`, returns `{data, next_cursor}`; never offset.
 - [ ] `POST /api/v1/people` creates a person record with `people.write` permission

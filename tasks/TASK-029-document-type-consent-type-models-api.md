@@ -9,10 +9,17 @@
 
 Implement DocumentType and ConsentType reference tables with seed data, system type protection, and CRUD APIs. These are organization-scoped lookup tables that categorize documents and consent records.
 
+## Pre-existing artifacts (from TASK-002 scope expansion)
+
+- `DocumentType` ORM model at `backend/app/models/models.py:716`; `ConsentType` at `:765`.
+- `ConsentStatus` enum at `:121`.
+- Tables `document_types`, `consent_types` created by initial migration `a68701f39fed_initial_schema.py`.
+- Remaining work: seed migration (8 DocumentType slugs, 9 ConsentType slugs per-org), `on_organization_created` hook handler, Pydantic schemas, service, router, linked-resource validation, system-type protection, backfill migration for existing orgs, audit calls, tests.
+
 ## Acceptance Criteria
 
-- [ ] DocumentType model with all SPEC-006 §2 fields: id, organization_id, name, slug, linked_resource_table (nullable, valid values: session, clinical_note, invoice, entity_instance, person — invalid values return 422), is_system_type, is_active, created_at, updated_at
-- [ ] ConsentType model with all SPEC-006 §2 fields: id, organization_id, name, slug, is_system_type, is_active, created_at, updated_at
+- [x] DocumentType model with all SPEC-006 §2 fields: id, organization_id, name, slug, linked_resource_table (nullable, valid values: session, clinical_note, invoice, entity_instance, person — invalid values return 422), is_system_type, is_active, created_at, updated_at
+- [x] ConsentType model with all SPEC-006 §2 fields: id, organization_id, name, slug, is_system_type, is_active, created_at, updated_at
 - [ ] UNIQUE(organization_id, slug) on both tables; because `organization_id` is NOT NULL per SPEC-006 §2, system rows are materialized per-org (not globally) and system slugs are globally reserved *within the per-org row set* (no org may override a system slug with a custom type)
 - [ ] Seed DocumentType slugs: session_document, clinical_attachment, consent_form, insurance_card, referral_letter, prior_authorization, identification, intake_form per SPEC-006 §2
 - [ ] Seed ConsentType slugs: treatment, telehealth, release_of_information, minor_assent, guardian_consent, hipaa_privacy_notice, financial_responsibility, medication_consent, group_therapy_consent per SPEC-006 §2

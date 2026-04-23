@@ -10,13 +10,19 @@
 
 Own the EntityInstance and AttributeValue models, their Alembic migration, and the CRUD endpoints. Consume TASK-011A's type casting engine and extend its fk validator with the existence / same-org / matching-type-slug check now that the EntityInstance model exists. The GET list endpoint uses a naive (non-aggregated) SQL query in this task; TASK-011B lands the JSONB-aggregated replacement afterward.
 
+## Pre-existing artifacts (from TASK-002 scope expansion)
+
+- `EntityInstance` ORM model at `backend/app/models/models.py:193` (with `SoftDeleteMixin`); `AttributeValue` at `:211` (uses `IdMixin` only — no timestamps, no soft delete — as SPEC-001 §2 requires).
+- Tables `entity_instances`, `attribute_values` created by initial migration `a68701f39fed_initial_schema.py`, with the UNIQUE(entity_instance_id, entity_attribute_id) constraint.
+- Remaining work: Pydantic schemas, service (including fk-existence wire-up to TASK-011A's casting engine), router, factory, naive GET list, required-field enforcement, bridge-rule validation, PHI-filtered audit snapshots, tests.
+
 ## Acceptance Criteria
 
-- [ ] EntityInstance model with all SPEC-001 §2 fields: id, entity_type_id, organization_id, person_id (nullable), is_active, created_at, updated_at, deleted_at
-- [ ] AttributeValue model with all SPEC-001 §2 fields: id, entity_instance_id, entity_attribute_id, value (Text, nullable)
-- [ ] UNIQUE(entity_instance_id, entity_attribute_id) on AttributeValue
-- [ ] AttributeValue intentionally omits created_at, updated_at, deleted_at per SPEC-001 §2 design note
-- [ ] Alembic migration creates both tables and the unique constraint
+- [x] EntityInstance model with all SPEC-001 §2 fields: id, entity_type_id, organization_id, person_id (nullable), is_active, created_at, updated_at, deleted_at
+- [x] AttributeValue model with all SPEC-001 §2 fields: id, entity_instance_id, entity_attribute_id, value (Text, nullable)
+- [x] UNIQUE(entity_instance_id, entity_attribute_id) on AttributeValue
+- [x] AttributeValue intentionally omits created_at, updated_at, deleted_at per SPEC-001 §2 design note
+- [x] Alembic migration creates both tables and the unique constraint
 - [ ] `GET /api/v1/entities/{type_slug}` lists instances using a naive join-based query, paginated (TASK-011B replaces this with the aggregated query)
 - [ ] List endpoint (GET /api/v1/entities/{type_slug}) uses cursor-based pagination per TASK-004 and SPEC-007 §6 — `?cursor=...&limit=...`, returns `{data, next_cursor}`; the envelope is stable across the TASK-011B swap.
 - [ ] `POST /api/v1/entities/{type_slug}` creates instance with attribute values, validated by TASK-011A's casting engine

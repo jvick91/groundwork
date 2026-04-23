@@ -9,9 +9,16 @@
 
 Implement the FormTemplate model with schema validation and CRUD API. FormTemplates define reusable form structures for intake, assessment, and consent workflows. The schema JSONB field is validated against a strict structure with supported field types.
 
+## Pre-existing artifacts (from TASK-002 scope expansion)
+
+- `FormTemplate` ORM model at `backend/app/models/models.py:821` (with `SoftDeleteMixin`).
+- `FormType` enum at `:128`.
+- Table `form_templates` created by initial migration `a68701f39fed_initial_schema.py`.
+- Remaining work: Pydantic schemas (incl. schema-JSONB validators), `on_organization_created` hook handler, service, router, factory, system-template protection, schema-change version bump, backfill migration for existing orgs, audit calls, tests.
+
 ## Acceptance Criteria
 
-- [ ] FormTemplate model with all SPEC-006 §2 fields: id, organization_id, name, slug, form_type (FormType enum: intake, assessment, consent, custom), schema (JSONB), version (default "1.0.0"), is_system_template, is_active, created_at, updated_at, deleted_at
+- [x] FormTemplate model with all SPEC-006 §2 fields: id, organization_id, name, slug, form_type (FormType enum: intake, assessment, consent, custom), schema (JSONB), version (default "1.0.0"), is_system_template, is_active, created_at, updated_at, deleted_at
 - [ ] UNIQUE(organization_id, slug); because `organization_id` is NOT NULL and SPEC-006 §2 specifies "System templates are seeded per-org on organization creation," system rows are materialized per-org. System slugs are globally reserved within each org's template set (custom templates cannot shadow a system slug)
 - [ ] Seeding strategy: this task registers a handler with TASK-009's `on_organization_created` hook that inserts the platform's system FormTemplate rows for the newly-created org, in the same transaction as the Organization insert
 - [ ] System FormTemplate content: the initial set may be an empty list (no platform-shipped templates) or a small starter set at the implementer's discretion — the hook and the seed machinery must exist even if the starter set is empty, so later tasks can add system templates without re-plumbing the seeding path

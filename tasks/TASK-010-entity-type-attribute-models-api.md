@@ -9,10 +9,17 @@
 
 Implement EntityType and EntityAttribute models with full CRUD APIs, seed data for the three system types (provider, client, admin) and their attributes, system type protection rules, and the atomic slug-change cascade for custom types.
 
+## Pre-existing artifacts (from TASK-002 scope expansion)
+
+- `EntityType` ORM model at `backend/app/models/models.py:152`; `EntityAttribute` at `:174`.
+- `FieldType` enum at `:45`.
+- Tables `entity_types`, `entity_attributes` created by initial migration `a68701f39fed_initial_schema.py`.
+- Remaining work: seed migration (3 system types + their attributes), Pydantic schemas, service, router, feature-flag (`CUSTOM_ENTITY_TYPES_ENABLED`), system-type protection rules, slug-change cascade, audit calls, tests.
+
 ## Acceptance Criteria
 
-- [ ] EntityType model with all SPEC-001 §2 fields: id, organization_id (nullable for system types), name, slug, is_system_type, is_person_subtype, created_at
-- [ ] EntityAttribute model with all SPEC-001 §2 fields: id, entity_type_id, name, display_name, field_type (FieldType enum), is_required, options (JSONB), display_order, created_at
+- [x] EntityType model with all SPEC-001 §2 fields: id, organization_id (nullable for system types), name, slug, is_system_type, is_person_subtype, created_at
+- [x] EntityAttribute model with all SPEC-001 §2 fields: id, entity_type_id, name, display_name, field_type (FieldType enum), is_required, options (JSONB), display_order, created_at
 - [ ] UNIQUE(organization_id, slug) on EntityType per SPEC-001 §7
 - [ ] System type slugs (provider, client, admin) reserved globally across all orgs
 - [ ] Seed migration creates 3 system EntityTypes with is_system_type=true, is_person_subtype=true
