@@ -102,7 +102,11 @@ class OrgAccessDeniedError(GroundworkError):
 # ---------------------------------------------------------------------------
 
 class NotFoundError(GroundworkError):
-    def __init__(self, resource: str, resource_id: UUID | str):
+    def __init__(self, resource: str, resource_id: UUID):
+        # `resource_id` is typed as UUID only — surface-area guard so callers
+        # can't accidentally pass PHI (names, emails, etc.) into `details`
+        # (SPEC-007 §7.4). Lookups by non-UUID keys should use a domain-specific
+        # exception instead.
         super().__init__(
             error="not_found",
             message=f"{resource} not found.",
