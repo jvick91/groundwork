@@ -1,8 +1,8 @@
 # STATE.md — Session Entry Point
 
-**Last updated:** 2026-04-23
-**Active task:** TASK-003
-**Branch:** tasks/breakdown
+**Last updated:** 2026-03-26
+**Active task:** TASK-004
+**Branch:** error-response-contract
 
 ---
 
@@ -24,7 +24,7 @@
 |---|------|--------|------------|
 | 001 | [Project scaffolding & Docker services](tasks/TASK-001-project-scaffolding.md) | **Complete** | — |
 | 002 | [Base ORM patterns, enums, Alembic config](tasks/TASK-002-base-orm-patterns.md) | **Complete** | 001 |
-| 003 | [Error response contract & exception handling](tasks/TASK-003-error-response-contract.md) | Partial | 001 |
+| 003 | [Error response contract & exception handling](tasks/TASK-003-error-response-contract.md) | **Complete** | 001 |
 | 004 | [Cursor pagination utility](tasks/TASK-004-cursor-pagination.md) | Partial | 001, 003 |
 | 005 | [Health check endpoints](tasks/TASK-005-health-check-endpoints.md) | Partial | 001 |
 | 006 | [AuditLog model & audit service](tasks/TASK-006-audit-log-model-and-service.md) | Partial | 001, 002 |
