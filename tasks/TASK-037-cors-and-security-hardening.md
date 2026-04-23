@@ -19,7 +19,7 @@ Configure CORS to allow only the frontend origin (no wildcard), verify SQL injec
 - [ ] Wildcard origins (`*`) never used per SPEC-007 §15.1
 - [ ] SQL injection prevention: all database queries use SQLAlchemy ORM/Core with parameterized queries, no raw SQL with user input per SPEC-007 §15.4
 - [ ] Input validation: all input validated by Pydantic schemas at schema layer, business rules at service layer per SPEC-007 §15.3
-- [ ] Free-text fields (notes, descriptions, amendment_note) sanitized to prevent stored XSS per SPEC-007 §15.3
+- [ ] Free-text fields (notes, descriptions, amendment_note, and all other user-supplied strings written to the DB) are passed through `html.escape(text, quote=True)` in the service layer before persistence per SPEC-007 §15.3. Test `test_security/test_xss_sanitization.py` posts a payload containing `<script>alert(1)</script>` and `"` and asserts the stored value (and the value returned by GET) reads `&lt;script&gt;alert(1)&lt;/script&gt;` and `&quot;` respectively.
 - [ ] API responses never include PHI-excluded fields in error messages, logs, or audit snapshots per SPEC-007 §15.5
 - [ ] Test: CORS headers present on responses from allowed origin
 - [ ] Test: CORS rejects requests from disallowed origin

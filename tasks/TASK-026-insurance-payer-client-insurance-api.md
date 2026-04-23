@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-005 §2 (InsurancePayer, ClientInsurance), §4 (client bridge rule), §5 (insurance payer management, client insurance management)
-**ADRs:** ADR-001, ADR-002
+**ADRs:** ADR-001, ADR-002, ADR-003 (partial unique index for one-active-priority per client/payer)
 **Depends on:** TASK-011C, TASK-015
 
 ## Objective

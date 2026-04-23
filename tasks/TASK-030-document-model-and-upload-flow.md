@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-006 §2 (Document, file upload constraints), §4 (document rules), §6 (Document management), §7; SPEC-000 §6
-**ADRs:** ADR-005 (file storage and encryption)
+**ADRs:** ADR-002 (FK-only), ADR-005 (file storage and encryption)
 **Depends on:** TASK-012, TASK-021, TASK-023, TASK-027, TASK-029
 
 ## Objective

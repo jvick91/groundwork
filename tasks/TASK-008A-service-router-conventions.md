@@ -45,6 +45,7 @@ Produce the shared plumbing every domain router/service will consume — and not
 - [ ] `docs/conventions.md` (or a README inside `app/`) written with the four patterns above in ~1 page, referenced from each future domain task
 - [ ] Tests: `tests/test_core/test_dependencies.py` — verifies each stub dependency returns the expected shape and that `require_permission` allow-lists while the flag is on; verifies `call_service_with_audit` rolls back the business write when the audit write raises
 - [ ] No domain endpoints, models, schemas, or tables are introduced by this task
+- [ ] Stub-dependency shape tests: `tests/test_cross_cutting/test_stub_dependencies.py` asserts `current_person` returns a dict with `id`, `email`, `is_active`; `current_org` returns a dict with `id`, `name`, `timezone`; `require_permission("any.slug")` returns an allow decision while `AUTH_STUB_ENABLED=true`. Tests fail loudly if the stub shape drifts before TASK-014 wires the real dependencies.
 
 ## Files
 

@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-002 §2 (PersonRole entity_instance_id rules), §8 (Person role assignment)
-**ADRs:** ADR-003
+**ADRs:** ADR-002 (FK-only), ADR-003 (partial unique indexes for revocable PersonRole grants)
 **Depends on:** TASK-012, TASK-013, TASK-015
 
 ## Objective
