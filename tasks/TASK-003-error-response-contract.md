@@ -19,9 +19,6 @@ Implement the standard error response envelope and all custom exception classes 
 - [x] Error messages never contain PHI field values per SPEC-007 §7.4
 - [x] Tests verify each error code returns correct HTTP status and envelope shape
 
-**Done so far (in code):** `GroundworkError` base + registered handler in `main.py`; 7 subclasses: `NotFoundError`, `ValidationError`, `ConflictError`, `ForbiddenError`, `OrganizationRequiredError`, `BridgeRuleViolation`, `StatusTransitionError`. `ErrorResponse` schema exists.
-
-**Remaining:** add `ResourceLockedError`, `PrerequisiteNotMetError`, `AccountInactiveError`, `UnauthorizedError`, `BadRequestError`, `OrgAccessDeniedError`, `RateLimitedError`, `InternalError`; rename `StatusTransitionError` → `StateTransitionDeniedError` (error code `status_transition_error` → `state_transition_denied`); add Pydantic `ValidationError` 422 handler with `{field, message, code}` details; add generic 500 handler; add cross-cutting tests.
 
 ## Files
 
