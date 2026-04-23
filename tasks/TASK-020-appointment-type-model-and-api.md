@@ -3,11 +3,13 @@
 **Status:** Not started
 **Spec sections:** SPEC-003 §2 (AppointmentType), §5 (intake status gate, duration consistency), §6 (AppointmentType management)
 **ADRs:** ADR-002
-**Depends on:** TASK-009, TASK-015
+**Depends on:** TASK-009, TASK-015, TASK-025
 
 ## Objective
 
 Implement the AppointmentType model and its management API. AppointmentTypes are reusable templates defining session defaults (duration, billing code, telehealth flag, intake flag). Management is gated by `settings.write` since appointment types are organizational configuration.
+
+The dependency on TASK-025 is load-bearing: `AppointmentType.cpt_code_id` is a FK to `CPTCode`, so the CPTCode table must exist before AppointmentType's migration runs. Phase ordering in STATE.md is conceptual grouping — the critical path for TASK-020 goes through TASK-025.
 
 ## Acceptance Criteria
 
@@ -18,7 +20,7 @@ Implement the AppointmentType model and its management API. AppointmentTypes are
 - [ ] `PATCH /api/v1/appointment-types/{id}` updates with `settings.write`
 - [ ] `DELETE /api/v1/appointment-types/{id}` deactivates (sets is_active=false) with `settings.write`
 - [ ] Org-scoped: all queries filter by organization_id
-- [ ] All state-changing operations write AuditLog entries per BR-07
+- [ ] State changes write AuditLog rows per TASK-006 convention (BR-07)
 - [ ] Tests: CRUD happy path, deactivation toggle
 
 ## Files
@@ -34,4 +36,3 @@ Implement the AppointmentType model and its management API. AppointmentTypes are
 ## Non-goals
 
 - Session model and CRUD (TASK-021)
-- CPTCode model (TASK-025) — FK is nullable; cpt_code_id validation deferred until TASK-025 is complete

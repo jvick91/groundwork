@@ -3,7 +3,11 @@
 **Status:** Not started
 **Spec sections:** SPEC-007 §15 (all subsections)
 **ADRs:** —
-**Depends on:** TASK-001, TASK-014
+**Depends on:** TASK-001, TASK-006, TASK-007, TASK-014
+
+## Dependency Note
+
+SPEC-007 §15.5 requires API responses, error messages, logs, and audit snapshots to be free of PHI. The audit-snapshot filter ships in TASK-006 and the log filter ships in TASK-007, so those tasks are load-bearing dependencies for this task's §15.5 AC. 001 and 014 remain required for CORS wiring and for exercising the live middleware end-to-end.
 
 ## Objective
 

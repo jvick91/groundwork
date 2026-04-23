@@ -1,6 +1,6 @@
 # STATE.md — Session Entry Point
 
-**Last updated:** 2026-04-21
+**Last updated:** 2026-04-22
 **Active task:** TASK-003
 **Branch:** tasks/breakdown
 
@@ -30,25 +30,26 @@
 | 006 | [AuditLog model & audit service](tasks/TASK-006-audit-log-model-and-service.md) | Not started | 001, 002 |
 | 007 | [Structured logging & PHI exclusion filter](tasks/TASK-007-structured-logging-phi-filter.md) | Partial | 001 |
 | 008 | [Test infrastructure & fixtures](tasks/TASK-008-test-infrastructure.md) | Partial | 001, 002, 003, 007 |
-| 008A | [Service & router layer conventions](tasks/TASK-008A-service-router-conventions.md) | Not started | 002, 003, 004, 006, 007, 008 |
+| 008A | [Service & router layer conventions (shared plumbing only)](tasks/TASK-008A-service-router-conventions.md) | Not started | 002, 003, 004, 006, 007, 008 |
 
 **Partial status notes:**
 - **003:** 7 exception classes exist. Missing: `resource_locked`, `prerequisite_not_met`, `account_inactive`, Pydantic 422 handler, generic 500 handler. Error code `status_transition_error` should be `state_transition_denied` per SPEC-007.
 - **004:** Pagination schemas exist (`PaginationMeta`, `PaginatedResponse`). Missing: cursor encode/decode, query builder, filter conventions.
-- **005:** Basic `/health` endpoint + test exist. Missing: `/health/ready` with DB and JWKS checks.
+- **005:** Basic `/health` endpoint + test exist. Missing: `/health/ready` with DB check. JWKS probe is owned by TASK-014, not this task.
 - **007:** structlog + `phi_filter` with 6 fields. Missing: full BR-08 field list (note content keys: subjective, objective, assessment, plan, data, intervention, response, behavior), request logging middleware.
-- **008:** conftest with transaction rollback, httpx client, factory scaffold. Missing: JWT test fixtures, per-domain factories.
+- **008:** conftest with transaction rollback, httpx client, factory scaffold. Missing: JWT test key material + token-minting fixture, per-domain factories. (Wiring the middleware to validate against the test key is in TASK-014.)
+- **008A:** refocused (2026-04-22) — shared plumbing only (get_db, stub dependencies, audit wrap helper, pagination surface, conventions doc). Organization CRUD moved to TASK-009 as the first consumer.
 
 ### Phase 2: EAV Data Platform (SPEC-001)
 
 | # | Task | Status | Depends on |
 |---|------|--------|------------|
-| 009 | [Organization model & CRUD API](tasks/TASK-009-organization-model-and-api.md) | Not started | 008A |
+| 009 | [Organization model & CRUD API (first vertical slice)](tasks/TASK-009-organization-model-and-api.md) | Not started | 008A |
 | 010 | [EntityType & EntityAttribute models, seed data, & API](tasks/TASK-010-entity-type-attribute-models-api.md) | Not started | 009 |
-| 011 | [EntityInstance & AttributeValue models & API](tasks/TASK-011-entity-instance-attribute-value-api.md) | Not started | 010 |
-| ↳ 011A | [AttributeValue type casting engine](tasks/TASK-011A-attribute-value-type-casting.md) | Not started | 010 |
-| ↳ 011B | [JSONB aggregation query builder](tasks/TASK-011B-jsonb-aggregation-query.md) | Not started | 010 |
-| ↳ 011C | [EntityInstance CRUD API & bridge rules](tasks/TASK-011C-entity-instance-crud-api.md) | Not started | 011A, 011B, 008A |
+| 011 | [EntityInstance & AttributeValue (container — not executable)](tasks/TASK-011-entity-instance-attribute-value-api.md) | Container | — |
+| ↳ 011A | [AttributeValue type casting engine (shape only; fk existence hook deferred)](tasks/TASK-011A-attribute-value-type-casting.md) | Not started | 010 |
+| ↳ 011C | [EntityInstance & AttributeValue models, migration, CRUD, bridge rules](tasks/TASK-011C-entity-instance-crud-api.md) | Not started | 011A, 008A |
+| ↳ 011B | [JSONB aggregation query builder + GET list swap](tasks/TASK-011B-jsonb-aggregation-query.md) | Not started | 011C |
 
 > **Parallelization note:** Phase 3 (Identity & RBAC) does **not** block on Phase 2 finishing. Once TASK-009 is complete, TASK-012 (Person) and TASK-013 (RBAC seed) can start in parallel with TASK-010/011A/B/C (EAV). Only TASK-014 (auth middleware) and later identity tasks require both Phase 2 and early Phase 3 foundations. The phase ordering below reflects conceptual grouping, not a strict sequential gate.
 
@@ -69,7 +70,7 @@
 
 | # | Task | Status | Depends on |
 |---|------|--------|------------|
-| 020 | [AppointmentType model & API](tasks/TASK-020-appointment-type-model-and-api.md) | Not started | 009, 015 |
+| 020 | [AppointmentType model & API](tasks/TASK-020-appointment-type-model-and-api.md) | Not started | 009, 015, 025 |
 | 021 | [Session model & CRUD API](tasks/TASK-021-session-model-and-crud-api.md) | Not started | 011C, 015, 020 |
 | 022 | [Session lifecycle transitions & overlap detection](tasks/TASK-022-session-lifecycle-and-overlap.md) | Not started | 006, 021 |
 
@@ -95,7 +96,7 @@
 |---|------|--------|------------|
 | 029 | [DocumentType & ConsentType models, seed data, & API](tasks/TASK-029-document-type-consent-type-models-api.md) | Not started | 009, 015 |
 | 030 | [Document model & S3 upload flow API](tasks/TASK-030-document-model-and-upload-flow.md) | Not started | 012, 021, 023, 027, 029 |
-| 031 | [ClientConsent model & lifecycle API](tasks/TASK-031-client-consent-model-and-lifecycle.md) | Not started | 006, 011C, 029 |
+| 031 | [ClientConsent model & lifecycle API](tasks/TASK-031-client-consent-model-and-lifecycle.md) | Not started | 006, 011C, 029, 030, 032 |
 | 032 | [FormTemplate model & API](tasks/TASK-032-form-template-model-and-api.md) | Not started | 009, 015 |
 | 033 | [Consent session gate & expiry sweep](tasks/TASK-033-consent-session-gate-and-expiry-cron.md) | Not started | 022, 031 |
 
@@ -106,7 +107,7 @@
 | 034 | [Database indexing migration](tasks/TASK-034-database-indexing.md) | Not started | 011C, 013, 020, 021, 023, 025, 026, 027, 028, 029, 030, 031, 032 |
 | 035 | [Cross-cutting integration tests](tasks/TASK-035-cross-cutting-integration-tests.md) | Not started | 003, 004, 006, 007, 008, 011C, 014, 015, 021, 023, 027, 030, 031 |
 | 036 | [CI pipeline configuration](tasks/TASK-036-ci-pipeline.md) | Not started | 008 |
-| 037 | [CORS & security hardening](tasks/TASK-037-cors-and-security-hardening.md) | Not started | 001, 014 |
+| 037 | [CORS & security hardening](tasks/TASK-037-cors-and-security-hardening.md) | Not started | 001, 006, 007, 014 |
 | 038 | [HIPAA-ready acceptance gate verification](tasks/TASK-038-hipaa-ready-acceptance-verification.md) | Not started | 013, 014, 029, 030, 035 |
 
 ---
@@ -118,8 +119,8 @@
 **Unlocks:** Every domain API endpoint
 
 ### Milestone 2 — EAV API (first full domain)
-**Tasks:** 009 → 010 → 011A → 011B → 011C → 019
-**Unlocks:** Entity management, dynamic permissions
+**Tasks:** 009 → 010 → 011A → 011C → 011B → 019
+**Unlocks:** Entity management, dynamic permissions. Note: 011C owns the EntityInstance/AttributeValue models and ships a naive GET list; 011B swaps it to JSONB aggregation after 011C is live. 019 flips the `CUSTOM_ENTITY_TYPES_ENABLED` flag introduced in 010.
 
 ### Milestone 3 — Identity API (platform foundation complete)
 **Tasks:** 012 → 016 → 017 → 018
@@ -138,31 +139,33 @@
 ## Dependency Graph (Critical Path)
 
 ```
-001 ✓ → 002 ✓ → 006 ──→ 008A (conventions) ──→ 009 → 010 ──→ 011A ──→ 011C
-  │                ↑              ↑                        ↓        ↗
-  ├→ 003 (finish)──┤         008 (finish)           011B──┘
+001 ✓ → 002 ✓ → 006 ──→ 008A (plumbing) ──→ 009 (Org) → 010 ──→ 011A → 011C → 011B
+  │                ↑              ↑
+  ├→ 003 (finish)──┤         008 (finish)
   ├→ 007 (finish)──┘              ↓
   │                          013 (seed) → 014 (auth) → 015 (perms)
   │                            ↑                         ↓
-  ├→ 012 (Person) ─────────────┘                   016, 017, 018
+  ├→ 012 (Person) ─────────────┘                   016, 017, 018, 019
   │
-  ├→ 020 ──→ 021 → 022 ──→ 033 (consent gate)
-  │            ↑                    ↑
-  │       011, 015             031 (consent)
-  │            ↓                    ↑
-  │       023 → 024 (notes)    029 (types)
+  ├→ 025 (codes) ─→ 020 (appt type) → 021 → 022 ──→ 033 (consent gate)
+  │       ↘                                               ↑
+  │        → 027 (invoice) → 028                    031 (consent)
+  │        ↗                                              ↑
+  ├→ 026 (insurance)                                 029 (types, seeds to 009 hook)
+  │                                                       ↑
+  ├→ 023 → 024 (notes)                             030 (documents) ──┤
+  │                                                 032 (forms, seeds to 009 hook) ──┘
   │
-  ├→ 025 ──→ 027 → 028          030 (documents)
-  ├→ 026 ────────↗               032 (forms)
-  │
-  └→ 034 (indexes), 035 (tests), 036 (CI), 037 (CORS)
+  └→ 034 (indexes), 035 (tests), 036 (CI), 037 (CORS + 006,007), 038 (HIPAA gate)
 ```
 
-**Critical path:** 001✓ → 002✓ → 006 → 008A → 013 → 014 → 015 → 021 → 022 → 033
+**Critical path:** 001✓ → 002✓ → 006 → 008A → 009 → 010 → 011A → 011C → 013 → 014 → 015 → 025 → 020 → 021 → 022 → 031 (after 029, 030, 032) → 033
+
+Note: 025 is on the session critical path because AppointmentType.cpt_code_id FKs into CPTCode. 029/030/032 all precede 031 because ClientConsent FKs into DocumentType, Document, and FormTemplate.
 
 ---
 
-## Service & Router Conventions (established in TASK-008A)
+## Service & Router Conventions (established in TASK-008A, first exercised in TASK-009)
 
 ### Router layer
 - One file per domain in `app/routers/`, registered via `app.include_router()` in `main.py`
@@ -188,16 +191,16 @@
 
 | Spec | Sections | Covered by tasks |
 |------|----------|-----------------|
-| SPEC-000 | §1-§2 | 001 ✓ |
+| SPEC-000 | §2 | 001 ✓ |
 | SPEC-000 | §3 | 002 ✓ |
 | SPEC-000 | §4 | Domain tasks |
 | SPEC-000 | §5 | 008, 035 |
 | SPEC-000 | §6 | 006, 007, 030, 031, 033 |
-| SPEC-001 | §1-§3 | 009, 010 |
+| SPEC-001 | §2-§3 | 009, 010 |
 | SPEC-001 | §4-§5 | 010, 011A, 011B, 011C |
 | SPEC-001 | §6 | 009, 010, 011C |
 | SPEC-001 | §7, §9 | 010, 011A, 011C |
-| SPEC-002 | §1-§3 | 012, 013 |
+| SPEC-002 | §2-§3 | 012, 013 |
 | SPEC-002 | §4-§6 | 015, 016, 017 |
 | SPEC-002 | §7 | 019 |
 | SPEC-002 | §8 | 012, 016, 017, 018 |

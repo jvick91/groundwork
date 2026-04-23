@@ -12,7 +12,10 @@ Implement the FormTemplate model with schema validation and CRUD API. FormTempla
 ## Acceptance Criteria
 
 - [ ] FormTemplate model with all SPEC-006 §2 fields: id, organization_id, name, slug, form_type (FormType enum: intake, assessment, consent, custom), schema (JSONB), version (default "1.0.0"), is_system_template, is_active, created_at, updated_at, deleted_at
-- [ ] UNIQUE(organization_id, slug); system template slugs globally reserved
+- [ ] UNIQUE(organization_id, slug); because `organization_id` is NOT NULL and SPEC-006 §2 specifies "System templates are seeded per-org on organization creation," system rows are materialized per-org. System slugs are globally reserved within each org's template set (custom templates cannot shadow a system slug)
+- [ ] Seeding strategy: this task registers a handler with TASK-009's `on_organization_created` hook that inserts the platform's system FormTemplate rows for the newly-created org, in the same transaction as the Organization insert
+- [ ] System FormTemplate content: the initial set may be an empty list (no platform-shipped templates) or a small starter set at the implementer's discretion — the hook and the seed machinery must exist even if the starter set is empty, so later tasks can add system templates without re-plumbing the seeding path
+- [ ] Backfill migration: for every Organization that already exists when this task's migration runs, insert the system FormTemplate rows that don't already exist for that org. Idempotent
 - [ ] Schema JSONB validation per SPEC-006 §2: fields array with name, label, type, required, options, placeholder, max_length, validation_regex
 - [ ] Supported field types: text, textarea, number, date, boolean, select, multiselect, email, phone
 - [ ] Field name: matches `[a-z][a-z0-9_]{0,63}`, unique within template

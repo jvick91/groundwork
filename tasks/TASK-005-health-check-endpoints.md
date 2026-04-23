@@ -7,15 +7,16 @@
 
 ## Objective
 
-Implement the two health check endpoints: `/api/v1/health` (liveness) and `/api/v1/health/ready` (readiness). Neither requires authentication or the `X-Organization-Id` header. The readiness check verifies database connectivity and Auth0 JWKS cache status.
+Implement the two health check endpoints: `/api/v1/health` (liveness) and `/api/v1/health/ready` (readiness). Neither requires authentication or the `X-Organization-Id` header. The readiness check verifies database connectivity only in this task; JWKS probe is added by TASK-014 once auth middleware exists.
 
 ## Acceptance Criteria
 
 - [ ] `GET /api/v1/health` returns 200 `{"status": "ok", "version": "1.0.0"}` with no auth required
-- [ ] `GET /api/v1/health/ready` returns 200 when DB is reachable and Auth0 JWKS is cached
-- [ ] `GET /api/v1/health/ready` returns 503 `{"status": "unhealthy", "checks": {...}}` when any dependency is down
+- [ ] `GET /api/v1/health/ready` returns 200 `{"status": "ready", "checks": {"database": "ok"}}` when DB is reachable
+- [ ] `GET /api/v1/health/ready` returns 503 `{"status": "unhealthy", "checks": {...}}` when DB is unreachable
+- [ ] `checks` dict is structured to allow TASK-014 to add an `auth0_jwks` key without changing the envelope
 - [ ] Both endpoints are excluded from auth middleware
-- [ ] Tests verify both happy path and degraded states
+- [ ] Tests verify both happy path and DB-degraded states
 
 ## Files
 
@@ -26,4 +27,4 @@ Implement the two health check endpoints: `/api/v1/health` (liveness) and `/api/
 ## Non-goals
 
 - Auth middleware implementation (TASK-014)
-- JWKS caching implementation (TASK-014) — readiness check stubs the JWKS check until auth middleware exists
+- JWKS cache probe — added by TASK-014 which owns the JWKS cache

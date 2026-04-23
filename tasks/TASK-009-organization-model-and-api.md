@@ -1,4 +1,4 @@
-# TASK-009: Organization Model & CRUD API
+# TASK-009: Organization Model & CRUD API (First Vertical Slice)
 
 **Status:** Not started
 **Spec sections:** SPEC-001 §2 (Organization), §6 (EntityType management — org-scoped context)
@@ -7,7 +7,7 @@
 
 ## Objective
 
-Implement the Organization model — the root tenant record that every other table references via `organization_id`. Provide CRUD endpoints for organization management. Organization is the multi-tenancy boundary for the entire platform.
+Implement the Organization model — the root tenant record that every other table references via `organization_id` — and serve as the first consumer of the TASK-008A conventions. This task produces the first working router + service + schema + factory + tests in the repo; if anything in the 008A conventions is awkward, fix it here and update `docs/conventions.md` before moving on. Also land the `on_organization_created(db, org_id)` hook surface that later tasks (029, 032) will subscribe to for per-org seed data.
 
 ## Acceptance Criteria
 
@@ -18,14 +18,20 @@ Implement the Organization model — the root tenant record that every other tab
 - [ ] `timezone` field validates against IANA timezone identifiers
 - [ ] `is_active` toggle for tenant suspension
 - [ ] All state-changing operations write AuditLog entries per BR-07
-- [ ] Test: organization CRUD happy path
+- [ ] Router, service, schemas, and factory follow the TASK-008A conventions verbatim. Any deviation is recorded with its rationale in `docs/conventions.md` in the same PR
+- [ ] `app/services/organization_hooks.py` (or equivalent) exports `register_on_create_hook(callable)` and `on_organization_created(db, org_id)`. The hook is invoked inside the same transaction as the Organization insert, after audit write, before commit. This is the extension point TASK-029 (DocumentType/ConsentType seed) and TASK-032 (FormTemplate seed) subscribe to
+- [ ] Hook failure rolls back Organization creation (same transaction, same error path as audit)
+- [ ] Test: organization CRUD happy path via httpx client
 - [ ] Test: organization with invalid timezone returns 422
+- [ ] Test: audit log entry written on organization create
+- [ ] Test: a registered hook fires on organization create; a hook that raises rolls back the create
 
 ## Files
 
 - `backend/app/models/models.py` (Organization model)
 - `backend/app/schemas/eav.py` (Organization schemas)
 - `backend/app/services/eav_service.py` (Organization service methods)
+- `backend/app/services/organization_hooks.py` (on_organization_created hook registry)
 - `backend/app/routers/eav.py` (Organization endpoints)
 - `backend/tests/factories/eav.py` (Organization factory)
 - `backend/tests/test_eav/test_organizations.py`

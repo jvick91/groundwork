@@ -2,7 +2,7 @@
 
 **Status:** Complete
 **Spec sections:** SPEC-007 §4.3, §4.4, §4.6; SPEC-000 §3
-**ADRs:** ADR-002 (FK-only, no relationship), ADR-003 (partial unique indexes)
+**ADRs:** ADR-001, ADR-002 (FK-only, no relationship), ADR-003 (partial unique indexes)
 **Depends on:** TASK-001
 
 ## Objective
@@ -14,7 +14,8 @@ Define the base SQLAlchemy model class with shared patterns: UUID primary keys (
 - [ ] Base model class provides UUID PK, `created_at`, `updated_at` columns with UTC defaults
 - [ ] Soft-delete mixin provides nullable `deleted_at` column
 - [ ] All enums use `StrEnum` with uppercase member names and `native_enum=False` per SPEC-007 §4.6
-- [ ] Enums defined: `SessionStatus`, `NoteStatus`, `NoteFormat`, `InvoiceStatus`, `PaymentStatus`, `PaymentMethod`, `PayerType`, `ConsentStatus`, `FormType`, `InsurancePriority`, `FieldType`, `PrimaryDomain`, `PermissionAction`
+- [ ] Enums defined: `SessionStatus`, `NoteStatus`, `NoteFormat`, `InvoiceStatus`, `PaymentStatus`, `PaymentMethod`, `PayerType`, `ConsentStatus`, `FormType`, `InsurancePriority`, `FieldType`, `PrimaryDomain`
+- [ ] `Permission.action` is stored as a plain `String` column, NOT an enum. Rationale: SPEC-002 §3 seeds actions (`create`, `void`, `record`, `revoke`, `send`, `configure`, `manage`) that fall outside the narrower list in SPEC-002 §2's field description. The authoritative set is the seed matrix, which extends freely as new domain permissions are added. A stored enum would force a spec revision and a migration on every new permission
 - [ ] No `relationship()` appears anywhere in models — FK columns are scalar UUIDs per ADR-002
 - [ ] Money columns use Integer type with `_cents` suffix per SPEC-007 §4.4
 - [ ] Alembic env.py supports `postgresql_where` for partial unique indexes per ADR-003

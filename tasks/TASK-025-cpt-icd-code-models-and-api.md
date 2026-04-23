@@ -17,7 +17,7 @@ Implement the CPTCode and ICDCode reference tables and their management APIs. Th
 - [ ] `GET /api/v1/cpt-codes` list with search, `POST`, `PATCH /cpt-codes/{id}`, `DELETE /cpt-codes/{id}` (deactivates) per SPEC-005 §5
 - [ ] `GET /api/v1/icd-codes` list with search, `POST`, `PATCH /icd-codes/{id}`, `DELETE /icd-codes/{id}` (deactivates) per SPEC-005 §5
 - [ ] Permissions: codes.read for GET, codes.write for POST/PATCH, codes.delete for DELETE per SPEC-005 §5
-- [ ] DELETE sets is_active=false, does not soft-delete per SPEC-005 §5
+- [ ] DELETE /api/v1/cpt-codes/{id} sets is_active=false and does NOT set deleted_at — verified by `test_delete_cpt_code_deactivates_not_soft_deletes`
 - [ ] Deactivated codes remain visible on historical line items
 - [ ] Money values in cents (default_rate_cents) per SPEC-007 §4.4
 - [ ] All state-changing operations write AuditLog entries per BR-07

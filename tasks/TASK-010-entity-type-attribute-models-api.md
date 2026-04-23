@@ -18,6 +18,8 @@ Implement EntityType and EntityAttribute models with full CRUD APIs, seed data f
 - [ ] Seed migration creates 3 system EntityTypes with is_system_type=true, is_person_subtype=true
 - [ ] Seed migration creates provider attributes (license_number, license_state, npi_number, specialty, taxonomy_code, dea_number), client attributes (intake_status enum, referral_source, emergency_contact_name, emergency_contact_phone, onboarded_at), admin attributes (department, title) per SPEC-001 §3
 - [ ] EntityType CRUD: GET/POST/PATCH/DELETE on `/entity-types` and `/entity-types/{slug}` with entity_types.read/write/delete permissions per SPEC-001 §6
+- [ ] `POST /entity-types` for *custom* (non-system) types is gated behind a `CUSTOM_ENTITY_TYPES_ENABLED` settings flag, default `False`. When the flag is off, `POST /entity-types` returns HTTP 501 `{"error": "not_implemented", "message": "Custom EntityType creation is not available until auto-permission generation (TASK-019) lands."}`. Rationale: SPEC-001 §6 / SPEC-002 §7 make auto-generated read/write/delete permissions part of the creation contract; shipping the endpoint without them would violate the spec. GET/PATCH/DELETE on *system* types and seed-managed state work normally regardless of the flag. TASK-019 flips the flag to `True` when auto-generation is live
+- [ ] Test: `test_post_entity_type_returns_501_when_custom_types_disabled` covers the flag-off path
 - [ ] EntityAttribute CRUD: GET/POST/PATCH/DELETE on `/entity-types/{slug}/attributes` and `/entity-types/{slug}/attributes/{id}` per SPEC-001 §6
 - [ ] System types cannot be deleted or renamed (HTTP 409, `resource_locked`) per SPEC-001 §4
 - [ ] Seed attributes on system types cannot be deleted (HTTP 409) but new attributes can be added per SPEC-001 §4

@@ -13,9 +13,13 @@ Implement DocumentType and ConsentType reference tables with seed data, system t
 
 - [ ] DocumentType model with all SPEC-006 §2 fields: id, organization_id, name, slug, linked_resource_table (nullable, valid values: session, clinical_note, invoice, entity_instance, person — invalid values return 422), is_system_type, is_active, created_at, updated_at
 - [ ] ConsentType model with all SPEC-006 §2 fields: id, organization_id, name, slug, is_system_type, is_active, created_at, updated_at
-- [ ] UNIQUE(organization_id, slug) on both tables; system type slugs globally reserved
-- [ ] Seed DocumentTypes: session_document, clinical_attachment, consent_form, insurance_card, referral_letter, prior_authorization, identification, intake_form per SPEC-006 §2
-- [ ] Seed ConsentTypes: treatment, telehealth, release_of_information, minor_assent, guardian_consent, hipaa_privacy_notice, financial_responsibility, medication_consent, group_therapy_consent per SPEC-006 §2
+- [ ] UNIQUE(organization_id, slug) on both tables; because `organization_id` is NOT NULL per SPEC-006 §2, system rows are materialized per-org (not globally) and system slugs are globally reserved *within the per-org row set* (no org may override a system slug with a custom type)
+- [ ] Seed DocumentType slugs: session_document, clinical_attachment, consent_form, insurance_card, referral_letter, prior_authorization, identification, intake_form per SPEC-006 §2
+- [ ] Seed ConsentType slugs: treatment, telehealth, release_of_information, minor_assent, guardian_consent, hipaa_privacy_notice, financial_responsibility, medication_consent, group_therapy_consent per SPEC-006 §2
+- [ ] Seeding strategy: this task registers a handler with TASK-009's `on_organization_created` hook that inserts all 8 system DocumentType rows and all 9 system ConsentType rows with `is_system_type=true` for the newly-created org. All inserts occur in the same transaction as the Organization insert, so a failure rolls back the org creation
+- [ ] Backfill migration: for every Organization that already exists when this task's migration runs, insert the system DocumentType/ConsentType rows that don't already exist for that org. Idempotent — re-running the migration is a no-op
+- [ ] Test: creating a new Organization via the API results in 8 system DocumentType rows and 9 system ConsentType rows attached to that org
+- [ ] Test: backfill migration applied to a DB containing an org with no system types inserts the full set; applied to a DB where they already exist, inserts nothing
 - [ ] DocumentType CRUD: GET/POST/PATCH/DELETE with documents.read/write permissions per SPEC-006 §6
 - [ ] ConsentType CRUD: GET/POST/PATCH/DELETE with consents.read/write permissions per SPEC-006 §6
 - [ ] System types cannot be deleted or have slug changed — returns 409 per SPEC-006 §4

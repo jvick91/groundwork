@@ -17,10 +17,10 @@ Implement the AuditLog model and a centralized audit service that all domain ser
 - [ ] PHI exclusion list is centralized and applied automatically before writing snapshots per SPEC-006 §4 BR-08
 - [ ] AttributeValue audit snapshots exclude the `value` field entirely per SPEC-001 §7
 - [ ] Audit writes are transactional — if the audit write fails, the business operation rolls back per SPEC-006 §7
-- [ ] Any attempt to UPDATE or DELETE an AuditLog row is rejected at the application layer
+- [ ] Database-level rejection of UPDATE and DELETE on `audit_log`: Alembic migration either (a) revokes UPDATE, DELETE on `audit_log` from the application DB role, or (b) installs a trigger that raises on UPDATE/DELETE. Verified by a test that issues a direct UPDATE/DELETE via SQLAlchemy Core and asserts the statement fails per SPEC-006 §2
 - [ ] `GET /api/v1/audit-log` and `GET /api/v1/audit-log/{id}` endpoints with `audit.read` permission per SPEC-006 §6
 - [ ] Audit log list endpoint supports pagination and filtering by actor, resource_type, resource_id, date range
-- [ ] Tests: `test_state_change_writes_audit_entry`, `test_audit_failure_rolls_back_business_operation`, `test_audit_snapshot_excludes_phi_fields`, `test_update_audit_log_row_rejected`, `test_delete_audit_log_row_rejected`, `test_system_triggered_audit_has_null_actor`, `test_audit_log_filters_by_org`
+- [ ] Tests: `test_state_change_writes_audit_entry`, `test_audit_failure_rolls_back_business_operation`, `test_audit_snapshot_excludes_phi_fields`, `test_update_audit_log_row_rejected` (application + DB), `test_delete_audit_log_row_rejected` (application + DB), `test_system_triggered_audit_has_null_actor`, `test_audit_log_filters_by_org`
 
 ## Files
 

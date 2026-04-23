@@ -15,7 +15,6 @@ Implement the cursor-based pagination contract defined in SPEC-007 §5 as a reus
 - [ ] Response envelope: `{data: [], pagination: {next_cursor, previous_cursor, has_next, has_previous, limit}}`
 - [ ] Cursor is Base64-encoded JSON with sort value and record ID per SPEC-007 §5
 - [ ] Sort by non-indexed column returns 400 per SPEC-007 §6.2
-- [ ] Empty result set returns 200 with `data: []`, not 404 per SPEC-007 §6.3
 - [ ] Filter conventions supported: exact match, multiple values (comma-separated OR), date range (`date_from`/`date_to`), FK reference, text search (`q`) per SPEC-007 §6.1
 - [ ] Pagination produces stable results under concurrent inserts/deletes per SPEC-007 §5
 - [ ] Tests verify cursor encode/decode round-trip, boundary conditions, and stability

@@ -3,7 +3,11 @@
 **Status:** Not started
 **Spec sections:** SPEC-006 §2 (ClientConsent), §3 (consent status lifecycle), §4 (consent rules), §6 (ClientConsent management)
 **ADRs:** ADR-002, ADR-003 (partial unique indexes for one-signed-per-type)
-**Depends on:** TASK-006, TASK-011C, TASK-029
+**Depends on:** TASK-006, TASK-011C, TASK-029, TASK-030, TASK-032
+
+## Dependency Note
+
+`ClientConsent.document_id` is a FK to `Document` (TASK-030) and `ClientConsent.form_template_id` is a FK to `FormTemplate` (TASK-032). Both must exist at migration time. The original dep list omitted 030 and 032, which would have broken the migration.
 
 ## Objective
 

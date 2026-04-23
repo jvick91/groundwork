@@ -12,7 +12,7 @@ Implement the four RBAC tables — Role, Permission, PersonRole, RolePermission 
 ## Acceptance Criteria
 
 - [ ] Role model with all SPEC-002 §2 fields: id, organization_id (nullable), name, slug, primary_domain (PrimaryDomain enum), parent_role_id (self-FK), is_system_role, description, created_at, updated_at
-- [ ] Permission model with all SPEC-002 §2 fields: id, organization_id (nullable), resource_slug, action (PermissionAction enum), slug, description, is_system_permission, created_at
+- [ ] Permission model with all SPEC-002 §2 fields: id, organization_id (nullable), resource_slug, action (String — see TASK-002 rationale; the §2 enum description is advisory, the §3 seed matrix is authoritative), slug, description, is_system_permission, created_at
 - [ ] PersonRole model with all SPEC-002 §2 fields: id, organization_id, person_id, role_id, entity_instance_id (nullable), assigned_at, assigned_by_person_id (nullable), revoked_at
 - [ ] RolePermission model with all SPEC-002 §2 fields: id, organization_id, role_id, permission_id, conditions (JSONB, nullable), granted_at, granted_by_person_id (nullable), revoked_at
 - [ ] Partial unique index on PersonRole: `UNIQUE(organization_id, person_id, role_id, entity_instance_id) WHERE revoked_at IS NULL` per ADR-003

@@ -17,6 +17,8 @@ When a custom EntityType is created via `POST /entity-types`, automatically gene
 - [ ] Slug rename cascade (SPEC-001 §6) updates all downstream Permission.resource_slug and recomputes Permission.slug in the same transaction
 - [ ] Deleting a custom EntityType removes or deactivates its auto-generated permissions
 - [ ] System EntityTypes do not trigger auto-generation (they use seed permissions)
+- [ ] This task flips `CUSTOM_ENTITY_TYPES_ENABLED` to `True` (the feature flag introduced by TASK-010). With auto-generation now live, `POST /entity-types` for custom types succeeds and the 501 path is retired
+- [ ] Test: `test_post_entity_type_custom_succeeds_with_flag_on` exercises the flag-on path
 - [ ] Tests from SPEC-001 §9: `test_create_custom_type_generates_three_permissions`
 - [ ] Tests from SPEC-002 §11: `test_create_entity_type_generates_read_write_delete_permissions`
 
