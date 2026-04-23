@@ -146,7 +146,7 @@ docker compose exec backend alembic downgrade -1
 
 - **Pydantic everywhere.** No raw dicts for API I/O. Request/response bodies are Pydantic models.
 - **UTC timestamps.** All datetime fields stored and transmitted in UTC. Column type is `DateTime(timezone=True)`.
-- **Money in cents.** All monetary values stored as `Integer` cents, never floats. Column names carry a `_cents` suffix. (See ADR-007.)
+- **Money in cents.** All monetary values stored as `Integer` cents, never floats. Column names carry a `_cents` suffix.
 - **Cursor pagination.** All list endpoints use cursor-based pagination, never offset.
 - **Standard error envelope.** All errors return `{"error": "...", "message": "...", "status": ..., "detail": {...}}`.
 - **Soft deletes on PHI.** PHI-containing records use `deleted_at`, never hard delete. (See ADR-003.)

@@ -68,7 +68,7 @@ For filtered queries (e.g., "providers where license_state = NJ"), add a `HAVING
 ### Why this is sufficient for MVP
 
 - MVP serves small practices: tens of providers, hundreds of clients.
-- At this scale, the three-table join with proper indexes (ADR-017's `entity_instance(organization_id, entity_type_id)` and `attribute_value(entity_instance_id)`) executes in single-digit milliseconds.
+- At this scale, the three-table join with proper indexes on `entity_instance(organization_id, entity_type_id)` and `attribute_value(entity_instance_id)` (defined in SPEC-007 §11 and delivered by TASK-034) executes in single-digit milliseconds.
 - No operational overhead from materialized view refresh or denormalization sync.
 
 ### Upgrade path

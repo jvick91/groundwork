@@ -735,7 +735,7 @@ class DocumentType(Base, IdMixin, TimestampMixin):
 
 
 class Document(Base, IdMixin, TimestampMixin, SoftDeleteMixin):
-    """S3 object is NOT removed on soft delete (see SPEC-006 §4, ADR-009)."""
+    """S3 object is NOT removed on soft delete (see SPEC-006 §4, ADR-005)."""
 
     __tablename__ = "documents"
 

@@ -110,6 +110,8 @@ PersonRole is the three-way binding that connects identity, permissions, and pro
 
 **Naming convention (contract with SPEC-001):** Permission slugs follow the pattern `{resource_slug}.{action}`. The resource_slug matches an EntityType slug for entity-scoped permissions (e.g., provider.read, client.write) or a domain keyword for cross-cutting permissions (e.g., invoices.void, settings.write). Both SPEC-001 and SPEC-002 must follow this convention.
 
+**System EntityType permissions are seeded, not auto-generated.** The nine permissions `provider.{read,write,delete}`, `client.{read,write,delete}`, `admin.{read,write,delete}` are created by the seed migration in §3 because their target EntityTypes are known at spec time. Auto-generation (SPEC-002 §7) only fires for custom (non-system) EntityTypes created via `POST /entity-types`. The two paths must never duplicate a row.
+
 ### RolePermission
 
 | Field | Type | Constraints | Description |
@@ -183,6 +185,15 @@ On platform initialization, the system seeds baseline roles, permissions, and ro
 | entity_types.read | entity_types | read | List and view entity types and attributes. |
 | entity_types.write | entity_types | write | Create or update custom entity types. |
 | entity_types.delete | entity_types | delete | Delete custom entity types. |
+| provider.read | provider | read | Read provider EntityInstances (SPEC-001 §6 dynamic permission for the `provider` system EntityType). |
+| provider.write | provider | write | Create or update provider EntityInstances. |
+| provider.delete | provider | delete | Soft delete provider EntityInstances. |
+| client.read | client | read | Read client EntityInstances (SPEC-001 §6 dynamic permission for the `client` system EntityType). |
+| client.write | client | write | Create or update client EntityInstances. |
+| client.delete | client | delete | Soft delete client EntityInstances. |
+| admin.read | admin | read | Read admin EntityInstances (SPEC-001 §6 dynamic permission for the `admin` system EntityType). |
+| admin.write | admin | write | Create or update admin EntityInstances. |
+| admin.delete | admin | delete | Soft delete admin EntityInstances. |
 | documents.read | documents | read | Read document metadata and download via presigned URL. |
 | documents.write | documents | write | Upload documents, manage document types. |
 | documents.delete | documents | delete | Soft delete documents. |
@@ -192,7 +203,7 @@ On platform initialization, the system seeds baseline roles, permissions, and ro
 | consents.revoke | consents | revoke | Revoke a signed consent. |
 | forms.read | forms | read | Read form templates. |
 | forms.write | forms | write | Create and update custom form templates. |
-| forms.send | forms | send | Send forms to clients for completion. |
+| forms.send | forms | send | Send forms to clients for completion. *(Seeded for forward compatibility; the consuming endpoint is post-MVP per SPEC-006 §6 — no MVP API surface references this permission.)* |
 | audit.read | audit | read | Query the audit log. |
 | tenants.manage | tenants | manage | Create, suspend, or update tenant organizations. |
 | system.configure | system | manage | Platform-level operational configuration. |
