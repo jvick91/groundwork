@@ -1,8 +1,8 @@
 # STATE.md — Session Entry Point
 
 **Last updated:** 2026-03-26
-**Active task:** TASK-006
-**Branch:** health-check-endpoints
+**Active task:** TASK-007
+**Branch:** audit-log-service
 
 ---
 
@@ -27,7 +27,7 @@
 | 003 | [Error response contract & exception handling](tasks/TASK-003-error-response-contract.md) | **Complete** | 001 |
 | 004 | [Cursor pagination utility](tasks/TASK-004-cursor-pagination.md) | **Complete** | 001, 003 |
 | 005 | [Health check endpoints](tasks/TASK-005-health-check-endpoints.md) | **Complete** | 001 |
-| 006 | [AuditLog model & audit service](tasks/TASK-006-audit-log-model-and-service.md) | Partial | 001, 002 |
+| 006 | [AuditLog model & audit service](tasks/TASK-006-audit-log-model-and-service.md) | **Complete** | 001, 002 |
 | 007 | [Structured logging & PHI exclusion filter](tasks/TASK-007-structured-logging-phi-filter.md) | Partial | 001 |
 | 008 | [Test infrastructure & fixtures](tasks/TASK-008-test-infrastructure.md) | Partial | 001, 002, 003, 007 |
 | 008A | [Service & router layer conventions (shared plumbing only)](tasks/TASK-008A-service-router-conventions.md) | Partial | 002, 003, 004, 006, 007, 008 |
@@ -37,7 +37,7 @@
 - **004:** Pagination schemas exist (`PaginationMeta`, `PaginatedResponse`). Missing: request query-parameter model, Base64 cursor encode/decode, sort-field allow-list, query-builder, filter conventions.
 - **005:** Basic `/health` endpoint + test exist but response is `{"status": "healthy", ...}` — rename to `"ok"` per spec. Missing: extract to `app/routers/health.py`, `/health/ready` with DB check, DB-degraded tests. JWKS probe is owned by TASK-014.
 - **006:** AuditLog model (`models.py:686`) + `audit_logs` table shipped via TASK-002 scope expansion with correct immutable-row schema. Missing: audit service (`log_action`, PHI filtering, transactional rollback), DB-level UPDATE/DELETE rejection, list/detail endpoints, tests.
-- **007:** structlog + `phi_filter` with 7 fields. Missing: full BR-08 field list (note content keys: subjective, objective, assessment, plan, data, intervention, response, behavior; plus `ClientConsent.notes`, `Document` free-text, `AttributeValue.value`), request logging middleware, the two named tests.
+- **007:** structlog + `phi_filter` now consume the centralized `PHI_EXCLUDED_FIELDS` from `app/core/phi.py` (TASK-006 amendment 2026-04-23). Full BR-08 field list is covered: clinical-note format keys (`subjective`, `objective`, `assessment`, `plan`, `data`, `intervention`, `response`, `behavior`), demographic aliases (`dob`/`date_of_birth`, `ssn`/`social_security`), free-text fields (`notes`, `description`, `content`, `note_content`), EAV (`value`), billing codes (`diagnosis_codes`, `icd_codes`), and emergency contact fields. Missing: request logging middleware (method, path, status, duration); the two named tests from the SPEC-006 §9 table.
 - **008:** conftest with transaction rollback, httpx client, factory scaffold (`tests/factories/app_factory.py`, `tests/factories/crud_factory.py`), per-domain test directories. Missing: JWT test key material + token-minting fixture, per-domain factories, `pytest.ini`/`pyproject.toml` coverage config with `--cov-fail-under=90`. (Wiring the middleware to validate against the test key is in TASK-014.)
 - **008A:** `get_db` dependency shipped. `get_auth_context` and `require_permission` scaffolds exist in `app/core/security.py` but **raise 501 instead of allow-listing** — need `AUTH_STUB_ENABLED` flag + stub behavior. Missing: named `current_person` / `current_org` dependencies, `app/services/common.py` with `call_service_with_audit`, `app/utils/pagination.py` surface, router convention doc, `docs/conventions.md`, tests.
 
