@@ -15,6 +15,7 @@ from app.core.exceptions import GroundworkError
 from app.core.lifespan import lifespan
 from app.core.logger import get_logger
 from app.core.settings import settings
+from app.routers import health as health_router
 
 logger = get_logger(__name__)
 
@@ -142,10 +143,8 @@ def create_app() -> FastAPI:
             },
         )
 
-    # Health check (no auth required)
-    @app.get("/api/v1/health", tags=["health"])
-    async def health_check():
-        return {"status": "healthy", "version": settings.app_version}
+    # Health endpoints — public, no auth (SPEC-007 §9)
+    app.include_router(health_router.router, prefix="/api/v1")
 
     # TODO: Phase 1 - Include EAV routers
     # TODO: Phase 2 - Include Identity/RBAC routers
