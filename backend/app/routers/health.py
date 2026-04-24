@@ -14,6 +14,7 @@ middleware is wired up.
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
 from app.core.database import Database
 from app.core.settings import settings
@@ -28,7 +29,6 @@ router = APIRouter(prefix="/health", tags=["health"])
 async def _check_database() -> str:
     """Probe the database with SELECT 1.  Returns 'ok' or 'error'."""
     try:
-        from sqlalchemy import text
 
         engine = Database.get_engine()
         async with engine.connect() as conn:
