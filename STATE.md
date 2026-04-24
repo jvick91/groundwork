@@ -31,6 +31,8 @@
 | 007 | [Structured logging & PHI exclusion filter](tasks/TASK-007-structured-logging-phi-filter.md) | Partial | 001 |
 | 008 | [Test infrastructure & fixtures](tasks/TASK-008-test-infrastructure.md) | Partial | 001, 002, 003, 007 |
 | 008A | [Service & router layer conventions (shared plumbing only)](tasks/TASK-008A-service-router-conventions.md) | Partial | 002, 003, 004, 006, 007, 008 |
+| 008B | [CI pipeline configuration (GitHub Actions: lint, type check, tests, build)](tasks/TASK-008B-ci-pipeline.md) | Not started | 001, 002, 007, 008, 008C |
+| 008C | [Linter & type-check configuration (ruff + mypy strict in pyproject.toml)](tasks/TASK-008C-linter-config.md) | Not started | 001 |
 
 **Partial status notes:**
 - **003:** 7 exception classes exist (`GroundworkError`, `NotFoundError`, `ValidationError`, `ConflictError`, `ForbiddenError`, `OrganizationRequiredError`, `BridgeRuleViolation`, `StatusTransitionError`) + `ErrorResponse` schema + handler in `main.py`. Missing: `ResourceLockedError`, `PrerequisiteNotMetError`, `AccountInactiveError`, `UnauthorizedError`, `BadRequestError`, `OrgAccessDeniedError`, `RateLimitedError`, `InternalError`; Pydantic 422 handler; generic 500 handler. Error code `status_transition_error` should be `state_transition_denied` per SPEC-007.
@@ -109,7 +111,6 @@
 |---|------|--------|------------|
 | 034 | [Database indexing migration](tasks/TASK-034-database-indexing.md) | Not started | 011C, 013, 020, 021, 023, 025, 026, 027, 028, 029, 030, 031, 032 |
 | 035 | [Cross-cutting integration tests](tasks/TASK-035-cross-cutting-integration-tests.md) | Not started | 003, 004, 006, 007, 008, 011C, 014, 015, 021, 023, 027, 030, 031 |
-| 036 | [CI pipeline configuration](tasks/TASK-036-ci-pipeline.md) | Not started | 008 |
 | 037 | [CORS & security hardening](tasks/TASK-037-cors-and-security-hardening.md) | Not started | 001, 006, 007, 014 |
 | 038 | [HIPAA-ready acceptance gate verification](tasks/TASK-038-hipaa-ready-acceptance-verification.md) | Not started | 013, 014, 029, 030, 035 |
 
@@ -159,7 +160,9 @@
   ├→ 023 → 024 (notes)                             030 (documents) ──┤
   │                                                 032 (forms, seeds to 009 hook) ──┘
   │
-  └→ 034 (indexes), 035 (tests), 036 (CI), 037 (CORS + 006,007), 038 (HIPAA gate)
+  └→ 034 (indexes), 035 (tests), 037 (CORS + 006,007), 038 (HIPAA gate)
+  │
+  └→ 008C (ruff + mypy strict config) → 008B (CI: lands early in Phase 1, guards every downstream PR)
 ```
 
 **Critical path:** 001✓ → 002✓ → 006 → 008A → 009 → 010 → 011A → 011C → 013 → 014 → 015 → 025 → 020 → 021 → 022 → 031 (after 029, 030, 032) → 033
@@ -231,6 +234,6 @@ Note: TASK-004 (cursor pagination) is an explicit upstream for every domain CRUD
 | SPEC-007 | §10, §12 | 001 ✓, 008A |
 | SPEC-007 | §11 | 034 |
 | SPEC-007 | §13 | 008, 035 |
-| SPEC-007 | §14 | 036 |
+| SPEC-007 | §14 | 008B |
 | SPEC-007 | §15 | 037 |
 | SPEC-000 | §6 | 038 (composite); underlying controls in 013, 014, 029, 030, 035 |

@@ -777,7 +777,7 @@ All stages run inside Docker containers. No CI runner installs Python or Node di
 
 #### Post-MVP pipeline stages
 
-The following stages are specified but **not active during MVP** because the repository does not yet contain a frontend. They activate automatically once a frontend is added to the repo. Until then, TASK-036 treats them as non-goals.
+The following stages are specified but **not active during MVP** because the repository does not yet contain a frontend. They activate automatically once a frontend is added to the repo. Until then, TASK-008B treats them as non-goals.
 
 | Stage | Tool | Fails on |
 |---|---|---|
