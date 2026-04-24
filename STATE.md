@@ -1,8 +1,8 @@
 # STATE.md — Session Entry Point
 
 **Last updated:** 2026-03-26
-**Active task:** TASK-005
-**Branch:** cursor-pagination
+**Active task:** TASK-006
+**Branch:** health-check-endpoints
 
 ---
 
@@ -26,7 +26,7 @@
 | 002 | [Base ORM patterns, enums, Alembic config](tasks/TASK-002-base-orm-patterns.md) | **Complete** | 001 |
 | 003 | [Error response contract & exception handling](tasks/TASK-003-error-response-contract.md) | **Complete** | 001 |
 | 004 | [Cursor pagination utility](tasks/TASK-004-cursor-pagination.md) | **Complete** | 001, 003 |
-| 005 | [Health check endpoints](tasks/TASK-005-health-check-endpoints.md) | Partial | 001 |
+| 005 | [Health check endpoints](tasks/TASK-005-health-check-endpoints.md) | **Complete** | 001 |
 | 006 | [AuditLog model & audit service](tasks/TASK-006-audit-log-model-and-service.md) | Partial | 001, 002 |
 | 007 | [Structured logging & PHI exclusion filter](tasks/TASK-007-structured-logging-phi-filter.md) | Partial | 001 |
 | 008 | [Test infrastructure & fixtures](tasks/TASK-008-test-infrastructure.md) | Partial | 001, 002, 003, 007 |
