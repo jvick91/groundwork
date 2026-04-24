@@ -57,13 +57,15 @@ async def _make_org(session: AsyncSession, name: str = "Test Org") -> Organizati
 # Module fixture: install immutability trigger on test DB
 # ---------------------------------------------------------------------------
 
-@pytest_asyncio.fixture(scope="module", autouse=True)
+@pytest_asyncio.fixture(scope="module", loop_scope="session", autouse=True)
 async def install_immutability_trigger(test_engine: AsyncEngine):
     """Ensure the audit_log immutability triggers exist in the test DB.
 
     Mirrors the production Alembic migration b2e4f6a8c0d1 so the immutability
     tests run correctly without requiring the full migration pipeline.
     """
+    # asyncpg cannot execute multiple SQL commands in a single prepared
+    # statement, so each DDL command must be issued separately.
     async with test_engine.begin() as conn:
         await conn.execute(text("""
             CREATE OR REPLACE FUNCTION prevent_audit_log_mutation()
@@ -75,17 +77,21 @@ async def install_immutability_trigger(test_engine: AsyncEngine):
             END;
             $$;
         """))
+        await conn.execute(text(
+            "DROP TRIGGER IF EXISTS audit_log_immutable_update ON audit_logs"
+        ))
         await conn.execute(text("""
-            DROP TRIGGER IF EXISTS audit_log_immutable_update ON audit_logs;
             CREATE TRIGGER audit_log_immutable_update
             BEFORE UPDATE ON audit_logs
-            FOR EACH ROW EXECUTE FUNCTION prevent_audit_log_mutation();
+            FOR EACH ROW EXECUTE FUNCTION prevent_audit_log_mutation()
         """))
+        await conn.execute(text(
+            "DROP TRIGGER IF EXISTS audit_log_immutable_delete ON audit_logs"
+        ))
         await conn.execute(text("""
-            DROP TRIGGER IF EXISTS audit_log_immutable_delete ON audit_logs;
             CREATE TRIGGER audit_log_immutable_delete
             BEFORE DELETE ON audit_logs
-            FOR EACH ROW EXECUTE FUNCTION prevent_audit_log_mutation();
+            FOR EACH ROW EXECUTE FUNCTION prevent_audit_log_mutation()
         """))
 
 
@@ -128,7 +134,7 @@ async def test_state_change_writes_audit_entry(db_session: AsyncSession):
     entry = await audit_service.log_action(
         db_session,
         org_id=org.id,
-        actor_id=uuid.uuid4(),
+        actor_id=None,
         action="create",
         resource_type="Organization",
         resource_id=resource_id,
@@ -188,10 +194,20 @@ async def test_audit_snapshot_excludes_phi_fields(db_session: AsyncSession):
         "id": str(uuid.uuid4()),
         "name": "Jane Doe",
         "date_of_birth": "1990-01-01",   # PHI
+        "dob": "1990-01-01",             # PHI alias
         "content": {"subjective": "..."},  # PHI
         "value": "some attribute value",   # PHI
         "notes": "sensitive clinical note",  # PHI
         "ssn": "123-45-6789",             # PHI
+        # BR-08 clinical-note format keys at top level (not just under `content`):
+        "subjective": "patient reports ...",
+        "objective": "vitals normal ...",
+        "assessment": "dx notes ...",
+        "plan": "follow up in 2w ...",
+        "data": "session data ...",
+        "intervention": "CBT exercise ...",
+        "response": "client engaged ...",
+        "behavior": "cooperative ...",
         "status": "active",               # safe
     }
     org = await _make_org(db_session)
@@ -352,3 +368,124 @@ class TestFilterPhi:
     def test_safe_fields_pass_through(self):
         snapshot = {"id": "abc", "status": "active", "organization_id": "xyz"}
         assert filter_phi(snapshot) == snapshot
+
+    def test_filter_phi_strips_nested_dict_keys(self):
+        """PHI hidden inside nested dicts must also be stripped (recursion)."""
+        snapshot = {"outer": {"subjective": "PHI content", "keep": "ok"}}
+        assert filter_phi(snapshot) == {"outer": {"keep": "ok"}}
+
+    def test_filter_phi_strips_list_of_dicts(self):
+        """Lists of dicts (e.g. invoice line items) must be recursed element-wise."""
+        snapshot = {
+            "items": [
+                {"dob": "1990-01-01", "id": 1},
+                {"dob": "1991-02-02", "id": 2},
+            ]
+        }
+        result = filter_phi(snapshot)
+        assert result == {"items": [{"id": 1}, {"id": 2}]}
+
+    def test_filter_phi_strips_top_level_clinical_note_keys(self):
+        """BR-08: all 8 clinical-note format keys are PHI at any level."""
+        clinical_note_keys = [
+            "subjective",
+            "objective",
+            "assessment",
+            "plan",
+            "data",
+            "intervention",
+            "response",
+            "behavior",
+        ]
+        snapshot = {key: f"note text for {key}" for key in clinical_note_keys}
+        snapshot["id"] = "abc123"
+        result = filter_phi(snapshot)
+        for key in clinical_note_keys:
+            assert key not in result, f"clinical-note key '{key}' leaked"
+        assert result == {"id": "abc123"}
+
+    def test_filter_phi_strips_dob_alias(self):
+        """`dob` is an alias for date_of_birth and must be stripped."""
+        assert filter_phi({"dob": "1990-01-01"}) == {}
+
+    def test_filter_phi_preserves_non_phi_structure(self):
+        """Deeply nested non-PHI data must round-trip unchanged."""
+        snapshot = {
+            "a": {"b": {"c": "deep", "list": [{"x": 1}, {"y": 2}]}},
+            "top": "safe",
+        }
+        # Use copy to confirm non-mutation of nested structures too.
+        import copy
+        original = copy.deepcopy(snapshot)
+        assert filter_phi(snapshot) == original
+        assert snapshot == original
+
+    def test_filter_phi_none_and_empty_inputs(self):
+        """None stays None; {} stays {}; [] stays []."""
+        assert filter_phi(None) is None
+        assert filter_phi({}) == {}
+        assert filter_phi([]) == []
+
+    def test_filter_phi_top_level_list_input(self):
+        """Top-level list input is supported (dict | list | None signature)."""
+        assert filter_phi([{"dob": "1990", "id": 1}, {"id": 2}]) == [
+            {"id": 1},
+            {"id": 2},
+        ]
+
+
+class TestPhiExclusionListCentralization:
+    """SPEC-006 §7: single centralized PHI exclusion list across the platform."""
+
+    def test_audit_service_and_logger_share_the_same_constant(self):
+        """audit_service.PHI_EXCLUDED_FIELDS must be the same object as logger's."""
+        from app.core.phi import PHI_EXCLUDED_FIELDS as canonical
+        from app.core import logger as logger_module
+        from app.services import audit_service as audit_module
+
+        assert audit_module.PHI_EXCLUDED_FIELDS is canonical
+        # The logger's processor must consult the canonical set.
+        assert getattr(logger_module, "PHI_EXCLUDED_FIELDS", None) is canonical
+
+    def test_canonical_set_covers_br08_and_logger_additions(self):
+        """Union of previous audit + logger fields + BR-08 additions is covered."""
+        from app.core.phi import PHI_EXCLUDED_FIELDS
+
+        required = {
+            # original audit_service list
+            "content",
+            "date_of_birth",
+            "ssn",
+            "emergency_contact_name",
+            "emergency_contact_phone",
+            "value",
+            "notes",
+            "description",
+            "diagnosis_codes",
+            # original logger list aliases
+            "note_content",
+            "dob",
+            "icd_codes",
+            "social_security",
+            # BR-08 clinical-note format keys
+            "subjective",
+            "objective",
+            "assessment",
+            "plan",
+            "data",
+            "intervention",
+            "response",
+            "behavior",
+        }
+        missing = required - PHI_EXCLUDED_FIELDS
+        assert not missing, f"canonical PHI list is missing: {missing}"
+
+    def test_logger_phi_filter_strips_canonical_fields(self):
+        """The structlog processor must drop any key in the canonical set."""
+        from app.core.logger import phi_filter
+        from app.core.phi import PHI_EXCLUDED_FIELDS
+
+        event = {field: "leak" for field in PHI_EXCLUDED_FIELDS}
+        event["event"] = "something happened"
+        out = phi_filter(None, "info", event)  # type: ignore[arg-type]
+        assert out == {"event": "something happened"}

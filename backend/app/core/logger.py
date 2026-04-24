@@ -3,30 +3,23 @@ Structured logging with PHI field exclusion.
 
 Uses structlog for JSON-formatted logging. A custom processor strips
 any PHI fields before they reach the log output.
+
+The exclusion list lives in ``app.core.phi`` (SPEC-006 §7 — single
+centralized exclusion list shared with the audit service).
 """
 
 import logging
 
 import structlog
 
-PHI_FIELDS: frozenset[str] = frozenset(
-    {
-        "note_content",
-        "date_of_birth",
-        "dob",
-        "diagnosis_codes",
-        "icd_codes",
-        "ssn",
-        "social_security",
-    }
-)
+from app.core.phi import PHI_EXCLUDED_FIELDS
 
 
 def phi_filter(
     logger: logging.Logger, method_name: str, event_dict: dict
 ) -> dict:
     """Structlog processor that strips PHI fields from log events."""
-    for field in PHI_FIELDS:
+    for field in PHI_EXCLUDED_FIELDS:
         event_dict.pop(field, None)
     return event_dict
 

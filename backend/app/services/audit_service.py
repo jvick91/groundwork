@@ -18,46 +18,35 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.phi import PHI_EXCLUDED_FIELDS
 from app.models.models import AuditLog
 
 
-# ---------------------------------------------------------------------------
-# PHI exclusion list  (SPEC-006 §4 BR-08, SPEC-001 §7)
-# ---------------------------------------------------------------------------
-# Every top-level key in this set is stripped from previous_state and
-# next_state before the AuditLog row is written.  The list is conservative
-# by design: if a field name appears here it is excluded regardless of which
-# resource type the snapshot came from.  It is always safer to over-exclude.
-
-PHI_EXCLUDED_FIELDS: frozenset[str] = frozenset({
-    # ClinicalNote — the entire content JSONB carries clinical notes (PHI)
-    "content",
-    # Person demographics
-    "date_of_birth",
-    "ssn",
-    "emergency_contact_name",
-    "emergency_contact_phone",
-    # AttributeValue — SPEC-001 §7 explicitly requires value exclusion
-    "value",
-    # ClientConsent free-text
-    "notes",
-    # Document free-text
-    "description",
-    # Billing — diagnosis codes correlated to a specific client
-    "diagnosis_codes",
-})
+__all__ = ["PHI_EXCLUDED_FIELDS", "filter_phi", "log_action"]
 
 
-def filter_phi(snapshot: dict[str, Any] | None) -> dict[str, Any] | None:
+def filter_phi(
+    snapshot: dict[str, Any] | list[Any] | None,
+) -> dict[str, Any] | list[Any] | None:
     """Strip PHI fields from a state snapshot before writing to AuditLog.
 
+    Recurses into nested dicts and lists so PHI hidden inside JSONB blobs
+    (e.g. ``content.subjective`` or ``items[].dob``) is also stripped.
+
     - Returns ``None`` if input is ``None``.
-    - Never mutates the input dict.
+    - Never mutates the input.
     - Returns an empty dict ``{}`` if all fields were PHI.
     """
     if snapshot is None:
         return None
-    return {k: v for k, v in snapshot.items() if k not in PHI_EXCLUDED_FIELDS}
+    if isinstance(snapshot, list):
+        return [filter_phi(item) if isinstance(item, (dict, list)) else item
+                for item in snapshot]
+    return {
+        k: (filter_phi(v) if isinstance(v, (dict, list)) else v)
+        for k, v in snapshot.items()
+        if k not in PHI_EXCLUDED_FIELDS
+    }
 
 
 # ---------------------------------------------------------------------------
