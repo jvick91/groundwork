@@ -1,0 +1,68 @@
+name: Migration safety
+
+# SPEC-007 §14.3 — runs only when a PR or push touches an Alembic revision.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/alembic/versions/**'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/alembic/versions/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migration-safety-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  migration-safety:
+    name: Apply, upgrade, downgrade
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        run: docker compose build backend
+
+      - name: Start primary database
+        run: |
+          docker compose up -d db
+          for i in {1..30}; do
+            STATUS=$(docker inspect --format='{{.State.Health.Status}}' groundwork-db-1 2>/dev/null || echo "starting")
+            if [ "$STATUS" = "healthy" ]; then
+              echo "db is healthy"
+              break
+            fi
+            echo "Waiting for db... ($i/30): $STATUS"
+            sleep 2
+          done
+
+      # The backend entrypoint runs `alembic upgrade head` on container start,
+      # so bringing the backend up exercises the fresh-apply path.
+      - name: Apply migrations from scratch (entrypoint runs alembic upgrade head)
+        run: |
+          docker compose up -d backend
+          sleep 5
+          docker compose ps
+
+      - name: Verify alembic upgrade head is idempotent
+        run: docker compose exec -T backend alembic upgrade head
+
+      - name: Verify alembic downgrade -1 succeeds
+        run: docker compose exec -T backend alembic downgrade -1
+
+      - name: Re-apply latest migration
+        run: docker compose exec -T backend alembic upgrade head
+
+      - name: Tear down compose
+        if: always()
+        run: docker compose down -v
