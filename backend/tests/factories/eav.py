@@ -8,6 +8,7 @@ transaction boundary.
 """
 
 import datetime as dt
+from datetime import UTC
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,7 +42,7 @@ async def create_organization(
         address=address,
         timezone=tz,
         is_active=is_active,
-        created_at=dt.datetime.now(tz=dt.timezone.utc),
+        created_at=dt.datetime.now(tz=UTC),
     )
     session.add(org)
     await session.flush()

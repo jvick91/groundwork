@@ -7,7 +7,7 @@ the same transaction (BR-07). The ``get_db`` dependency owns commit/rollback;
 this layer never commits directly.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -17,9 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import NotFoundError
 from app.models.models import Organization
 from app.schemas.eav import OrganizationCreate, OrganizationUpdate
-from app.services import audit_service
-from app.services import organization_hooks
 from app.schemas.schemas import PaginationMeta, PaginationParams
+from app.services import audit_service, organization_hooks
 from app.utils.pagination import paginate
 
 _SORT_FIELDS = {
@@ -66,7 +65,7 @@ async def create_organization(
         address=data.address,
         timezone=data.timezone,
         is_active=True,
-        created_at=datetime.now(tz=timezone.utc),
+        created_at=datetime.now(tz=UTC),
     )
     db.add(org)
     await db.flush()
@@ -132,7 +131,7 @@ async def update_organization(
     for field, value in updates.items():
         setattr(org, field, value)
 
-    org.updated_at = datetime.now(tz=timezone.utc)
+    org.updated_at = datetime.now(tz=UTC)
     await db.flush()
 
     await audit_service.log_action(

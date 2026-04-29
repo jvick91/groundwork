@@ -15,8 +15,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 def _validate_iana_timezone(v: str) -> str:
     try:
         zoneinfo.ZoneInfo(v)
-    except (zoneinfo.ZoneInfoNotFoundError, KeyError):
-        raise ValueError(f"'{v}' is not a valid IANA timezone identifier.")
+    except (zoneinfo.ZoneInfoNotFoundError, KeyError) as err:
+        raise ValueError(f"'{v}' is not a valid IANA timezone identifier.") from err
     return v
 
 
@@ -26,7 +26,10 @@ class OrganizationCreate(BaseModel):
     tax_id: str | None = Field(default=None, description="EIN or tax identifier.")
     phone: str | None = Field(default=None, description="Main practice phone number.")
     address: str | None = Field(default=None, description="Full mailing address.")
-    timezone: str = Field(default="UTC", description="IANA timezone identifier (e.g. 'America/New_York').")
+    timezone: str = Field(
+        default="UTC",
+        description="IANA timezone identifier (e.g. 'America/New_York').",
+    )
 
     @field_validator("timezone")
     @classmethod

@@ -5,6 +5,7 @@ Each test runs inside a transaction that is rolled back after the test completes
 ensuring full isolation without needing to recreate tables between tests.
 """
 
+import contextlib
 from collections.abc import AsyncGenerator, Callable
 from typing import Any
 
@@ -75,10 +76,8 @@ async def create_tables(test_engine):
     # ensures that sessions left in an aborted-transaction state (e.g. after
     # an immutability-trigger DBAPIError) are also handled gracefully.
     for session in _open_sessions:
-        try:
+        with contextlib.suppress(Exception):
             await session.close()
-        except Exception:
-            pass
     _open_sessions.clear()
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
