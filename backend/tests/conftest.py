@@ -5,8 +5,10 @@ Each test runs inside a transaction that is rolled back after the test completes
 ensuring full isolation without needing to recreate tables between tests.
 """
 
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
+from typing import Any
 
+import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import (
@@ -18,6 +20,9 @@ from app.core.database import Base, Database
 from app.core.dependencies import get_db
 from app.core.settings import settings
 from app.main import create_app
+from tests.fixtures import jwt_keys
+
+TokenFactory = Callable[..., str]
 
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session", autouse=True)
@@ -83,4 +88,48 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
 
-    # TODO: Phase 2 - Add JWT test fixture for authenticated requests
+
+# ---------------------------------------------------------------------------
+# Auth fixtures (SPEC-007 §13.4)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="session")
+def test_public_key_pem() -> bytes:
+    """Public key the auth middleware will validate against (TASK-014)."""
+    return jwt_keys.PUBLIC_KEY_PEM
+
+
+@pytest.fixture(scope="session")
+def test_private_key_pem() -> bytes:
+    """Private key used to mint test tokens. Never used by production code."""
+    return jwt_keys.PRIVATE_KEY_PEM
+
+
+@pytest.fixture
+def make_token() -> TokenFactory:
+    """Return a callable that mints signed JWTs with overridable claims.
+
+    Defaults produce a token that the auth middleware (TASK-014) will accept.
+    Pass overrides to express negative-path scenarios:
+
+        make_token()                            # valid
+        make_token(exp_offset=-60)              # expired
+        make_token(iss="https://attacker/")     # wrong issuer
+        make_token(extra_claims={"permissions": ["org:read"]})
+
+    The signature is a thin wrapper around ``jwt_keys.mint_token`` so tests
+    can stay declarative and the underlying minting helper stays free-function
+    callable from non-pytest contexts (e.g. integration scripts).
+    """
+
+    def _mint(**overrides: Any) -> str:
+        return jwt_keys.mint_token(**overrides)
+
+    return _mint
+
+
+@pytest.fixture
+def auth_header(make_token: TokenFactory) -> dict[str, str]:
+    """Convenience: a ready-to-use Authorization header with a default valid token."""
+    return {"Authorization": f"Bearer {make_token()}"}
