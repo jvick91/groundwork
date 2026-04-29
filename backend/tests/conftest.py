@@ -14,10 +14,24 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from app.core.database import Base
+from app.core.database import Base, Database
 from app.core.dependencies import get_db
 from app.core.settings import settings
 from app.main import create_app
+
+
+@pytest_asyncio.fixture(scope="session", loop_scope="session", autouse=True)
+async def initialize_database() -> AsyncGenerator[None, None]:
+    """Initialize the production Database singleton against the test DB.
+
+    The FastAPI lifespan does not run under ``httpx.ASGITransport``, so any
+    code that touches ``Database.get_engine()`` (e.g. the readiness probe in
+    ``app/routers/health.py``) would otherwise see an uninitialized engine
+    and report ``"error"``. Initializing here mirrors production startup.
+    """
+    Database.initialize(settings.test_database_url)
+    yield
+    await Database.dispose()
 
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")

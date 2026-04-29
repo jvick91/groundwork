@@ -15,6 +15,7 @@ from app.core.exceptions import GroundworkError
 from app.core.lifespan import lifespan
 from app.core.logger import get_logger
 from app.core.settings import settings
+from app.middleware.request_logger import RequestLoggerMiddleware
 from app.routers import compliance as compliance_router
 from app.routers import health as health_router
 
@@ -57,6 +58,12 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Request logger — added last so it wraps outermost and sees the
+    # client-visible status code after CORS and exception handling.
+    # SPEC-006 §4 BR-08: PHI is stripped by the structlog phi_filter
+    # processor, so payload field names safe to use here.
+    app.add_middleware(RequestLoggerMiddleware)
 
     # Domain errors — GroundworkError subclasses (SPEC-007 §7.3)
     @app.exception_handler(GroundworkError)
