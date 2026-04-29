@@ -53,7 +53,10 @@ class PaginationParams(BaseModel):
 
     limit: int = Field(default=25, ge=1, le=100, description="Items per page. Maximum 100.")
     cursor: str | None = Field(default=None, description="Opaque cursor from a previous response.")
-    sort: str = Field(default="created_at", description="Column to sort by. Must be an indexed field.")
+    sort: str = Field(
+        default="created_at",
+        description="Column to sort by. Must be an indexed field.",
+    )
     sort_dir: SortDir = Field(default=SortDir.DESC, description="Sort direction: asc or desc.")
 
 

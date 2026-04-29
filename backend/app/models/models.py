@@ -22,7 +22,6 @@ from sqlalchemy import (
     Boolean,
     Date,
     DateTime,
-    Enum as SAEnum,
     ForeignKey,
     Index,
     Integer,
@@ -31,15 +30,18 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
+from sqlalchemy import (
+    Enum as SAEnum,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base, IdMixin, SoftDeleteMixin, TimestampMixin
 
-
 # ---------------------------------------------------------------------------
 # Enums — one StrEnum per domain, defined before the model that uses it
 # ---------------------------------------------------------------------------
+
 
 # EAV
 class FieldType(StrEnum):
@@ -136,6 +138,7 @@ class FormType(StrEnum):
 # EAV Domain  (SPEC-001)
 # ---------------------------------------------------------------------------
 
+
 class Organization(Base, IdMixin, TimestampMixin):
     __tablename__ = "organizations"
 
@@ -182,9 +185,7 @@ class EntityAttribute(Base, IdMixin, TimestampMixin):
     field_type: Mapped[FieldType] = mapped_column(
         SAEnum(FieldType, native_enum=False), nullable=False
     )
-    is_required: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=text("false")
-    )
+    is_required: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     # Can be a list (enum options) or a string (FK target slug) — stored as JSONB
     options: Mapped[Any] = mapped_column(JSONB, nullable=True)
     display_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
@@ -203,9 +204,7 @@ class EntityInstance(Base, IdMixin, TimestampMixin, SoftDeleteMixin):
     person_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("people.id"), nullable=True
     )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=text("true")
-    )
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
 
 
 class AttributeValue(Base, IdMixin):
@@ -215,9 +214,7 @@ class AttributeValue(Base, IdMixin):
     """
 
     __tablename__ = "attribute_values"
-    __table_args__ = (
-        UniqueConstraint("entity_instance_id", "entity_attribute_id"),
-    )
+    __table_args__ = (UniqueConstraint("entity_instance_id", "entity_attribute_id"),)
 
     entity_instance_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("entity_instances.id"), nullable=False
@@ -232,6 +229,7 @@ class AttributeValue(Base, IdMixin):
 # ---------------------------------------------------------------------------
 # Identity Domain  (SPEC-002)
 # ---------------------------------------------------------------------------
+
 
 class Person(Base, IdMixin, TimestampMixin, SoftDeleteMixin):
     """
@@ -249,16 +247,12 @@ class Person(Base, IdMixin, TimestampMixin, SoftDeleteMixin):
     phone: Mapped[str | None] = mapped_column(String, nullable=True)
     # PHI — excluded from AuditLog snapshots per BR-08
     date_of_birth: Mapped[date | None] = mapped_column(Date, nullable=True)
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=text("true")
-    )
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
 
 
 class Role(Base, IdMixin, TimestampMixin):
     __tablename__ = "roles"
-    __table_args__ = (
-        UniqueConstraint("organization_id", "slug"),
-    )
+    __table_args__ = (UniqueConstraint("organization_id", "slug"),)
 
     # NULL = system role (globally reserved slug)
     organization_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -281,9 +275,7 @@ class Role(Base, IdMixin, TimestampMixin):
 
 class Permission(Base, IdMixin, TimestampMixin):
     __tablename__ = "permissions"
-    __table_args__ = (
-        UniqueConstraint("organization_id", "slug"),
-    )
+    __table_args__ = (UniqueConstraint("organization_id", "slug"),)
 
     # NULL = system permission (globally reserved slug)
     organization_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -310,7 +302,10 @@ class PersonRole(Base, IdMixin, TimestampMixin):
         # A person cannot hold duplicate active copies of the same scoped role
         Index(
             "uq_person_roles_active",
-            "organization_id", "person_id", "role_id", "entity_instance_id",
+            "organization_id",
+            "person_id",
+            "role_id",
+            "entity_instance_id",
             unique=True,
             postgresql_where=text("revoked_at IS NULL"),
         ),
@@ -349,7 +344,9 @@ class RolePermission(Base, IdMixin, TimestampMixin):
     __table_args__ = (
         Index(
             "uq_role_permissions_active",
-            "organization_id", "role_id", "permission_id",
+            "organization_id",
+            "role_id",
+            "permission_id",
             unique=True,
             postgresql_where=text("revoked_at IS NULL"),
         ),
@@ -379,6 +376,7 @@ class RolePermission(Base, IdMixin, TimestampMixin):
 # Scheduling Domain  (SPEC-003)
 # ---------------------------------------------------------------------------
 
+
 class AppointmentType(Base, IdMixin, TimestampMixin):
     __tablename__ = "appointment_types"
 
@@ -393,12 +391,8 @@ class AppointmentType(Base, IdMixin, TimestampMixin):
     is_telehealth: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("false")
     )
-    is_intake: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=text("false")
-    )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=text("true")
-    )
+    is_intake: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
 
 
 class Session(Base, IdMixin, TimestampMixin, SoftDeleteMixin):
@@ -438,6 +432,7 @@ class Session(Base, IdMixin, TimestampMixin, SoftDeleteMixin):
 # ---------------------------------------------------------------------------
 # Clinical Domain  (SPEC-004)
 # ---------------------------------------------------------------------------
+
 
 class ClinicalNote(Base, IdMixin, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "clinical_notes"
@@ -487,11 +482,10 @@ class ClinicalNote(Base, IdMixin, TimestampMixin, SoftDeleteMixin):
 # Billing Domain  (SPEC-005)
 # ---------------------------------------------------------------------------
 
+
 class CPTCode(Base, IdMixin, TimestampMixin):
     __tablename__ = "cpt_codes"
-    __table_args__ = (
-        UniqueConstraint("organization_id", "code"),
-    )
+    __table_args__ = (UniqueConstraint("organization_id", "code"),)
 
     organization_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False
@@ -499,25 +493,19 @@ class CPTCode(Base, IdMixin, TimestampMixin):
     code: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str] = mapped_column(String, nullable=False)
     default_rate_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=text("true")
-    )
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
 
 
 class ICDCode(Base, IdMixin, TimestampMixin):
     __tablename__ = "icd_codes"
-    __table_args__ = (
-        UniqueConstraint("organization_id", "code"),
-    )
+    __table_args__ = (UniqueConstraint("organization_id", "code"),)
 
     organization_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False
     )
     code: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str] = mapped_column(String, nullable=False)
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=text("true")
-    )
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
 
 
 class InsurancePayer(Base, IdMixin, TimestampMixin):
@@ -530,9 +518,7 @@ class InsurancePayer(Base, IdMixin, TimestampMixin):
     payer_id: Mapped[str | None] = mapped_column(String, nullable=True)
     phone: Mapped[str | None] = mapped_column(String, nullable=True)
     address: Mapped[str | None] = mapped_column(Text, nullable=True)
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=text("true")
-    )
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
 
 
 class ClientInsurance(Base, IdMixin, TimestampMixin):
@@ -541,7 +527,10 @@ class ClientInsurance(Base, IdMixin, TimestampMixin):
         # A client cannot have two active records of the same priority with the same payer
         Index(
             "uq_client_insurances_active_priority",
-            "organization_id", "client_instance_id", "insurance_payer_id", "priority",
+            "organization_id",
+            "client_instance_id",
+            "insurance_payer_id",
+            "priority",
             unique=True,
             postgresql_where=text("is_active = true"),
         ),
@@ -568,9 +557,7 @@ class ClientInsurance(Base, IdMixin, TimestampMixin):
     deductible_met_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
     effective_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     termination_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=text("true")
-    )
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
 
 
 class Invoice(Base, IdMixin, TimestampMixin, SoftDeleteMixin):
@@ -607,7 +594,9 @@ class Invoice(Base, IdMixin, TimestampMixin, SoftDeleteMixin):
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     # Computed and stored atomically at write time — never computed on the fly
     total_cents: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
-    amount_paid_cents: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    amount_paid_cents: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0")
+    )
     balance_cents: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     voided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -683,6 +672,7 @@ class Payment(Base, IdMixin, TimestampMixin):
 # Compliance Domain  (SPEC-006)
 # ---------------------------------------------------------------------------
 
+
 class AuditLog(Base, IdMixin):
     """
     IdMixin only — SPEC-006 §2 explicitly forbids updated_at and deleted_at.
@@ -715,9 +705,7 @@ class AuditLog(Base, IdMixin):
 
 class DocumentType(Base, IdMixin, TimestampMixin):
     __tablename__ = "document_types"
-    __table_args__ = (
-        UniqueConstraint("organization_id", "slug"),
-    )
+    __table_args__ = (UniqueConstraint("organization_id", "slug"),)
 
     organization_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False
@@ -729,9 +717,7 @@ class DocumentType(Base, IdMixin, TimestampMixin):
     is_system_type: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("false")
     )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=text("true")
-    )
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
 
 
 class Document(Base, IdMixin, TimestampMixin, SoftDeleteMixin):
@@ -748,25 +734,19 @@ class Document(Base, IdMixin, TimestampMixin, SoftDeleteMixin):
     uploaded_by_person_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("people.id"), nullable=False
     )
-    linked_resource_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
+    linked_resource_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     file_name: Mapped[str] = mapped_column(String(255), nullable=False)
     mime_type: Mapped[str] = mapped_column(String, nullable=False)
     size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
     # Never exposed in API responses — used only for presigned URL generation
     s3_key: Mapped[str] = mapped_column(String, nullable=False)
     s3_bucket: Mapped[str] = mapped_column(String, nullable=False)
-    is_encrypted: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=text("true")
-    )
+    is_encrypted: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
 
 
 class ConsentType(Base, IdMixin, TimestampMixin):
     __tablename__ = "consent_types"
-    __table_args__ = (
-        UniqueConstraint("organization_id", "slug"),
-    )
+    __table_args__ = (UniqueConstraint("organization_id", "slug"),)
 
     organization_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False
@@ -776,9 +756,7 @@ class ConsentType(Base, IdMixin, TimestampMixin):
     is_system_type: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("false")
     )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=text("true")
-    )
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
 
 
 class ClientConsent(Base, IdMixin, TimestampMixin, SoftDeleteMixin):
@@ -820,26 +798,18 @@ class ClientConsent(Base, IdMixin, TimestampMixin, SoftDeleteMixin):
 
 class FormTemplate(Base, IdMixin, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "form_templates"
-    __table_args__ = (
-        UniqueConstraint("organization_id", "slug"),
-    )
+    __table_args__ = (UniqueConstraint("organization_id", "slug"),)
 
     organization_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False
     )
     name: Mapped[str] = mapped_column(String, nullable=False)
     slug: Mapped[str] = mapped_column(String, nullable=False)
-    form_type: Mapped[FormType] = mapped_column(
-        SAEnum(FormType, native_enum=False), nullable=False
-    )
+    form_type: Mapped[FormType] = mapped_column(SAEnum(FormType, native_enum=False), nullable=False)
     # Python attr is schema_ to avoid collision with SQLAlchemy's .schema property
-    schema_: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, name="schema", nullable=False
-    )
+    schema_: Mapped[dict[str, Any]] = mapped_column(JSONB, name="schema", nullable=False)
     version: Mapped[str] = mapped_column(String, nullable=False, server_default="1.0.0")
     is_system_template: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("false")
     )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=text("true")
-    )
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))

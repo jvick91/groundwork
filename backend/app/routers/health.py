@@ -26,10 +26,10 @@ router = APIRouter(prefix="/health", tags=["health"])
 # Dependencies — overridable in tests
 # ---------------------------------------------------------------------------
 
+
 async def _check_database() -> str:
     """Probe the database with SELECT 1.  Returns 'ok' or 'error'."""
     try:
-
         engine = Database.get_engine()
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
@@ -42,8 +42,9 @@ async def _check_database() -> str:
 # Endpoints
 # ---------------------------------------------------------------------------
 
+
 @router.get("")
-async def liveness() -> dict:
+async def liveness() -> dict[str, str]:
     """Liveness probe — returns 200 if the process is running."""
     return {"status": "ok", "version": settings.app_version}
 

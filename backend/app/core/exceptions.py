@@ -34,6 +34,7 @@ class GroundworkError(Exception):
 # 400
 # ---------------------------------------------------------------------------
 
+
 class BadRequestError(GroundworkError):
     def __init__(self, message: str, details: list[dict[str, Any]] | None = None):
         super().__init__(
@@ -45,7 +46,7 @@ class BadRequestError(GroundworkError):
 
 
 class OrganizationRequiredError(GroundworkError):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             error="organization_required",
             message="An organization context is required for this operation.",
@@ -57,6 +58,7 @@ class OrganizationRequiredError(GroundworkError):
 # 401
 # ---------------------------------------------------------------------------
 
+
 class UnauthorizedError(GroundworkError):
     def __init__(self, message: str = "Authentication is required."):
         super().__init__(
@@ -67,7 +69,7 @@ class UnauthorizedError(GroundworkError):
 
 
 class AccountInactiveError(GroundworkError):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             error="account_inactive",
             message="This account is inactive or has been deleted.",
@@ -79,6 +81,7 @@ class AccountInactiveError(GroundworkError):
 # 403
 # ---------------------------------------------------------------------------
 
+
 class ForbiddenError(GroundworkError):
     def __init__(self, message: str = "You do not have permission to perform this action."):
         super().__init__(
@@ -89,7 +92,7 @@ class ForbiddenError(GroundworkError):
 
 
 class OrgAccessDeniedError(GroundworkError):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             error="org_access_denied",
             message="You do not have an active role in the requested organization.",
@@ -100,6 +103,7 @@ class OrgAccessDeniedError(GroundworkError):
 # ---------------------------------------------------------------------------
 # 404
 # ---------------------------------------------------------------------------
+
 
 class NotFoundError(GroundworkError):
     def __init__(self, resource: str, resource_id: UUID):
@@ -119,6 +123,7 @@ class NotFoundError(GroundworkError):
 # 409
 # ---------------------------------------------------------------------------
 
+
 class ConflictError(GroundworkError):
     def __init__(self, message: str, details: list[dict[str, Any]] | None = None):
         super().__init__(
@@ -135,11 +140,13 @@ class StateTransitionDeniedError(GroundworkError):
             error="state_transition_denied",
             message=f"Cannot transition {resource} from '{current_status}' to '{target_status}'.",
             status_code=409,
-            details=[{
-                "resource": resource,
-                "current_status": current_status,
-                "target_status": target_status,
-            }],
+            details=[
+                {
+                    "resource": resource,
+                    "current_status": current_status,
+                    "target_status": target_status,
+                }
+            ],
         )
 
 
@@ -156,6 +163,7 @@ class ResourceLockedError(GroundworkError):
 # ---------------------------------------------------------------------------
 # 422
 # ---------------------------------------------------------------------------
+
 
 class DomainValidationError(GroundworkError):
     """Business-rule validation failure (distinct from Pydantic schema errors)."""
@@ -178,11 +186,13 @@ class BridgeRuleViolation(GroundworkError):
                 f"expected entity type '{expected_type}', got '{actual_type}'."
             ),
             status_code=422,
-            details=[{
-                "field": field,
-                "expected_type": expected_type,
-                "actual_type": actual_type,
-            }],
+            details=[
+                {
+                    "field": field,
+                    "expected_type": expected_type,
+                    "actual_type": actual_type,
+                }
+            ],
         )
 
 
@@ -200,8 +210,9 @@ class PrerequisiteNotMetError(GroundworkError):
 # 429
 # ---------------------------------------------------------------------------
 
+
 class RateLimitedError(GroundworkError):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             error="rate_limited",
             message="Too many requests. Please try again later.",
@@ -213,8 +224,9 @@ class RateLimitedError(GroundworkError):
 # 500
 # ---------------------------------------------------------------------------
 
+
 class InternalError(GroundworkError):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             error="internal_error",
             message="An unexpected error occurred.",

@@ -27,4 +27,4 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             raise
 
 
-__all__ = ["get_db", "get_auth_context", "require_permission"]
+__all__ = ["get_auth_context", "get_db", "require_permission"]

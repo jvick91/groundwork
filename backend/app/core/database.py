@@ -13,11 +13,16 @@ import uuid
 from datetime import datetime
 from threading import Lock
 
-from sqlalchemy import DateTime, MetaData, String, text
+from sqlalchemy import DateTime, MetaData, text
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncAttrs,
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy.ext.asyncio import AsyncAttrs
 
 from app.core.logger import get_logger
 
@@ -121,19 +126,15 @@ class Database:
         """Return the session factory, raising if not yet initialized."""
         with cls._lock:
             if cls._session_factory is None:
-                raise RuntimeError(
-                    "Database not initialized. Call Database.initialize() first."
-                )
+                raise RuntimeError("Database not initialized. Call Database.initialize() first.")
             return cls._session_factory
 
     @classmethod
-    def get_engine(cls):
+    def get_engine(cls) -> AsyncEngine:
         """Return the async engine, raising if not yet initialized."""
         with cls._lock:
             if cls._engine is None:
-                raise RuntimeError(
-                    "Database not initialized. Call Database.initialize() first."
-                )
+                raise RuntimeError("Database not initialized. Call Database.initialize() first.")
             return cls._engine
 
     @classmethod

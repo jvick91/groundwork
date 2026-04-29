@@ -8,7 +8,6 @@ Both endpoints require the ``audit.read`` permission (enforced once TASK-014
 and TASK-015 wire up auth middleware and permission resolution).
 """
 
-import uuid
 from datetime import datetime
 from typing import Any
 from uuid import UUID
@@ -35,6 +34,7 @@ _SORT_FIELDS = {
 # Response schema (inline — full Pydantic schemas come in TASK-008A)
 # ---------------------------------------------------------------------------
 
+
 def _serialize(entry: AuditLog) -> dict[str, Any]:
     return {
         "id": str(entry.id),
@@ -54,6 +54,7 @@ def _serialize(entry: AuditLog) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
 
 @router.get(
     "",

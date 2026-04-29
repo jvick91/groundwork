@@ -37,10 +37,10 @@ from app.core.exceptions import (
 )
 from app.main import create_app
 
-
 # ---------------------------------------------------------------------------
 # Test app fixture — one app with one trigger route per error code
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="module")
 def error_app() -> FastAPI:
@@ -92,7 +92,13 @@ def error_app() -> FastAPI:
     async def raise_domain_validation():
         raise DomainValidationError(
             "end_time must be after start_time.",
-            details=[{"field": "end_time", "message": "must be after start_time", "code": "invalid_time_range"}],
+            details=[
+                {
+                    "field": "end_time",
+                    "message": "must be after start_time",
+                    "code": "invalid_time_range",
+                }
+            ],
         )
 
     @app.get("/test/bridge-rule-violation")
@@ -176,6 +182,7 @@ async def ec(error_app: FastAPI):
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def assert_envelope(data: dict, error_code: str, status: int) -> None:
     assert data["error"] == error_code
     assert data["status"] == status
@@ -186,6 +193,7 @@ def assert_envelope(data: dict, error_code: str, status: int) -> None:
 # ---------------------------------------------------------------------------
 # 400
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_bad_request_returns_400(ec: AsyncClient):
@@ -205,6 +213,7 @@ async def test_organization_required_returns_400(ec: AsyncClient):
 # 401
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_unauthorized_returns_401(ec: AsyncClient):
     r = await ec.get("/test/unauthorized")
@@ -222,6 +231,7 @@ async def test_account_inactive_returns_401(ec: AsyncClient):
 # ---------------------------------------------------------------------------
 # 403
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_forbidden_returns_403(ec: AsyncClient):
@@ -241,6 +251,7 @@ async def test_org_access_denied_returns_403(ec: AsyncClient):
 # 404
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_not_found_returns_404(ec: AsyncClient):
     r = await ec.get("/test/not-found")
@@ -255,6 +266,7 @@ async def test_not_found_returns_404(ec: AsyncClient):
 # ---------------------------------------------------------------------------
 # 409
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_conflict_returns_409(ec: AsyncClient):
@@ -283,6 +295,7 @@ async def test_resource_locked_returns_409(ec: AsyncClient):
 # ---------------------------------------------------------------------------
 # 422
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_domain_validation_error_returns_422(ec: AsyncClient):
@@ -325,6 +338,7 @@ async def test_pydantic_validation_returns_422_with_field_details(ec: AsyncClien
 # 429
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_rate_limited_returns_429(ec: AsyncClient):
     r = await ec.get("/test/rate-limited")
@@ -335,6 +349,7 @@ async def test_rate_limited_returns_429(ec: AsyncClient):
 # ---------------------------------------------------------------------------
 # 500
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_internal_error_returns_500(ec: AsyncClient):
@@ -358,6 +373,7 @@ async def test_global_handler_returns_generic_500_without_internals(ec: AsyncCli
 # ---------------------------------------------------------------------------
 # HTTPException coercion (TASK-003 AC: validation, domain, HTTP, unhandled)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_unknown_route_returns_standard_envelope_404(ec: AsyncClient):
@@ -388,6 +404,7 @@ async def test_hand_raised_http_exception_uses_standard_envelope(ec: AsyncClient
 # ---------------------------------------------------------------------------
 # Validation loc handling (SPEC-007 §7.2 / §7.4)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_pydantic_validation_nested_field_path(ec: AsyncClient):
@@ -439,6 +456,6 @@ async def test_pydantic_validation_does_not_echo_submitted_value(ec: AsyncClient
     )
     assert r.status_code == 422
     body = r.text
-    assert phi_like_value not in body, (
-        "Submitted value leaked into response — SPEC-007 §7.4 PHI safety violation."
-    )
+    assert (
+        phi_like_value not in body
+    ), "Submitted value leaked into response — SPEC-007 §7.4 PHI safety violation."

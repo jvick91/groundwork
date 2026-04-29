@@ -29,6 +29,54 @@ factory-boy = "^3.3.0"
 coverage = "^7.0.0"
 pytest-cov = "^6.0.0"
 
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+ignore = [
+    "B008",   # FastAPI relies on Depends(...) defaults in signatures
+    "SIM117", # nested `with` blocks are clearer than combined ones in our async test code
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "S101",   # asserts are the point of tests
+    "B011",   # assert False is a valid sentinel in tests
+    "RUF001", # ambiguous unicode in fixture data is fine
+]
+"alembic/**" = [
+    "E501",   # auto-generated revisions can have long lines
+    "F401",   # imported-but-unused alembic helpers in env.py / templates
+    "I001",   # auto-generated import order
+    "UP",     # don't rewrite generated migrations
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+docstring-code-format = false
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+exclude = ["alembic/versions/"]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_decorators = false
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["factory.*", "factory_boy.*"]
+ignore_missing_imports = true
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

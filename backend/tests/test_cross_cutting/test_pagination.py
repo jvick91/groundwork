@@ -12,10 +12,9 @@ Part 2 — Integration tests (real PostgreSQL via db_session fixture)
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,10 +31,10 @@ from app.utils.pagination import (
     paginate,
 )
 
-
 # ===========================================================================
 # Part 1 — Unit tests
 # ===========================================================================
+
 
 class TestEncodeDecode:
     def test_roundtrip_string_sort_value(self):
@@ -47,7 +46,7 @@ class TestEncodeDecode:
 
     def test_roundtrip_datetime_sort_value(self):
         record_id = uuid.uuid4()
-        ts = datetime(2026, 4, 1, 12, 0, 0, tzinfo=timezone.utc)
+        ts = datetime(2026, 4, 1, 12, 0, 0, tzinfo=UTC)
         cursor = encode_cursor(ts, record_id)
         data = decode_cursor(cursor)
         assert data["v"] == ts.isoformat()
@@ -71,7 +70,9 @@ class TestEncodeDecode:
             decode_cursor("!!!not-valid-base64!!!")
 
     def test_decode_valid_base64_missing_keys_raises_bad_request(self):
-        import base64, json
+        import base64
+        import json
+
         bad = base64.urlsafe_b64encode(json.dumps({"only": "one_key"}).encode()).decode()
         with pytest.raises(BadRequestError):
             decode_cursor(bad)
@@ -83,7 +84,7 @@ class TestEncodeDecode:
     def test_different_records_produce_different_cursors(self):
         id_a = uuid.uuid4()
         id_b = uuid.uuid4()
-        ts = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        ts = datetime(2026, 1, 1, tzinfo=UTC)
         assert encode_cursor(ts, id_a) != encode_cursor(ts, id_b)
 
 
@@ -97,11 +98,13 @@ class TestPaginationParams:
 
     def test_limit_max_is_100(self):
         from pydantic import ValidationError as PydanticValidationError
+
         with pytest.raises(PydanticValidationError):
             PaginationParams(limit=101)
 
     def test_limit_min_is_1(self):
         from pydantic import ValidationError as PydanticValidationError
+
         with pytest.raises(PydanticValidationError):
             PaginationParams(limit=0)
 
@@ -122,6 +125,7 @@ class TestPaginationParams:
 # Helper — insert N organizations with controlled created_at for ordering
 # ---------------------------------------------------------------------------
 
+
 async def _make_orgs(session: AsyncSession, count: int) -> list[Organization]:
     """Insert ``count`` organizations with known timestamps and return them newest-first."""
     orgs = []
@@ -131,7 +135,7 @@ async def _make_orgs(session: AsyncSession, count: int) -> list[Organization]:
             name=f"Org {i:02d}",
             timezone="UTC",
             is_active=True,
-            created_at=datetime(2026, 1, count - i, tzinfo=timezone.utc),
+            created_at=datetime(2026, 1, count - i, tzinfo=UTC),
         )
         session.add(org)
         orgs.append(org)
@@ -266,7 +270,7 @@ async def test_paginate_stable_after_insert(db_session: AsyncSession):
         timezone="UTC",
         is_active=True,
         # Older than all existing orgs, should appear at the end
-        created_at=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        created_at=datetime(2025, 1, 1, tzinfo=UTC),
     )
     db_session.add(late_org)
     await db_session.flush()
@@ -314,6 +318,7 @@ async def test_paginate_sort_ascending(db_session: AsyncSession):
 # Part 3 — Filter helper unit tests (no DB needed)
 # ===========================================================================
 
+
 class TestFilterHelpers:
     """Smoke tests for filter helpers — just verify they return Select objects."""
 
@@ -345,6 +350,7 @@ class TestFilterHelpers:
 
     def test_apply_date_range_filter_both_bounds(self):
         from datetime import date
+
         stmt = apply_date_range_filter(
             self._base_stmt(),
             Organization.created_at,
