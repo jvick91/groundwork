@@ -12,7 +12,7 @@ is the single platform-wide source of truth.
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -20,7 +20,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.phi import PHI_EXCLUDED_FIELDS
 from app.models.models import AuditLog
-
 
 __all__ = ["PHI_EXCLUDED_FIELDS", "filter_phi", "log_action"]
 
@@ -40,10 +39,9 @@ def filter_phi(
     if snapshot is None:
         return None
     if isinstance(snapshot, list):
-        return [filter_phi(item) if isinstance(item, (dict, list)) else item
-                for item in snapshot]
+        return [filter_phi(item) if isinstance(item, dict | list) else item for item in snapshot]
     return {
-        k: (filter_phi(v) if isinstance(v, (dict, list)) else v)
+        k: (filter_phi(v) if isinstance(v, dict | list) else v)
         for k, v in snapshot.items()
         if k not in PHI_EXCLUDED_FIELDS
     }
@@ -52,6 +50,7 @@ def filter_phi(
 # ---------------------------------------------------------------------------
 # Core audit function
 # ---------------------------------------------------------------------------
+
 
 async def log_action(
     db: AsyncSession,
@@ -110,7 +109,7 @@ async def log_action(
         next_state=filter_phi(next_state),
         ip_address=ip_address,
         user_agent=user_agent,
-        occurred_at=datetime.now(tz=timezone.utc),
+        occurred_at=datetime.now(tz=UTC),
     )
     db.add(entry)
     return entry

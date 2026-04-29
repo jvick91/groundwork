@@ -11,10 +11,10 @@ from httpx import ASGITransport, AsyncClient
 from app.main import create_app
 from app.routers.health import _check_database
 
-
 # ---------------------------------------------------------------------------
 # Liveness  —  GET /api/v1/health
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_liveness_returns_200(client: AsyncClient):
@@ -39,6 +39,7 @@ async def test_liveness_includes_version(client: AsyncClient):
 # Readiness (happy path)  —  GET /api/v1/health/ready
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_readiness_returns_200_when_db_ok(client: AsyncClient):
     response = await client.get("/api/v1/health/ready")
@@ -61,6 +62,7 @@ async def test_readiness_checks_dict_contains_database_ok(client: AsyncClient):
 # ---------------------------------------------------------------------------
 # Readiness (DB-degraded path)  —  503
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_readiness_returns_503_when_db_unreachable():
@@ -95,9 +97,7 @@ async def test_readiness_checks_dict_extensible_for_task_014():
     """The checks dict must accommodate the future auth0_jwks key (TASK-014)."""
     app = create_app()
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as c:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         data = (await c.get("/api/v1/health/ready")).json()
 
     assert isinstance(data["checks"], dict)

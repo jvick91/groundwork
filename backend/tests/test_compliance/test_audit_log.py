@@ -16,14 +16,13 @@ A module-scoped fixture installs it against the test DB if not already present.
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select, text, update
 from sqlalchemy.exc import DBAPIError
-from sqlalchemy.ext.asyncio import AsyncSession, AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.core.security import AuthContext, get_auth_context
 from app.main import create_app
@@ -31,13 +30,13 @@ from app.models.models import AuditLog, Organization
 from app.services import audit_service
 from app.services.audit_service import PHI_EXCLUDED_FIELDS, filter_phi
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _utc(year: int, month: int, day: int) -> datetime:
-    return datetime(year, month, day, tzinfo=timezone.utc)
+    return datetime(year, month, day, tzinfo=UTC)
 
 
 async def _make_org(session: AsyncSession, name: str = "Test Org") -> Organization:
@@ -57,6 +56,7 @@ async def _make_org(session: AsyncSession, name: str = "Test Org") -> Organizati
 # Module fixture: install immutability trigger on test DB
 # ---------------------------------------------------------------------------
 
+
 @pytest_asyncio.fixture(scope="module", loop_scope="session", autouse=True)
 async def install_immutability_trigger(test_engine: AsyncEngine):
     """Ensure the audit_log immutability triggers exist in the test DB.
@@ -67,7 +67,8 @@ async def install_immutability_trigger(test_engine: AsyncEngine):
     # asyncpg cannot execute multiple SQL commands in a single prepared
     # statement, so each DDL command must be issued separately.
     async with test_engine.begin() as conn:
-        await conn.execute(text("""
+        await conn.execute(
+            text("""
             CREATE OR REPLACE FUNCTION prevent_audit_log_mutation()
             RETURNS TRIGGER LANGUAGE plpgsql AS $$
             BEGIN
@@ -76,28 +77,30 @@ async def install_immutability_trigger(test_engine: AsyncEngine):
                     TG_OP;
             END;
             $$;
-        """))
-        await conn.execute(text(
-            "DROP TRIGGER IF EXISTS audit_log_immutable_update ON audit_logs"
-        ))
-        await conn.execute(text("""
+        """)
+        )
+        await conn.execute(text("DROP TRIGGER IF EXISTS audit_log_immutable_update ON audit_logs"))
+        await conn.execute(
+            text("""
             CREATE TRIGGER audit_log_immutable_update
             BEFORE UPDATE ON audit_logs
             FOR EACH ROW EXECUTE FUNCTION prevent_audit_log_mutation()
-        """))
-        await conn.execute(text(
-            "DROP TRIGGER IF EXISTS audit_log_immutable_delete ON audit_logs"
-        ))
-        await conn.execute(text("""
+        """)
+        )
+        await conn.execute(text("DROP TRIGGER IF EXISTS audit_log_immutable_delete ON audit_logs"))
+        await conn.execute(
+            text("""
             CREATE TRIGGER audit_log_immutable_delete
             BEFORE DELETE ON audit_logs
             FOR EACH ROW EXECUTE FUNCTION prevent_audit_log_mutation()
-        """))
+        """)
+        )
 
 
 # ---------------------------------------------------------------------------
 # Auth stub fixture for endpoint tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def audit_client(db_session: AsyncSession):
@@ -116,6 +119,7 @@ def audit_client(db_session: AsyncSession):
         yield db_session
 
     from app.core.dependencies import get_db
+
     app.dependency_overrides[get_db] = _override_db
 
     return app
@@ -124,6 +128,7 @@ def audit_client(db_session: AsyncSession):
 # ===========================================================================
 # SPEC-006 §9 named test cases
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_state_change_writes_audit_entry(db_session: AsyncSession):
@@ -159,8 +164,11 @@ async def test_audit_failure_rolls_back_business_operation(db_session: AsyncSess
     # Simulate a service: domain write + audit write in same session
     target_id = uuid.uuid4()
     new_org = Organization(
-        id=target_id, name="Should Disappear",
-        timezone="UTC", is_active=True, created_at=_utc(2026, 1, 2),
+        id=target_id,
+        name="Should Disappear",
+        timezone="UTC",
+        is_active=True,
+        created_at=_utc(2026, 1, 2),
     )
     db_session.add(new_org)
 
@@ -193,12 +201,12 @@ async def test_audit_snapshot_excludes_phi_fields(db_session: AsyncSession):
     phi_snapshot = {
         "id": str(uuid.uuid4()),
         "name": "Jane Doe",
-        "date_of_birth": "1990-01-01",   # PHI
-        "dob": "1990-01-01",             # PHI alias
+        "date_of_birth": "1990-01-01",  # PHI
+        "dob": "1990-01-01",  # PHI alias
         "content": {"subjective": "..."},  # PHI
-        "value": "some attribute value",   # PHI
+        "value": "some attribute value",  # PHI
         "notes": "sensitive clinical note",  # PHI
-        "ssn": "123-45-6789",             # PHI
+        "ssn": "123-45-6789",  # PHI
         # BR-08 clinical-note format keys at top level (not just under `content`):
         "subjective": "patient reports ...",
         "objective": "vitals normal ...",
@@ -208,7 +216,7 @@ async def test_audit_snapshot_excludes_phi_fields(db_session: AsyncSession):
         "intervention": "CBT exercise ...",
         "response": "client engaged ...",
         "behavior": "cooperative ...",
-        "status": "active",               # safe
+        "status": "active",  # safe
     }
     org = await _make_org(db_session)
     resource_id = uuid.uuid4()
@@ -259,9 +267,7 @@ async def test_update_audit_log_row_rejected(db_session: AsyncSession):
 
     with pytest.raises(DBAPIError, match="immutable"):
         await db_session.execute(
-            update(AuditLog)
-            .where(AuditLog.id == entry.id)
-            .values(action="tampered")
+            update(AuditLog).where(AuditLog.id == entry.id).values(action="tampered")
         )
         await db_session.flush()
 
@@ -283,9 +289,7 @@ async def test_delete_audit_log_row_rejected(db_session: AsyncSession):
     await db_session.flush()
 
     with pytest.raises(DBAPIError, match="immutable"):
-        await db_session.execute(
-            sa_delete(AuditLog).where(AuditLog.id == entry.id)
-        )
+        await db_session.execute(sa_delete(AuditLog).where(AuditLog.id == entry.id))
         await db_session.flush()
 
 
@@ -320,32 +324,43 @@ async def test_audit_log_filters_by_org(db_session: AsyncSession):
     resource_b = uuid.uuid4()
 
     await audit_service.log_action(
-        db_session, org_id=org_a.id, actor_id=None,
-        action="create", resource_type="Widget", resource_id=resource_a,
+        db_session,
+        org_id=org_a.id,
+        actor_id=None,
+        action="create",
+        resource_type="Widget",
+        resource_id=resource_a,
     )
     await audit_service.log_action(
-        db_session, org_id=org_b.id, actor_id=None,
-        action="create", resource_type="Widget", resource_id=resource_b,
+        db_session,
+        org_id=org_b.id,
+        actor_id=None,
+        action="create",
+        resource_type="Widget",
+        resource_id=resource_b,
     )
     await db_session.flush()
 
-    rows_a = (await db_session.execute(
-        select(AuditLog).where(AuditLog.organization_id == org_a.id)
-    )).scalars().all()
-    rows_b = (await db_session.execute(
-        select(AuditLog).where(AuditLog.organization_id == org_b.id)
-    )).scalars().all()
+    rows_a = (
+        (await db_session.execute(select(AuditLog).where(AuditLog.organization_id == org_a.id)))
+        .scalars()
+        .all()
+    )
+    rows_b = (
+        (await db_session.execute(select(AuditLog).where(AuditLog.organization_id == org_b.id)))
+        .scalars()
+        .all()
+    )
 
     assert all(r.organization_id == org_a.id for r in rows_a)
     assert all(r.organization_id == org_b.id for r in rows_b)
-    assert {r.resource_id for r in rows_a}.isdisjoint(
-        {r.resource_id for r in rows_b}
-    )
+    assert {r.resource_id for r in rows_a}.isdisjoint({r.resource_id for r in rows_b})
 
 
 # ===========================================================================
 # filter_phi() unit tests
 # ===========================================================================
+
 
 class TestFilterPhi:
     def test_none_input_returns_none(self):
@@ -416,6 +431,7 @@ class TestFilterPhi:
         }
         # Use copy to confirm non-mutation of nested structures too.
         import copy
+
         original = copy.deepcopy(snapshot)
         assert filter_phi(snapshot) == original
         assert snapshot == original
@@ -439,8 +455,8 @@ class TestPhiExclusionListCentralization:
 
     def test_audit_service_and_logger_share_the_same_constant(self):
         """audit_service.PHI_EXCLUDED_FIELDS must be the same object as logger's."""
-        from app.core.phi import PHI_EXCLUDED_FIELDS as canonical
         from app.core import logger as logger_module
+        from app.core.phi import PHI_EXCLUDED_FIELDS as canonical
         from app.services import audit_service as audit_module
 
         assert audit_module.PHI_EXCLUDED_FIELDS is canonical

@@ -6,9 +6,11 @@ with real Auth0 JWT validation via auth0-fastapi-api.
 """
 
 from dataclasses import dataclass, field
+from typing import cast
 from uuid import UUID
 
 from fastapi import Depends, HTTPException
+from fastapi.params import Depends as DependsParam
 
 
 @dataclass
@@ -33,7 +35,7 @@ async def get_auth_context() -> AuthContext:
     )
 
 
-def require_permission(permission_slug: str):
+def require_permission(permission_slug: str) -> DependsParam:
     """Dependency factory that checks whether the authenticated user has a specific permission.
 
     Usage:
@@ -50,4 +52,4 @@ def require_permission(permission_slug: str):
             )
         return auth
 
-    return Depends(_check_permission)
+    return cast(DependsParam, Depends(_check_permission))

@@ -53,6 +53,7 @@ T = TypeVar("T")
 # Cursor encode / decode
 # ---------------------------------------------------------------------------
 
+
 def encode_cursor(sort_value: Any, record_id: UUID | str) -> str:
     """Encode a keyset cursor as a URL-safe Base64 JSON string.
 
@@ -60,7 +61,7 @@ def encode_cursor(sort_value: Any, record_id: UUID | str) -> str:
     Datetime and date values are stored as ISO 8601 strings.
     The format is opaque to API clients and may change between versions.
     """
-    if isinstance(sort_value, (datetime, date)):
+    if isinstance(sort_value, datetime | date):
         v = sort_value.isoformat()
     elif isinstance(sort_value, UUID):
         v = str(sort_value)
@@ -68,9 +69,7 @@ def encode_cursor(sort_value: Any, record_id: UUID | str) -> str:
         v = sort_value
 
     payload = {"v": v, "id": str(record_id)}
-    return base64.urlsafe_b64encode(
-        json.dumps(payload, separators=(",", ":")).encode()
-    ).decode()
+    return base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode()).decode()
 
 
 def decode_cursor(cursor: str) -> dict[str, Any]:
@@ -82,22 +81,23 @@ def decode_cursor(cursor: str) -> dict[str, Any]:
     try:
         # Add padding in case the encoded string lost trailing '='
         padded = cursor + "==" * (4 - len(cursor) % 4)
-        data = json.loads(base64.urlsafe_b64decode(padded))
+        data: dict[str, Any] = json.loads(base64.urlsafe_b64decode(padded))
         if "v" not in data or "id" not in data:
             raise ValueError("missing required cursor keys")
         return data
-    except Exception:
-        raise BadRequestError("Invalid or expired pagination cursor.")
+    except Exception as exc:
+        raise BadRequestError("Invalid or expired pagination cursor.") from exc
 
 
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _coerce_cursor_value(raw: Any, sort_col: InstrumentedAttribute) -> Any:
+
+def _coerce_cursor_value(raw: Any, sort_col: InstrumentedAttribute[Any]) -> Any:
     """Convert a raw JSON cursor value to the Python type that SQLAlchemy expects."""
     try:
-        col_type = sort_col.property.columns[0].type  # type: ignore[attr-defined]
+        col_type = sort_col.property.columns[0].type
         if isinstance(col_type, DateTime) and isinstance(raw, str):
             return datetime.fromisoformat(raw)
         if isinstance(col_type, Date) and isinstance(raw, str):
@@ -111,13 +111,14 @@ def _coerce_cursor_value(raw: Any, sort_col: InstrumentedAttribute) -> Any:
 # Core pagination function
 # ---------------------------------------------------------------------------
 
+
 async def paginate(
     session: AsyncSession,
-    stmt: Select,
+    stmt: Select[Any],
     *,
     params: PaginationParams,
-    sort_fields: dict[str, InstrumentedAttribute],
-    id_col: InstrumentedAttribute,
+    sort_fields: dict[str, InstrumentedAttribute[Any]],
+    id_col: InstrumentedAttribute[Any],
 ) -> tuple[list[Any], PaginationMeta]:
     """Apply cursor conditions, ordering, and limit to a SQLAlchemy SELECT.
 
@@ -150,8 +151,7 @@ async def paginate(
     """
     if params.sort not in sort_fields:
         raise BadRequestError(
-            f"Cannot sort by '{params.sort}'. "
-            f"Allowed fields: {sorted(sort_fields)}."
+            f"Cannot sort by '{params.sort}'. " f"Allowed fields: {sorted(sort_fields)}."
         )
 
     sort_col = sort_fields[params.sort]
@@ -166,14 +166,12 @@ async def paginate(
         if params.sort_dir == SortDir.DESC:
             # Rows before the cursor in descending order
             stmt = stmt.where(
-                (sort_col < cursor_v)
-                | ((sort_col == cursor_v) & (id_col < cursor_id))
+                (sort_col < cursor_v) | ((sort_col == cursor_v) & (id_col < cursor_id))
             )
         else:
             # Rows after the cursor in ascending order
             stmt = stmt.where(
-                (sort_col > cursor_v)
-                | ((sort_col == cursor_v) & (id_col > cursor_id))
+                (sort_col > cursor_v) | ((sort_col == cursor_v) & (id_col > cursor_id))
             )
 
     # Stable ordering: (sort_col, id) ensures no ambiguity on ties
@@ -214,9 +212,10 @@ async def paginate(
 # Filter helpers  (SPEC-007 §6.1)
 # ---------------------------------------------------------------------------
 
+
 def apply_exact_filter(
-    stmt: Select, col: InstrumentedAttribute, value: Any
-) -> Select:
+    stmt: Select[Any], col: InstrumentedAttribute[Any], value: Any
+) -> Select[Any]:
     """WHERE col = value.  No-op when value is None."""
     if value is not None:
         return stmt.where(col == value)
@@ -224,8 +223,8 @@ def apply_exact_filter(
 
 
 def apply_in_filter(
-    stmt: Select, col: InstrumentedAttribute, value: str | None
-) -> Select:
+    stmt: Select[Any], col: InstrumentedAttribute[Any], value: str | None
+) -> Select[Any]:
     """WHERE col IN (...) parsed from a comma-separated query param.
 
     Example: ``?status=DRAFT,SENT`` → ``WHERE status IN ('DRAFT', 'SENT')``
@@ -239,11 +238,11 @@ def apply_in_filter(
 
 
 def apply_date_range_filter(
-    stmt: Select,
-    col: InstrumentedAttribute,
+    stmt: Select[Any],
+    col: InstrumentedAttribute[Any],
     date_from: date | datetime | None,
     date_to: date | datetime | None,
-) -> Select:
+) -> Select[Any]:
     """WHERE col >= date_from AND col <= date_to.
 
     Each bound is optional.  Both bounds are inclusive.
@@ -256,8 +255,8 @@ def apply_date_range_filter(
 
 
 def apply_text_search(
-    stmt: Select, col: InstrumentedAttribute, q: str | None
-) -> Select:
+    stmt: Select[Any], col: InstrumentedAttribute[Any], q: str | None
+) -> Select[Any]:
     """WHERE col ILIKE '%q%'.  No-op when q is None or empty."""
     if q:
         return stmt.where(col.ilike(f"%{q}%"))

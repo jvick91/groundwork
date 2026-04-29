@@ -1,8 +1,8 @@
 # STATE.md — Session Entry Point
 
-**Last updated:** 2026-03-26
-**Active task:** TASK-007
-**Branch:** audit-log-service
+**Last updated:** 2026-04-29
+**Active task:** TASK-007 (next on phase1-finish branch)
+**Branch:** phase1-finish
 
 ---
 
@@ -32,7 +32,7 @@
 | 008 | [Test infrastructure & fixtures](tasks/TASK-008-test-infrastructure.md) | Partial | 001, 002, 003, 007 |
 | 008A | [Service & router layer conventions (shared plumbing only)](tasks/TASK-008A-service-router-conventions.md) | Partial | 002, 003, 004, 006, 007, 008 |
 | 008B | [CI pipeline configuration (GitHub Actions: lint, type check, tests, build)](tasks/TASK-008B-ci-pipeline.md) | Not started | 001, 002, 007, 008, 008C |
-| 008C | [Linter & type-check configuration (ruff + mypy strict in pyproject.toml)](tasks/TASK-008C-linter-config.md) | Not started | 001 |
+| 008C | [Linter & type-check configuration (ruff + mypy strict in pyproject.toml)](tasks/TASK-008C-linter-config.md) | **Complete** | 001 |
 
 **Partial status notes:**
 - **003:** 7 exception classes exist (`GroundworkError`, `NotFoundError`, `ValidationError`, `ConflictError`, `ForbiddenError`, `OrganizationRequiredError`, `BridgeRuleViolation`, `StatusTransitionError`) + `ErrorResponse` schema + handler in `main.py`. Missing: `ResourceLockedError`, `PrerequisiteNotMetError`, `AccountInactiveError`, `UnauthorizedError`, `BadRequestError`, `OrgAccessDeniedError`, `RateLimitedError`, `InternalError`; Pydantic 422 handler; generic 500 handler. Error code `status_transition_error` should be `state_transition_denied` per SPEC-007.

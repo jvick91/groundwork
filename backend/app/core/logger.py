@@ -11,13 +11,12 @@ centralized exclusion list shared with the audit service).
 import logging
 
 import structlog
+from structlog.types import EventDict, WrappedLogger
 
 from app.core.phi import PHI_EXCLUDED_FIELDS
 
 
-def phi_filter(
-    logger: logging.Logger, method_name: str, event_dict: dict
-) -> dict:
+def phi_filter(logger: WrappedLogger, method_name: str, event_dict: EventDict) -> EventDict:
     """Structlog processor that strips PHI fields from log events."""
     for field in PHI_EXCLUDED_FIELDS:
         event_dict.pop(field, None)
@@ -26,11 +25,7 @@ def phi_filter(
 
 def setup_logging(log_level: str = "INFO", log_json: bool = True) -> None:
     """Configure structlog with JSON or console rendering."""
-    renderer = (
-        structlog.processors.JSONRenderer()
-        if log_json
-        else structlog.dev.ConsoleRenderer()
-    )
+    renderer = structlog.processors.JSONRenderer() if log_json else structlog.dev.ConsoleRenderer()
 
     structlog.configure(
         processors=[
@@ -59,4 +54,5 @@ def setup_logging(log_level: str = "INFO", log_json: bool = True) -> None:
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     """Return a bound structlog logger for the given module name."""
-    return structlog.get_logger(name)
+    logger: structlog.stdlib.BoundLogger = structlog.get_logger(name)
+    return logger

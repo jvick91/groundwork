@@ -60,9 +60,7 @@ def create_app() -> FastAPI:
 
     # Domain errors — GroundworkError subclasses (SPEC-007 §7.3)
     @app.exception_handler(GroundworkError)
-    async def groundwork_error_handler(
-        request: Request, exc: GroundworkError
-    ) -> JSONResponse:
+    async def groundwork_error_handler(request: Request, exc: GroundworkError) -> JSONResponse:
         return JSONResponse(
             status_code=exc.status_code,
             content={
@@ -89,11 +87,13 @@ def create_app() -> FastAPI:
                     continue
                 field_parts.append(str(part))
             # Never echo the submitted value — `input` may contain PHI (SPEC-007 §7.4).
-            details.append({
-                "field": ".".join(field_parts) if field_parts else "body",
-                "message": error.get("msg", "Invalid value."),
-                "code": error.get("type", "value_error"),
-            })
+            details.append(
+                {
+                    "field": ".".join(field_parts) if field_parts else "body",
+                    "message": error.get("msg", "Invalid value."),
+                    "code": error.get("type", "value_error"),
+                }
+            )
         return JSONResponse(
             status_code=422,
             content={
@@ -107,9 +107,7 @@ def create_app() -> FastAPI:
     # HTTPException (unknown route 404, 405, hand-raised HTTPException) must also
     # return the canonical envelope (SPEC-007 §7.1 / TASK-003 objective).
     @app.exception_handler(StarletteHTTPException)
-    async def http_exception_handler(
-        request: Request, exc: StarletteHTTPException
-    ) -> JSONResponse:
+    async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
         error_code = _HTTP_STATUS_TO_ERROR_CODE.get(exc.status_code, "http_error")
         message = exc.detail if isinstance(exc.detail, str) else "HTTP error."
         return JSONResponse(
@@ -126,9 +124,7 @@ def create_app() -> FastAPI:
     # Catch-all — never leak internals (SPEC-007 §7.3 internal_error).
     # Uses structlog so the project's PHI filter runs before emission.
     @app.exception_handler(Exception)
-    async def unhandled_exception_handler(
-        request: Request, exc: Exception
-    ) -> JSONResponse:
+    async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         logger.exception(
             "unhandled_exception",
             method=request.method,
