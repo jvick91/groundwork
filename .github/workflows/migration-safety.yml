@@ -30,6 +30,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Create stub env files for compose
+        run: |
+          touch .env
+          touch backend/.env.backend
+
       - name: Build backend image
         run: docker compose build backend
 

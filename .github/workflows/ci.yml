@@ -34,6 +34,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
+      # docker-compose.yml references .env and backend/.env.backend (both gitignored
+      # since they hold local-dev secrets). Compose treats `env_file:` paths as
+      # required by default and fails if they don't exist. In CI the defaults baked
+      # into compose's `${VAR:-default}` syntax and pydantic-settings' field
+      # defaults are sufficient, so empty stubs are enough.
+      - name: Create stub env files for compose
+        run: |
+          touch .env
+          touch backend/.env.backend
+
       # The backend image bakes pyproject.toml in, so any change there requires a rebuild.
       # The volume mount on app/ and tests/ keeps source iteration fast in dev — in CI we
       # are working from a fresh checkout so the mounted paths reflect the PR's tree.
@@ -86,6 +96,11 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
+      - name: Create stub env files for compose
+        run: |
+          touch .env
+          touch backend/.env.backend
 
       - name: Build backend image
         run: docker compose build backend
