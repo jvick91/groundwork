@@ -116,10 +116,10 @@ class Database:
             if cls._engine is None:
                 logger.info("initializing_database_engine", url=database_url.split("@")[-1])
                 engine_config: dict[str, object] = {
-                "echo": echo,
-                "pool_pre_ping": True,
-                "future": True,
-            }
+                    "echo": echo,
+                    "pool_pre_ping": True,
+                    "future": True,
+                }
                 engine_config.update(engine_kwargs)
                 cls._engine = create_async_engine(database_url, **engine_config)
                 cls._session_factory = async_sessionmaker(
