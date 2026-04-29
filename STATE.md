@@ -1,8 +1,8 @@
 # STATE.md — Session Entry Point
 
 **Last updated:** 2026-04-29
-**Active task:** TASK-009 (next — Organization model & first vertical slice)
-**Branch:** task-008a-service-router-conventions
+**Active task:** TASK-010 (next — EntityType & EntityAttribute models, seed data, & API)
+**Branch:** organization-api
 
 ---
 
@@ -49,7 +49,7 @@
 
 | # | Task | Status | Depends on |
 |---|------|--------|------------|
-| 009 | [Organization model & CRUD API (first vertical slice)](tasks/TASK-009-organization-model-and-api.md) | Not started | 004, 008A |
+| 009 | [Organization model & CRUD API (first vertical slice)](tasks/TASK-009-organization-model-and-api.md) | **Complete** | 004, 008A |
 | 010 | [EntityType & EntityAttribute models, seed data, & API](tasks/TASK-010-entity-type-attribute-models-api.md) | Not started | 004, 009 |
 | 011 | [EntityInstance & AttributeValue (container — not executable)](tasks/TASK-011-entity-instance-attribute-value-api.md) | Container | — |
 | ↳ 011A | [AttributeValue type casting engine (shape only; fk existence hook deferred)](tasks/TASK-011A-attribute-value-type-casting.md) | Not started | 010 |
