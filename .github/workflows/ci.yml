@@ -6,6 +6,13 @@ on:
   push:
     branches: [main]
 
+# Force Node 24 for any JS-based action that hasn't yet shipped a Node 24 release
+# (e.g. docker/setup-buildx-action is still on v3 / Node 20 as of 2026-04).
+# actions/checkout@v5 already runs on Node 24; this env var carries everything else
+# until each action releases its Node 24 update.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 permissions:
   contents: read
 
@@ -21,7 +28,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -92,7 +99,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
