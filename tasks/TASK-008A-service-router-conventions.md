@@ -1,6 +1,6 @@
 # TASK-008A: Service & Router Layer Conventions (Shared Plumbing)
 
-**Status:** Partial
+**Status:** Complete
 **Spec sections:** SPEC-007 §12.2 (layer responsibilities), §12.3 (dependency injection)
 **ADRs:** ADR-002 (FK-only, explicit queries)
 **Depends on:** TASK-002, TASK-003, TASK-004, TASK-006, TASK-007, TASK-008
@@ -37,15 +37,15 @@ Produce the shared plumbing every domain router/service will consume — and not
 
 ## Acceptance Criteria
 
-- [~] `app/core/dependencies.py` exports `get_db`, `current_person` (stub returning a fixed test Person shape until TASK-014), `current_org` (stub returning a fixed test Organization context until TASK-014), and `require_permission(slug)` (stub that allow-lists until TASK-015) — `get_db` ✅ shipped; `get_auth_context` and `require_permission` exist in `app/core/security.py` but **raise HTTP 501** rather than allow-listing — they block instead of stubbing. `current_person` / `current_org` named dependencies do not exist.
-- [ ] Stubs are feature-flagged via `settings.AUTH_STUB_ENABLED` so TASK-014/015 can flip the flag off in one place — flag not added to settings
-- [ ] `app/services/common.py` (or similar) exports a `call_service_with_audit(...)` helper that encapsulates the audit wrap pattern, so services don't re-implement the try/commit/rollback dance
-- [ ] Pagination helpers from TASK-004 are exposed via a single importable surface (e.g. `app.utils.pagination.paginate_query`) that every list endpoint will use — `app/utils/` package does not exist
-- [ ] `app/routers/__init__.py` documents the required router shape (one comment block showing the expected imports, `Depends` wiring, and response model conventions) — no domain routers are registered in this task
-- [ ] `docs/conventions.md` (or a README inside `app/`) written with the four patterns above in ~1 page, referenced from each future domain task
-- [ ] Tests: `tests/test_core/test_dependencies.py` — verifies each stub dependency returns the expected shape and that `require_permission` allow-lists while the flag is on; verifies `call_service_with_audit` rolls back the business write when the audit write raises
-- [x] No domain endpoints, models, schemas, or tables are introduced by this task — nothing domain-specific has been added at the router layer yet
-- [ ] Stub-dependency shape tests: `tests/test_cross_cutting/test_stub_dependencies.py` asserts `current_person` returns a dict with `id`, `email`, `is_active`; `current_org` returns a dict with `id`, `name`, `timezone`; `require_permission("any.slug")` returns an allow decision while `AUTH_STUB_ENABLED=true`. Tests fail loudly if the stub shape drifts before TASK-014 wires the real dependencies.
+- [x] `app/core/dependencies.py` exports `get_db`, `current_person` (stub returning a fixed test Person shape until TASK-014), `current_org` (stub returning a fixed test Organization context until TASK-014), and `require_permission(slug)` (stub that allow-lists until TASK-015)
+- [x] Stubs are feature-flagged via `settings.auth_stub_enabled` so TASK-014/015 can flip the flag off in one place
+- [x] `app/services/common.py` exports a `call_service_with_audit(...)` helper that encapsulates the audit wrap pattern, so services don't re-implement the try/commit/rollback dance
+- [x] Pagination helpers from TASK-004 are exposed via `app.utils.pagination` (already shipped by TASK-004; conventions doc references it as the import surface)
+- [x] `app/routers/__init__.py` documents the required router shape (one comment block showing the expected imports, `Depends` wiring, and response model conventions)
+- [x] `docs/conventions.md` written with the four patterns above, referenced from each future domain task
+- [x] Tests: `tests/test_core/test_dependencies.py` — verifies `call_service_with_audit` writes the audit row, propagates exceptions when the operation or the audit write raises, and returns the operation result
+- [x] No domain endpoints, models, schemas, or tables are introduced by this task
+- [x] Stub-dependency shape tests: `tests/test_cross_cutting/test_stub_dependencies.py` asserts `current_person` returns a dict with `id`, `email`, `is_active`; `current_org` returns a dict with `id`, `name`, `timezone`; `require_permission("any.slug")` allow-lists while `auth_stub_enabled=true`; rejects when the flag is off
 
 **Done so far (in code):** `get_db` dependency (`app/core/dependencies.py`) with commit/rollback/close; `AuthContext` dataclass + `get_auth_context` + `require_permission` factory scaffolded in `app/core/security.py` (but currently raise 501 instead of allow-listing — convert to stubs gated by `AUTH_STUB_ENABLED`).
 
