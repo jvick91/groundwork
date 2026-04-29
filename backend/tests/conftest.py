@@ -25,6 +25,10 @@ from tests.fixtures import jwt_keys
 
 TokenFactory = Callable[..., str]
 
+# Tracks every db_session instance so create_tables teardown can close them
+# before drop_all, releasing any table locks held by open/aborted transactions.
+_open_sessions: list[AsyncSession] = []
+
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session", autouse=True)
 async def initialize_database() -> AsyncGenerator[None, None]:
@@ -64,6 +68,18 @@ async def create_tables(test_engine):
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
+    # Close all db_session instances before drop_all to release table locks.
+    # create_tables teardown runs in the session event loop — the same loop
+    # in which test tasks created their asyncpg connections — so
+    # await session.close() works without a loop-mismatch.  The try/except
+    # ensures that sessions left in an aborted-transaction state (e.g. after
+    # an immutability-trigger DBAPIError) are also handled gracefully.
+    for session in _open_sessions:
+        try:
+            await session.close()
+        except Exception:
+            pass
+    _open_sessions.clear()
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
@@ -90,11 +106,10 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
     mismatch in teardown.
     """
     session: AsyncSession = Database.get_session_factory()()
+    _open_sessions.append(session)
     yield session
-    # No async teardown — the session is abandoned to GC.  Python drops the
-    # TCP connection; PostgreSQL auto-rolls-back any open transaction.  Any
-    # cleanup that requires async I/O (rollback/close) must be called by the
-    # test body directly, where the correct event-loop context is in scope.
+    # No per-test async teardown — sessions are closed in create_tables
+    # teardown (session-scoped, same event loop) before drop_all runs.
 
 
 @pytest_asyncio.fixture(loop_scope="session")
