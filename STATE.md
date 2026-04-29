@@ -1,8 +1,8 @@
 # STATE.md — Session Entry Point
 
 **Last updated:** 2026-04-29
-**Active task:** TASK-008B (next)
-**Branch:** task-008-test-infrastructure
+**Active task:** TASK-008A (next — service & router conventions)
+**Branch:** task-008b-ci-pipeline
 
 ---
 
@@ -31,7 +31,7 @@
 | 007 | [Structured logging & PHI exclusion filter](tasks/TASK-007-structured-logging-phi-filter.md) | **Complete** | 001 |
 | 008 | [Test infrastructure & fixtures](tasks/TASK-008-test-infrastructure.md) | **Complete** (per-domain factories deferred) | 001, 002, 003, 007 |
 | 008A | [Service & router layer conventions (shared plumbing only)](tasks/TASK-008A-service-router-conventions.md) | Partial | 002, 003, 004, 006, 007, 008 |
-| 008B | [CI pipeline configuration (GitHub Actions: lint, type check, tests, build)](tasks/TASK-008B-ci-pipeline.md) | Not started | 001, 002, 007, 008, 008C |
+| 008B | [CI pipeline configuration (GitHub Actions: lint, type check, tests, build)](tasks/TASK-008B-ci-pipeline.md) | **Complete** (branch protection is a manual GH setting) | 001, 002, 007, 008, 008C |
 | 008C | [Linter & type-check configuration (ruff + mypy strict in pyproject.toml)](tasks/TASK-008C-linter-config.md) | **Complete** | 001 |
 
 **Partial status notes:**

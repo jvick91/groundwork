@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # SPEC-007 §14.1 — lint → type check → tests inside Docker
+  backend-checks:
+    name: Lint, type check, tests (backend)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ hashFiles('backend/dockerfile', 'backend/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      # docker-compose.yml references .env and backend/.env.backend (both gitignored
+      # since they hold local-dev secrets). Compose treats `env_file:` paths as
+      # required by default and fails if they don't exist. In CI the defaults baked
+      # into compose's `${VAR:-default}` syntax and pydantic-settings' field
+      # defaults are sufficient, so empty stubs are enough.
+      - name: Create stub env files for compose
+        run: |
+          touch .env
+          touch backend/.env.backend
+
+      # The backend image bakes pyproject.toml in, so any change there requires a rebuild.
+      # The volume mount on app/ and tests/ keeps source iteration fast in dev — in CI we
+      # are working from a fresh checkout so the mounted paths reflect the PR's tree.
+      - name: Build backend image
+        run: docker compose build backend
+
+      - name: Start backend and test database
+        run: |
+          docker compose up -d backend db-test
+          # Wait for db-test to be healthy so pytest can connect. The compose
+          # `--wait` flag would block on the primary `db` healthcheck only;
+          # we poll docker inspect directly for the test DB.
+          for i in {1..30}; do
+            STATUS=$(docker inspect --format='{{.State.Health.Status}}' groundwork-db-test-1 2>/dev/null || echo "starting")
+            if [ "$STATUS" = "healthy" ]; then
+              echo "db-test is healthy"
+              break
+            fi
+            echo "Waiting for db-test... ($i/30): $STATUS"
+            sleep 2
+          done
+          docker compose ps
+
+      - name: Lint (ruff check)
+        run: docker compose exec -T backend ruff check app/ tests/
+
+      - name: Format check (ruff format --check)
+        run: docker compose exec -T backend ruff format --check app/ tests/
+
+      - name: Type check (mypy strict)
+        run: docker compose exec -T backend mypy app/
+
+      # Coverage threshold (--cov-fail-under=90) is enforced by pytest config (TASK-008).
+      - name: Backend tests (pytest)
+        run: docker compose exec -T backend pytest
+
+      - name: Tear down compose
+        if: always()
+        run: docker compose down -v
+
+  # SPEC-007 §14.1 — build stage runs on its own so a build break is reportable
+  # even if the test stage above passes against a previously-cached image.
+  build:
+    name: Docker image build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create stub env files for compose
+        run: |
+          touch .env
+          touch backend/.env.backend
+
+      - name: Build backend image
+        run: docker compose build backend
+
