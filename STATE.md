@@ -1,8 +1,8 @@
 # STATE.md — Session Entry Point
 
 **Last updated:** 2026-04-29
-**Active task:** TASK-007 (next on phase1-finish branch)
-**Branch:** phase1-finish
+**Active task:** TASK-008 (next)
+**Branch:** task-007-request-logging
 
 ---
 
@@ -28,7 +28,7 @@
 | 004 | [Cursor pagination utility](tasks/TASK-004-cursor-pagination.md) | **Complete** | 001, 003 |
 | 005 | [Health check endpoints](tasks/TASK-005-health-check-endpoints.md) | **Complete** | 001 |
 | 006 | [AuditLog model & audit service](tasks/TASK-006-audit-log-model-and-service.md) | **Complete** | 001, 002 |
-| 007 | [Structured logging & PHI exclusion filter](tasks/TASK-007-structured-logging-phi-filter.md) | Partial | 001 |
+| 007 | [Structured logging & PHI exclusion filter](tasks/TASK-007-structured-logging-phi-filter.md) | **Complete** | 001 |
 | 008 | [Test infrastructure & fixtures](tasks/TASK-008-test-infrastructure.md) | Partial | 001, 002, 003, 007 |
 | 008A | [Service & router layer conventions (shared plumbing only)](tasks/TASK-008A-service-router-conventions.md) | Partial | 002, 003, 004, 006, 007, 008 |
 | 008B | [CI pipeline configuration (GitHub Actions: lint, type check, tests, build)](tasks/TASK-008B-ci-pipeline.md) | Not started | 001, 002, 007, 008, 008C |
