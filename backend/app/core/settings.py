@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     auth0_audience: str = ""
     auth0_issuer: str = ""
 
+    # Stubs
+    # Until TASK-014 (auth middleware) and TASK-015 (permission resolution) land,
+    # auth-related dependencies short-circuit to a fixed test identity. This flag
+    # is the single switch those tasks flip off.
+    auth_stub_enabled: bool = True
+
     @property
     def auth0_issuer_url(self) -> str:
         if self.auth0_issuer:
