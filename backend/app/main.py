@@ -163,7 +163,6 @@ def create_app() -> FastAPI:
     # TODO: Phase 4 - Include Clinical, Billing, Compliance routers
     # TODO: Phase 5 - API hardening middleware
 
-
     return app
 
 
