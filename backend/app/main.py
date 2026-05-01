@@ -18,6 +18,7 @@ from app.core.settings import settings
 from app.middleware.request_logger import RequestLoggerMiddleware
 from app.routers import compliance as compliance_router
 from app.routers import eav as eav_router
+from app.routers import entity_types as entity_types_router
 from app.routers import health as health_router
 
 logger = get_logger(__name__)
@@ -157,7 +158,10 @@ def create_app() -> FastAPI:
     # EAV domain — Organization CRUD (SPEC-001 §2)
     app.include_router(eav_router.router, prefix="/api/v1")
 
-    # TODO: Phase 1 - Include remaining EAV routers (EntityType, EntityAttribute)
+    # EAV domain — EntityType CRUD (SPEC-001 §6, TASK-010 Phase 1)
+    app.include_router(entity_types_router.router, prefix="/api/v1")
+
+    # TODO: Phase 1 - Include EntityAttribute router (TASK-010 Phase 2)
     # TODO: Phase 2 - Include Identity/RBAC routers
     # TODO: Phase 3 - Include Scheduling routers
     # TODO: Phase 4 - Include Clinical, Billing, Compliance routers
