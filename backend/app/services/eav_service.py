@@ -28,20 +28,38 @@ _SORT_FIELDS = {
 }
 
 
+# API key (nested) -> ORM column (flat). Used for Create projection and Update
+# projection of the nested ``address`` PATCH body.
+_ADDRESS_FIELD_MAP = {
+    "line1": "address_line1",
+    "line2": "address_line2",
+    "city": "city",
+    "state": "state",
+    "postal_code": "postal_code",
+    "country": "country",
+}
+
+
 def _org_snapshot(org: Organization) -> dict[str, Any]:
-    """Return a serialisable snapshot of an Organization for audit logging."""
+    """Return a serialisable snapshot of an Organization for audit logging.
+
+    Shape mirrors ``OrganizationResponse`` so the audit trail and API are
+    structurally identical.
+    """
     return {
         "id": str(org.id),
         "name": org.name,
         "npi_number": org.npi_number,
         "tax_id": org.tax_id,
         "phone": org.phone,
-        "address_line1": org.address_line1,
-        "address_line2": org.address_line2,
-        "city": org.city,
-        "state": org.state,
-        "postal_code": org.postal_code,
-        "country": org.country,
+        "address": {
+            "line1": org.address_line1,
+            "line2": org.address_line2,
+            "city": org.city,
+            "state": org.state,
+            "postal_code": org.postal_code,
+            "country": org.country,
+        },
         "timezone": org.timezone,
         "is_active": org.is_active,
     }
@@ -67,12 +85,12 @@ async def create_organization(
         npi_number=data.npi_number,
         tax_id=data.tax_id,
         phone=data.phone,
-        address_line1=data.address_line1,
-        address_line2=data.address_line2,
-        city=data.city,
-        state=data.state,
-        postal_code=data.postal_code,
-        country=data.country,
+        address_line1=data.address.line1,
+        address_line2=data.address.line2,
+        city=data.address.city,
+        state=data.address.state,
+        postal_code=data.address.postal_code,
+        country=data.address.country,
         timezone=data.timezone,
         is_active=True,
         created_at=datetime.now(tz=UTC),
@@ -138,6 +156,10 @@ async def update_organization(
     previous = _org_snapshot(org)
 
     updates = data.model_dump(exclude_unset=True)
+    address_updates = updates.pop("address", None)
+    if address_updates is not None:
+        for api_key, value in address_updates.items():
+            setattr(org, _ADDRESS_FIELD_MAP[api_key], value)
     for field, value in updates.items():
         setattr(org, field, value)
 

@@ -32,12 +32,14 @@ The EAV (Entity-Attribute-Value) system is the architectural foundation that all
 | npi_number | String | NULLABLE, API regex `^\d{10}$` | Organization-level NPI (Type 2). 10 digits; format-only check at the API, no NPPES Luhn. |
 | tax_id | String | NULLABLE, API regex `^\d{2}-\d{7}$` | EIN in `NN-NNNNNNN` format. |
 | phone | String | NULLABLE, API regex `^[\d\s\-+().]{7,20}$` | Main practice phone. Loose-shape check; not normalized to E.164 until a comms feature lands. |
-| address_line1 | String(255) | NULLABLE | Street address line 1. |
-| address_line2 | String(255) | NULLABLE | Street address line 2 (suite, apt). |
-| city | String(100) | NULLABLE | City. |
-| state | String(2) | NULLABLE, API regex `^[A-Z]{2}$` | ISO-3166-2:US subdivision code (uppercase). |
-| postal_code | String(20) | NULLABLE | Postal code (US ZIP/ZIP+4 or international). |
-| country | String(2) | NOT NULL, default `"US"`, API regex `^[A-Z]{2}$` | ISO-3166-1 alpha-2 country code. |
+| address_line1 | String(255) | NULLABLE | Street address line 1. API key: `address.line1`. |
+| address_line2 | String(255) | NULLABLE | Street address line 2 (suite, apt). API key: `address.line2`. |
+| city | String(100) | NULLABLE | City. API key: `address.city`. |
+| state | String(2) | NULLABLE, API regex `^[A-Z]{2}$` | ISO-3166-2:US subdivision code (uppercase). API key: `address.state`. |
+| postal_code | String(20) | NULLABLE | Postal code (US ZIP/ZIP+4 or international). API key: `address.postal_code`. |
+| country | String(2) | NOT NULL, default `"US"`, API regex `^[A-Z]{2}$` | ISO-3166-1 alpha-2 country code. API key: `address.country`. |
+
+> **API representation:** the six address columns are exposed at the API as a single nested `address` object (`{ line1, line2, city, state, postal_code, country }`), not flat-at-root keys. PATCH on `address` merges — only set inner fields are applied. See ADR-007 amendment 2026-05-01.
 | timezone | String | NOT NULL, default "UTC" | IANA timezone (e.g., "America/New_York"). |
 | is_active | Boolean | NOT NULL, default true | Soft toggle for tenant suspension. |
 | created_at | Timestamp | NOT NULL, default now | Record creation time. |

@@ -339,95 +339,99 @@ async def test_update_with_invalid_npi_returns_422(http_client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_create_with_full_address_succeeds(http_client: AsyncClient):
-    """All six address fields persist and round-trip through the response."""
+    """Nested address round-trips through Create + Response."""
     resp = await http_client.post(
         "/api/v1/organizations",
         json={
             "name": f"Addr Org {uuid.uuid4()}",
-            "address_line1": "1420 SE Powell Blvd",
-            "address_line2": "Suite 200",
-            "city": "Portland",
-            "state": "OR",
-            "postal_code": "97202",
-            "country": "US",
+            "address": {
+                "line1": "1420 SE Powell Blvd",
+                "line2": "Suite 200",
+                "city": "Portland",
+                "state": "OR",
+                "postal_code": "97202",
+                "country": "US",
+            },
         },
     )
     assert resp.status_code == 201, resp.text
-    body = resp.json()
-    assert body["address_line1"] == "1420 SE Powell Blvd"
-    assert body["address_line2"] == "Suite 200"
-    assert body["city"] == "Portland"
-    assert body["state"] == "OR"
-    assert body["postal_code"] == "97202"
-    assert body["country"] == "US"
+    addr = resp.json()["address"]
+    assert addr["line1"] == "1420 SE Powell Blvd"
+    assert addr["line2"] == "Suite 200"
+    assert addr["city"] == "Portland"
+    assert addr["state"] == "OR"
+    assert addr["postal_code"] == "97202"
+    assert addr["country"] == "US"
 
 
 @pytest.mark.asyncio
 async def test_create_country_defaults_to_us(http_client: AsyncClient):
-    """country defaults to 'US' when omitted."""
+    """address.country defaults to 'US' when address omitted entirely."""
     resp = await http_client.post(
         "/api/v1/organizations",
         json={"name": f"Default Country Org {uuid.uuid4()}"},
     )
     assert resp.status_code == 201, resp.text
-    assert resp.json()["country"] == "US"
+    assert resp.json()["address"]["country"] == "US"
 
 
 @pytest.mark.asyncio
 async def test_create_lowercase_state_returns_422(http_client: AsyncClient):
-    """state must be uppercase 2-char ISO code."""
+    """address.state must be uppercase 2-char ISO code."""
     resp = await http_client.post(
         "/api/v1/organizations",
-        json={"name": "LC State Org", "state": "or"},
+        json={"name": "LC State Org", "address": {"state": "or"}},
     )
     assert resp.status_code == 422
 
 
 @pytest.mark.asyncio
 async def test_create_three_char_state_returns_422(http_client: AsyncClient):
-    """state must be exactly 2 chars."""
+    """address.state must be exactly 2 chars."""
     resp = await http_client.post(
         "/api/v1/organizations",
-        json={"name": "Long State Org", "state": "ORE"},
+        json={"name": "Long State Org", "address": {"state": "ORE"}},
     )
     assert resp.status_code == 422
 
 
 @pytest.mark.asyncio
 async def test_create_lowercase_country_returns_422(http_client: AsyncClient):
-    """country must be uppercase ISO-3166-1 alpha-2."""
+    """address.country must be uppercase ISO-3166-1 alpha-2."""
     resp = await http_client.post(
         "/api/v1/organizations",
-        json={"name": "LC Country Org", "country": "us"},
+        json={"name": "LC Country Org", "address": {"country": "us"}},
     )
     assert resp.status_code == 422
 
 
 @pytest.mark.asyncio
 async def test_update_partial_address_fields(http_client: AsyncClient):
-    """PATCH can update individual address fields without touching the rest."""
+    """PATCH on nested address merges — only set fields are applied; the rest stay."""
     create = await http_client.post(
         "/api/v1/organizations",
         json={
             "name": f"Partial Addr {uuid.uuid4()}",
-            "address_line1": "100 Main St",
-            "city": "Salem",
-            "state": "OR",
-            "postal_code": "97301",
+            "address": {
+                "line1": "100 Main St",
+                "city": "Salem",
+                "state": "OR",
+                "postal_code": "97301",
+            },
         },
     )
     org_id = create.json()["id"]
 
     resp = await http_client.patch(
         f"/api/v1/organizations/{org_id}",
-        json={"address_line2": "Apt 4B"},
+        json={"address": {"line2": "Apt 4B"}},
     )
     assert resp.status_code == 200, resp.text
-    body = resp.json()
-    assert body["address_line2"] == "Apt 4B"
-    assert body["address_line1"] == "100 Main St"  # untouched
-    assert body["city"] == "Salem"
-    assert body["state"] == "OR"
+    addr = resp.json()["address"]
+    assert addr["line2"] == "Apt 4B"
+    assert addr["line1"] == "100 Main St"  # untouched (merge, not replace)
+    assert addr["city"] == "Salem"
+    assert addr["state"] == "OR"
 
 
 # ---------------------------------------------------------------------------

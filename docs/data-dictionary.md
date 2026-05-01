@@ -35,12 +35,12 @@ Soft-deleted: No (uses `is_active` for suspension). Audit-logged: Ambiguous — 
 | npi_number | String | Y | API regex `^\d{10}$` (10 digits) | N | SPEC-001 §2 |
 | tax_id | String | Y | API regex `^\d{2}-\d{7}$` (EIN) | N | SPEC-001 §2 |
 | phone | String | Y | API regex `^[\d\s\-+().]{7,20}$` (loose shape) | N | SPEC-001 §2 |
-| address_line1 | String(255) | Y | — | N | SPEC-001 §2, ADR-007 |
-| address_line2 | String(255) | Y | — | N | SPEC-001 §2, ADR-007 |
-| city | String(100) | Y | — | N | SPEC-001 §2, ADR-007 |
-| state | String(2) | Y | API regex `^[A-Z]{2}$` (ISO-3166-2:US) | N | SPEC-001 §2, ADR-007 |
-| postal_code | String(20) | Y | — | N | SPEC-001 §2, ADR-007 |
-| country | String(2) | N | API regex `^[A-Z]{2}$` (ISO-3166-1 alpha-2), default `US` | N | SPEC-001 §2, ADR-007 |
+| address_line1 | String(255) | Y | API key `address.line1` | N | SPEC-001 §2, ADR-007 |
+| address_line2 | String(255) | Y | API key `address.line2` | N | SPEC-001 §2, ADR-007 |
+| city | String(100) | Y | API key `address.city` | N | SPEC-001 §2, ADR-007 |
+| state | String(2) | Y | API key `address.state`; regex `^[A-Z]{2}$` (ISO-3166-2:US) | N | SPEC-001 §2, ADR-007 |
+| postal_code | String(20) | Y | API key `address.postal_code` | N | SPEC-001 §2, ADR-007 |
+| country | String(2) | N | API key `address.country`; regex `^[A-Z]{2}$` (ISO-3166-1 alpha-2), default `US` | N | SPEC-001 §2, ADR-007 |
 | timezone | String | N | IANA tz, default `UTC` | N | SPEC-001 §2 |
 | is_active | Boolean | N | default true | N | SPEC-001 §2 |
 | created_at | Timestamp (UTC) | N | — | N | SPEC-001 §2 |

@@ -63,3 +63,22 @@ Rejected. JSONB hides the schema from the database and from anyone reading the m
 - Schema anchor: [backend/app/schemas/eav.py](../backend/app/schemas/eav.py) (current OrganizationCreate/Update/Response)
 - Spec: [SPEC-001 §Organization](../specs/SPEC-001-eav-data-platform.md#L26-L39)
 - Related: SPEC-005 (Billing — 837P consumer of structured address); ADR-002 (FK-only, applies if `addresses` table is introduced later)
+
+## Amendment 2026-05-01 — API representation is nested
+
+The original ADR specified the columns and noted "the same shape is reused if/when other entities need addresses, so the convention is set once" — but did not state how the address is exposed at the API. This amendment closes that gap.
+
+**Decision.** The API representation of an address is a **nested object** under the parent schema (`address: { line1, line2, city, state, postal_code, country }`), not flat-at-root keys. The DB columns remain flat on the parent table; the service layer translates.
+
+**Why.** Three reasons, in priority order:
+1. **Reusability across entities.** Once Person and InsurancePayer need addresses (anticipated by the original ADR), a nested `Address` Pydantic model embeds in any parent schema with one line. Flat-at-root would require redefining six fields per parent and would not scale to multiple address kinds (mailing vs. billing vs. service location for 837P claims).
+2. **Conceptual grouping matches reality.** Forms render addresses as a unit; the JSON shape should match.
+3. **Snapshot/audit parity.** The audit log snapshot mirrors the API shape for free, making the audit trail and the response structurally identical.
+
+**PATCH semantics — merge, not replace.** A `PATCH` body of `{"address": {"line2": "Apt 4B"}}` updates only `line2`; other address fields are preserved. This matches the parent-object `exclude_unset` behaviour and avoids the footgun of accidentally clearing the rest of the address by sending one field. Implemented via `model_dump(exclude_unset=True)` on the inner `AddressUpdate` schema.
+
+**Scope of change.** Schema-only — no DB migration. The columns added in upgrade `485f37aa7554` are unchanged. `OrganizationCreate.address: Address`, `OrganizationUpdate.address: AddressUpdate | None`, `OrganizationResponse.address: Address` (built from flat ORM via a `mode='before'` model validator).
+
+**Field name change inside the nested object.** API keys use `line1`/`line2` (the wrapper provides the `address` namespace, so the `address_` prefix would be redundant). DB columns keep `address_line1`/`address_line2` because they live flat on the parent table where the prefix disambiguates. The service-layer `_ADDRESS_FIELD_MAP` documents the translation.
+
+**Consequence.** Future `Person`/`InsurancePayer` schemas embed the same `Address` model. If the eventual data model needs multiple address kinds per entity, the parent simply gets `mailing_address: Address | None`, `billing_address: Address | None`, etc. — no new field-name proliferation, no new translation logic.
