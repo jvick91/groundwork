@@ -27,21 +27,26 @@ pytestmark = pytest.mark.asyncio
 
 
 async def test_get_auth_context_returns_stub_identity_while_flag_on() -> None:
-    """The stub identity is deterministic — UUIDs and subject pinned."""
+    """The stub identity is deterministic — person_id None (system actor),
+    org id and subject pinned. ``person_id`` is ``None`` until TASK-012
+    seeds rows in ``people``; SPEC-006 §7 documents NULL as the value for
+    system-initiated events, so this is the correct stub shape, not a
+    placeholder."""
     assert settings.auth_stub_enabled is True
     auth = await get_auth_context()
     assert isinstance(auth, AuthContext)
-    assert isinstance(auth.person_id, UUID)
+    assert auth.person_id is None
     assert isinstance(auth.organization_id, UUID)
     assert auth.auth_subject.startswith("auth0|")
 
 
 async def test_current_person_shape() -> None:
-    """current_person returns a dict with id, email, is_active."""
+    """current_person returns a dict with id, email, is_active. Under the
+    stub, ``id`` is None — see ``test_get_auth_context_*`` for rationale."""
     auth = await get_auth_context()
     person = await current_person(auth)
     assert set(person.keys()) >= {"id", "email", "is_active"}
-    assert isinstance(person["id"], UUID)
+    assert person["id"] is None
     assert isinstance(person["email"], str) and "@" in person["email"]
     assert person["is_active"] is True
 
