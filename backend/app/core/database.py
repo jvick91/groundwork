@@ -104,17 +104,24 @@ class Database:
     _lock = Lock()
 
     @classmethod
-    def initialize(cls, database_url: str, echo: bool = False) -> None:
-        """Initialize the async engine and session factory. Thread-safe."""
+    def initialize(cls, database_url: str, echo: bool = False, **engine_kwargs: object) -> None:
+        """Initialize the async engine and session factory. Thread-safe.
+
+        Extra keyword arguments are forwarded verbatim to
+        ``create_async_engine``.  The primary use-case is passing
+        ``poolclass=NullPool`` in the test suite to avoid event-loop
+        mismatches caused by asyncpg connection pooling.
+        """
         with cls._lock:
             if cls._engine is None:
                 logger.info("initializing_database_engine", url=database_url.split("@")[-1])
-                cls._engine = create_async_engine(
-                    database_url,
-                    echo=echo,
-                    pool_pre_ping=True,
-                    future=True,
-                )
+                engine_config: dict[str, object] = {
+                    "echo": echo,
+                    "pool_pre_ping": True,
+                    "future": True,
+                }
+                engine_config.update(engine_kwargs)
+                cls._engine = create_async_engine(database_url, **engine_config)
                 cls._session_factory = async_sessionmaker(
                     bind=cls._engine,
                     class_=AsyncSession,

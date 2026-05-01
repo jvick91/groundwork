@@ -5,6 +5,7 @@ Each test runs inside a transaction that is rolled back after the test completes
 ensuring full isolation without needing to recreate tables between tests.
 """
 
+import contextlib
 from collections.abc import AsyncGenerator, Callable
 from typing import Any
 
@@ -15,6 +16,7 @@ from sqlalchemy.ext.asyncio import (
     AsyncSession,
     create_async_engine,
 )
+from sqlalchemy.pool import NullPool
 
 from app.core.database import Base, Database
 from app.core.dependencies import get_db
@@ -23,6 +25,10 @@ from app.main import create_app
 from tests.fixtures import jwt_keys
 
 TokenFactory = Callable[..., str]
+
+# Tracks every db_session instance so create_tables teardown can close them
+# before drop_all, releasing any table locks held by open/aborted transactions.
+_open_sessions: list[AsyncSession] = []
 
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session", autouse=True)
@@ -34,17 +40,23 @@ async def initialize_database() -> AsyncGenerator[None, None]:
     ``app/routers/health.py``) would otherwise see an uninitialized engine
     and report ``"error"``. Initializing here mirrors production startup.
     """
-    Database.initialize(settings.test_database_url)
+    Database.initialize(settings.test_database_url, poolclass=NullPool)
     yield
     await Database.dispose()
 
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def test_engine():
-    """Create a single async engine for the entire test session."""
+    """Create a single async engine for the entire test session.
+
+    ``NullPool`` is intentional: it ensures that asyncpg connections are
+    created in the same asyncio event loop that the test coroutine runs in,
+    preventing the "Future attached to a different loop" error that occurs
+    when the pool's background machinery captures a different loop at startup.
+    """
     engine = create_async_engine(
         settings.test_database_url,
-        pool_pre_ping=True,
+        poolclass=NullPool,
         echo=False,
     )
     yield engine
@@ -57,21 +69,46 @@ async def create_tables(test_engine):
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
+    # Close all db_session instances before drop_all to release table locks.
+    # create_tables teardown runs in the session event loop — the same loop
+    # in which test tasks created their asyncpg connections — so
+    # await session.close() works without a loop-mismatch.  The try/except
+    # ensures that sessions left in an aborted-transaction state (e.g. after
+    # an immutability-trigger DBAPIError) are also handled gracefully.
+    for session in _open_sessions:
+        with contextlib.suppress(Exception):
+            await session.close()
+    _open_sessions.clear()
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
 
 @pytest_asyncio.fixture(loop_scope="session")
-async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
-    """Per-test database session with transaction rollback for isolation."""
-    async with test_engine.connect() as conn:
-        transaction = await conn.begin()
-        session = AsyncSession(bind=conn, expire_on_commit=False)
+async def db_session() -> AsyncGenerator[AsyncSession, None]:
+    """Per-test database session backed by the Database singleton (NullPool).
 
-        yield session
+    Connection is established **lazily** — on first use inside the test body
+    — so that the asyncpg protocol's event-loop reference matches the running
+    loop of the test task.  Eagerly pre-connecting in fixture setup (via
+    ``test_engine.connect()``) can capture a different loop snapshot, causing
+    "Future attached to a different loop" errors.
 
-        await session.close()
-        await transaction.rollback()
+    Isolation strategy: each test uses uuid-unique identifiers, so accumulated
+    rows do not interfere.  ``create_tables`` drops all tables at session end.
+    Tests that need explicit rollback (e.g. atomicity checks) call
+    ``await db_session.rollback()`` directly in the test body — which runs
+    inside the test task and has the correct loop context.
+
+    We deliberately avoid ``await session.rollback()`` in the finalizer because
+    that finalizer runs in a separate pytest-asyncio task whose greenlet bridge
+    state differs from the session that handled the test, causing the same loop
+    mismatch in teardown.
+    """
+    session: AsyncSession = Database.get_session_factory()()
+    _open_sessions.append(session)
+    yield session
+    # No per-test async teardown — sessions are closed in create_tables
+    # teardown (session-scoped, same event loop) before drop_all runs.
 
 
 @pytest_asyncio.fixture(loop_scope="session")
@@ -84,7 +121,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
     app.dependency_overrides[get_db] = _override_get_db
 
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
 

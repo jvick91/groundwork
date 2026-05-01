@@ -17,6 +17,7 @@ from app.core.logger import get_logger
 from app.core.settings import settings
 from app.middleware.request_logger import RequestLoggerMiddleware
 from app.routers import compliance as compliance_router
+from app.routers import eav as eav_router
 from app.routers import health as health_router
 
 logger = get_logger(__name__)
@@ -153,7 +154,10 @@ def create_app() -> FastAPI:
     # Compliance domain — audit log read endpoints (SPEC-006 §6)
     app.include_router(compliance_router.router, prefix="/api/v1")
 
-    # TODO: Phase 1 - Include EAV routers
+    # EAV domain — Organization CRUD (SPEC-001 §2)
+    app.include_router(eav_router.router, prefix="/api/v1")
+
+    # TODO: Phase 1 - Include remaining EAV routers (EntityType, EntityAttribute)
     # TODO: Phase 2 - Include Identity/RBAC routers
     # TODO: Phase 3 - Include Scheduling routers
     # TODO: Phase 4 - Include Clinical, Billing, Compliance routers

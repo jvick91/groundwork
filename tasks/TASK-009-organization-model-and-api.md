@@ -1,6 +1,6 @@
 # TASK-009: Organization Model & CRUD API (First Vertical Slice)
 
-**Status:** Not started
+**Status:** Complete
 **Spec sections:** SPEC-001 §2 (Organization), §6 (EntityType management — org-scoped context)
 **ADRs:** ADR-001, ADR-002
 **Depends on:** TASK-004, TASK-008A
@@ -19,19 +19,19 @@ Implement the Organization model — the root tenant record that every other tab
 
 - [x] Organization model with all SPEC-001 §2 fields: id, name, npi_number, tax_id, phone, address, timezone (default "UTC"), is_active, created_at, updated_at
 - [x] Alembic migration creates the organization table
-- [ ] Pydantic schemas for create, update, and response
-- [ ] CRUD endpoints under `/api/v1/organizations` (create, list, get, update) — scoped by `settings.write` / `settings.read` permissions
-- [ ] List endpoint (GET `/api/v1/organizations`) uses cursor-based pagination per TASK-004 and SPEC-007 §6 — `?cursor=...&limit=...`, returns `{data, next_cursor}`; never offset.
-- [ ] `timezone` field validates against IANA timezone identifiers
-- [ ] `is_active` toggle for tenant suspension
-- [ ] All state-changing operations write AuditLog entries per BR-07
-- [ ] Router, service, schemas, and factory follow the TASK-008A conventions verbatim. Any deviation is recorded with its rationale in `docs/conventions.md` in the same PR
-- [ ] `app/services/organization_hooks.py` (or equivalent) exports `register_on_create_hook(callable)` and `on_organization_created(db, org_id)`. The hook is invoked inside the same transaction as the Organization insert, after audit write, before commit. This is the extension point TASK-029 (DocumentType/ConsentType seed) and TASK-032 (FormTemplate seed) subscribe to
-- [ ] Hook failure rolls back Organization creation (same transaction, same error path as audit)
-- [ ] Test: organization CRUD happy path via httpx client
-- [ ] Test: organization with invalid timezone returns 422
-- [ ] Test: audit log entry written on organization create
-- [ ] Test: a registered hook fires on organization create; a hook that raises rolls back the create
+- [x] Pydantic schemas for create, update, and response
+- [x] CRUD endpoints under `/api/v1/organizations` (create, list, get, update) — scoped by `settings.write` / `settings.read` permissions
+- [x] List endpoint (GET `/api/v1/organizations`) uses cursor-based pagination per TASK-004 and SPEC-007 §6 — `?cursor=...&limit=...`, returns `{data, next_cursor}`; never offset.
+- [x] `timezone` field validates against IANA timezone identifiers
+- [x] `is_active` toggle for tenant suspension
+- [x] All state-changing operations write AuditLog entries per BR-07
+- [x] Router, service, schemas, and factory follow the TASK-008A conventions verbatim. Any deviation is recorded with its rationale in `docs/conventions.md` in the same PR
+- [x] `app/services/organization_hooks.py` (or equivalent) exports `register_on_create_hook(callable)` and `on_organization_created(db, org_id)`. The hook is invoked inside the same transaction as the Organization insert, after audit write, before commit. This is the extension point TASK-029 (DocumentType/ConsentType seed) and TASK-032 (FormTemplate seed) subscribe to
+- [x] Hook failure rolls back Organization creation (same transaction, same error path as audit)
+- [x] Test: organization CRUD happy path via httpx client
+- [x] Test: organization with invalid timezone returns 422
+- [x] Test: audit log entry written on organization create
+- [x] Test: a registered hook fires on organization create; a hook that raises rolls back the create
 
 ## Files
 
