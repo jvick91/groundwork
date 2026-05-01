@@ -230,6 +230,207 @@ async def test_update_with_invalid_timezone_returns_422(http_client: AsyncClient
 
 
 # ---------------------------------------------------------------------------
+# Field validation — name / npi_number / tax_id / phone (HTTP)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_create_name_too_long_returns_422(http_client: AsyncClient):
+    """name longer than 255 chars is rejected."""
+    resp = await http_client.post(
+        "/api/v1/organizations",
+        json={"name": "a" * 256},
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_with_valid_npi_succeeds(http_client: AsyncClient):
+    """A 10-digit npi_number is accepted and persisted as-supplied."""
+    resp = await http_client.post(
+        "/api/v1/organizations",
+        json={"name": f"NPI Org {uuid.uuid4()}", "npi_number": "1234567893"},
+    )
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["npi_number"] == "1234567893"
+
+
+@pytest.mark.asyncio
+async def test_create_with_invalid_npi_returns_422(http_client: AsyncClient):
+    """Non-numeric or wrong-length npi_number is rejected."""
+    resp = await http_client.post(
+        "/api/v1/organizations",
+        json={"name": "Bad NPI Org", "npi_number": "abc1234567"},
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_with_short_npi_returns_422(http_client: AsyncClient):
+    """npi_number shorter than 10 digits is rejected."""
+    resp = await http_client.post(
+        "/api/v1/organizations",
+        json={"name": "Short NPI Org", "npi_number": "12345"},
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_with_valid_tax_id_succeeds(http_client: AsyncClient):
+    """tax_id in 'NN-NNNNNNN' format is accepted."""
+    resp = await http_client.post(
+        "/api/v1/organizations",
+        json={"name": f"EIN Org {uuid.uuid4()}", "tax_id": "82-4751903"},
+    )
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["tax_id"] == "82-4751903"
+
+
+@pytest.mark.asyncio
+async def test_create_with_invalid_tax_id_returns_422(http_client: AsyncClient):
+    """tax_id missing the dash or with wrong digit count is rejected."""
+    resp = await http_client.post(
+        "/api/v1/organizations",
+        json={"name": "Bad EIN Org", "tax_id": "824751903"},
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_with_phone_garbage_returns_422(http_client: AsyncClient):
+    """Non-phone-shaped phone strings are rejected."""
+    resp = await http_client.post(
+        "/api/v1/organizations",
+        json={"name": "Bad Phone Org", "phone": "call-me-maybe"},
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_strips_whitespace_around_npi(http_client: AsyncClient):
+    """str_strip_whitespace trims input before pattern check."""
+    resp = await http_client.post(
+        "/api/v1/organizations",
+        json={"name": f"WS Org {uuid.uuid4()}", "npi_number": "  1234567893  "},
+    )
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["npi_number"] == "1234567893"
+
+
+@pytest.mark.asyncio
+async def test_update_with_invalid_npi_returns_422(http_client: AsyncClient):
+    """Validators apply to PATCH as well — bad npi_number rejected."""
+    create = await http_client.post(
+        "/api/v1/organizations",
+        json={"name": f"Update NPI {uuid.uuid4()}"},
+    )
+    org_id = create.json()["id"]
+    resp = await http_client.patch(
+        f"/api/v1/organizations/{org_id}",
+        json={"npi_number": "123"},
+    )
+    assert resp.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# Structured address (ADR-007)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_create_with_full_address_succeeds(http_client: AsyncClient):
+    """All six address fields persist and round-trip through the response."""
+    resp = await http_client.post(
+        "/api/v1/organizations",
+        json={
+            "name": f"Addr Org {uuid.uuid4()}",
+            "address_line1": "1420 SE Powell Blvd",
+            "address_line2": "Suite 200",
+            "city": "Portland",
+            "state": "OR",
+            "postal_code": "97202",
+            "country": "US",
+        },
+    )
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    assert body["address_line1"] == "1420 SE Powell Blvd"
+    assert body["address_line2"] == "Suite 200"
+    assert body["city"] == "Portland"
+    assert body["state"] == "OR"
+    assert body["postal_code"] == "97202"
+    assert body["country"] == "US"
+
+
+@pytest.mark.asyncio
+async def test_create_country_defaults_to_us(http_client: AsyncClient):
+    """country defaults to 'US' when omitted."""
+    resp = await http_client.post(
+        "/api/v1/organizations",
+        json={"name": f"Default Country Org {uuid.uuid4()}"},
+    )
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["country"] == "US"
+
+
+@pytest.mark.asyncio
+async def test_create_lowercase_state_returns_422(http_client: AsyncClient):
+    """state must be uppercase 2-char ISO code."""
+    resp = await http_client.post(
+        "/api/v1/organizations",
+        json={"name": "LC State Org", "state": "or"},
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_three_char_state_returns_422(http_client: AsyncClient):
+    """state must be exactly 2 chars."""
+    resp = await http_client.post(
+        "/api/v1/organizations",
+        json={"name": "Long State Org", "state": "ORE"},
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_lowercase_country_returns_422(http_client: AsyncClient):
+    """country must be uppercase ISO-3166-1 alpha-2."""
+    resp = await http_client.post(
+        "/api/v1/organizations",
+        json={"name": "LC Country Org", "country": "us"},
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_partial_address_fields(http_client: AsyncClient):
+    """PATCH can update individual address fields without touching the rest."""
+    create = await http_client.post(
+        "/api/v1/organizations",
+        json={
+            "name": f"Partial Addr {uuid.uuid4()}",
+            "address_line1": "100 Main St",
+            "city": "Salem",
+            "state": "OR",
+            "postal_code": "97301",
+        },
+    )
+    org_id = create.json()["id"]
+
+    resp = await http_client.patch(
+        f"/api/v1/organizations/{org_id}",
+        json={"address_line2": "Apt 4B"},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["address_line2"] == "Apt 4B"
+    assert body["address_line1"] == "100 Main St"  # untouched
+    assert body["city"] == "Salem"
+    assert body["state"] == "OR"
+
+
+# ---------------------------------------------------------------------------
 # Audit logging (verified via the audit-log API endpoint)
 # ---------------------------------------------------------------------------
 

@@ -28,11 +28,16 @@ The EAV (Entity-Attribute-Value) system is the architectural foundation that all
 | Field | Type | Constraints | Description |
 |---|---|---|---|
 | id | UUID | PK | Primary key for the tenant. |
-| name | String | NOT NULL | Legal name of the practice. |
-| npi_number | String | NULLABLE | Organization-level NPI (Type 2). |
-| tax_id | String | NULLABLE | EIN or tax identifier. |
-| phone | String | NULLABLE | Main practice phone number. |
-| address | Text | NULLABLE | Full mailing address. |
+| name | String | NOT NULL, max 255 chars | Legal name of the practice. |
+| npi_number | String | NULLABLE, API regex `^\d{10}$` | Organization-level NPI (Type 2). 10 digits; format-only check at the API, no NPPES Luhn. |
+| tax_id | String | NULLABLE, API regex `^\d{2}-\d{7}$` | EIN in `NN-NNNNNNN` format. |
+| phone | String | NULLABLE, API regex `^[\d\s\-+().]{7,20}$` | Main practice phone. Loose-shape check; not normalized to E.164 until a comms feature lands. |
+| address_line1 | String(255) | NULLABLE | Street address line 1. |
+| address_line2 | String(255) | NULLABLE | Street address line 2 (suite, apt). |
+| city | String(100) | NULLABLE | City. |
+| state | String(2) | NULLABLE, API regex `^[A-Z]{2}$` | ISO-3166-2:US subdivision code (uppercase). |
+| postal_code | String(20) | NULLABLE | Postal code (US ZIP/ZIP+4 or international). |
+| country | String(2) | NOT NULL, default `"US"`, API regex `^[A-Z]{2}$` | ISO-3166-1 alpha-2 country code. |
 | timezone | String | NOT NULL, default "UTC" | IANA timezone (e.g., "America/New_York"). |
 | is_active | Boolean | NOT NULL, default true | Soft toggle for tenant suspension. |
 | created_at | Timestamp | NOT NULL, default now | Record creation time. |

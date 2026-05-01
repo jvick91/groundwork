@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-30
 **Author:** claude-code
-**Status:** Proposed
+**Status:** Accepted (2026-05-01)
 
 ## Context
 

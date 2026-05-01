@@ -3,7 +3,7 @@
 Working list captured 2026-04-30 against the `organization-api` branch.
 TASK-009 shipped; these items tighten what landed.
 
-**Order:** #4 first (blocking dev). #1–#3 unblocked once ADR-007 is accepted.
+**Order:** #4 shipped (f7908aa). #2 closed (DB default UTC is fine; revisit when scheduling/reporting lands). #1 shipped. #3 shipped — ADR-007 Accepted 2026-05-01.
 
 ---
 
@@ -23,15 +23,9 @@ TASK-009 shipped; these items tighten what landed.
 
 ---
 
-## 2. Require `timezone` on create
+## 2. Require `timezone` on create — **CLOSED 2026-04-30**
 
-**Problem.** `OrganizationCreate.timezone` defaults to `"UTC"`. Clinics that omit it get schedules rendered in UTC silently.
-
-**Proposal:** required on Create (no default); Update unchanged; DB default stays as a safety net.
-
-**Acceptance:** missing `timezone` → 422; tests updated; SPEC-001 §Organization marks the field `NOT NULL, no API default`.
-
-**Refs:** `backend/app/schemas/eav.py:23-38`, SPEC-001 line 234.
+Closed without change. DB default `UTC` stays. There's no scheduling, availability, or report-rollup code yet that would render against an org's TZ, so forcing it at Create is friction without payoff. Revisit when the first feature actually depends on clinic-local time — at that point a backfill + required field becomes worth doing together.
 
 ---
 
