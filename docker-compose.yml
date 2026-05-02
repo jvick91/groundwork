@@ -8,6 +8,7 @@ services:
     volumes:
       - ./backend/app:/app/app
       - ./backend/tests:/app/tests
+      - ./backend/alembic:/app/alembic
       - ./docker-entrypoint.sh:/app/docker-entrypoint.sh
     env_file:
       - .env

@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.models.models import FieldType
 
@@ -23,12 +23,80 @@ def _validate_iana_timezone(v: str) -> str:
     return v
 
 
+# Format patterns enforced at the API layer. Stored as VARCHAR; SPEC-001 §Organization
+# documents the formats. Phone is loose-shape only (no normalization) because the
+# clinic platform has no comms feature yet — tighten when one lands.
+_NPI_PATTERN = r"^\d{10}$"
+_TAX_ID_PATTERN = r"^\d{2}-\d{7}$"
+_PHONE_PATTERN = r"^[\d\s\-+().]{7,20}$"
+# Two-letter ISO codes (state subdivision, country alpha-2). Uppercase required
+# from clients — keeps storage canonical without an auto-uppercase validator.
+_ISO_2_PATTERN = r"^[A-Z]{2}$"
+
+
+class Address(BaseModel):
+    """Reusable address shape — nested under parent schemas (ADR-007).
+
+    The DB columns are flat (``address_line1``, ``city``, …) on the parent table;
+    the API representation is nested so the same shape can be embedded on Person,
+    InsurancePayer, etc. without redefining six fields per consumer.
+    """
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    line1: str | None = Field(default=None, max_length=255)
+    line2: str | None = Field(default=None, max_length=255)
+    city: str | None = Field(default=None, max_length=100)
+    state: str | None = Field(
+        default=None,
+        pattern=_ISO_2_PATTERN,
+        description="ISO-3166-2:US subdivision code, e.g. 'OR'.",
+    )
+    postal_code: str | None = Field(default=None, max_length=20)
+    country: str = Field(
+        default="US",
+        pattern=_ISO_2_PATTERN,
+        description="ISO-3166-1 alpha-2 country code.",
+    )
+
+
+class AddressUpdate(BaseModel):
+    """Partial address update — every field optional including ``country``.
+
+    PATCH semantics: only fields explicitly set are applied (merge, not replace).
+    Aligns with the parent ``OrganizationUpdate`` ``exclude_unset`` behaviour.
+    """
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    line1: str | None = Field(default=None, max_length=255)
+    line2: str | None = Field(default=None, max_length=255)
+    city: str | None = Field(default=None, max_length=100)
+    state: str | None = Field(default=None, pattern=_ISO_2_PATTERN)
+    postal_code: str | None = Field(default=None, max_length=20)
+    country: str | None = Field(default=None, pattern=_ISO_2_PATTERN)
+
+
 class OrganizationCreate(BaseModel):
-    name: str = Field(..., min_length=1, description="Legal name of the practice.")
-    npi_number: str | None = Field(default=None, description="Organization-level NPI (Type 2).")
-    tax_id: str | None = Field(default=None, description="EIN or tax identifier.")
-    phone: str | None = Field(default=None, description="Main practice phone number.")
-    address: str | None = Field(default=None, description="Full mailing address.")
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    name: str = Field(..., min_length=1, max_length=255, description="Legal name of the practice.")
+    npi_number: str | None = Field(
+        default=None,
+        pattern=_NPI_PATTERN,
+        description="Organization-level NPI (Type 2). 10 digits.",
+    )
+    tax_id: str | None = Field(
+        default=None,
+        pattern=_TAX_ID_PATTERN,
+        description="EIN in 'NN-NNNNNNN' format.",
+    )
+    phone: str | None = Field(
+        default=None,
+        pattern=_PHONE_PATTERN,
+        description="Main practice phone number.",
+    )
+    address: Address = Field(default_factory=Address, description="Mailing address.")
     timezone: str = Field(
         default="UTC",
         description="IANA timezone identifier (e.g. 'America/New_York').",
@@ -41,11 +109,13 @@ class OrganizationCreate(BaseModel):
 
 
 class OrganizationUpdate(BaseModel):
-    name: str | None = Field(default=None, min_length=1)
-    npi_number: str | None = None
-    tax_id: str | None = None
-    phone: str | None = None
-    address: str | None = None
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    npi_number: str | None = Field(default=None, pattern=_NPI_PATTERN)
+    tax_id: str | None = Field(default=None, pattern=_TAX_ID_PATTERN)
+    phone: str | None = Field(default=None, pattern=_PHONE_PATTERN)
+    address: AddressUpdate | None = None
     timezone: str | None = None
     is_active: bool | None = None
 
@@ -58,19 +128,25 @@ class OrganizationUpdate(BaseModel):
 
 
 class OrganizationResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    """Response shape with nested ``address``.
+
+    A pre-validator pulls the flat ORM columns (``address_line1``, ``city``, …)
+    into a nested ``address`` dict so the API representation is consistent
+    across Create / Update / Response while the DB stays flat.
+    """
 
     id: UUID
     name: str
     npi_number: str | None
     tax_id: str | None
     phone: str | None
-    address: str | None
+    address: Address
     timezone: str
     is_active: bool
     created_at: datetime
     updated_at: datetime | None
 
+<<<<<<< HEAD
 
 # ---------------------------------------------------------------------------
 # EntityAttribute schemas
@@ -160,3 +236,29 @@ class EntityTypeResponse(BaseModel):
     is_system_type: bool
     is_person_subtype: bool
     created_at: datetime
+=======
+    @model_validator(mode="before")
+    @classmethod
+    def _nest_address(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            return data
+        return {
+            "id": data.id,
+            "name": data.name,
+            "npi_number": data.npi_number,
+            "tax_id": data.tax_id,
+            "phone": data.phone,
+            "address": {
+                "line1": data.address_line1,
+                "line2": data.address_line2,
+                "city": data.city,
+                "state": data.state,
+                "postal_code": data.postal_code,
+                "country": data.country,
+            },
+            "timezone": data.timezone,
+            "is_active": data.is_active,
+            "created_at": data.created_at,
+            "updated_at": data.updated_at,
+        }
+>>>>>>> main

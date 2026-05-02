@@ -43,3 +43,13 @@ Final state:
 
 - TASK-014 will need to import `tests.fixtures.jwt_keys.PUBLIC_KEY_PEM` (TASK-008) and configure the auth middleware to validate against it when `auth_stub_enabled=False`. The settings field is in place; the wiring belongs in TASK-014.
 - The convention block in `app/routers/__init__.py` is illustrative only — there are no consumer routers yet. TASK-009 will be the first to exercise the pattern; review the block then to confirm it matches reality.
+
+## Amendment 2026-04-30 — stub `person_id` is None
+
+The original stub returned `person_id = UUID("...0000a1")`, a hardcoded UUID with no matching `people` row. Any state-changing endpoint that audited against `auth.person_id` hit `fk_audit_logs_actor_person_id_people` and 500'd; TASK-009 only shipped green because its test fixture overrode the stub locally to `person_id=None`.
+
+**Contract change.** `AuthContext.person_id` is now `UUID | None`. The stub returns `person_id=None`. SPEC-006 §7 documents NULL as the correct value for system-initiated events, so this is semantically right, not a workaround. `current_person()["id"]` is `None` under the stub.
+
+`organization_id` keeps its hardcoded `...0000b2` value. That UUID is also dangling against `organizations.id`, but it does not fire on org-create (the audit row uses the just-inserted org). When a later state-changing endpoint audits against `auth.organization_id`, it will 500 the same way and need TASK-013/014 to seed a real org row at startup. Recorded for that task; not in scope here.
+
+Files touched: `app/core/security.py`, `tests/test_cross_cutting/test_stub_dependencies.py`, `backend/docs/conventions.md`. Verified by 39 tests + a live POST to `/api/v1/organizations` (returns 201, audit row written with `actor_person_id IS NULL`).
