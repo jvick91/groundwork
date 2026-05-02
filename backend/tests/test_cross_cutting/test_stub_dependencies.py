@@ -10,7 +10,7 @@ asserted here are the contract the rest of the app will rely on.
 
 from __future__ import annotations
 
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -38,6 +38,15 @@ async def test_get_auth_context_returns_stub_identity_while_flag_on() -> None:
     assert auth.person_id is None
     assert isinstance(auth.organization_id, UUID)
     assert auth.auth_subject.startswith("auth0|")
+
+
+async def test_get_auth_context_accepts_stub_organization_header() -> None:
+    """Local endpoint testing can supply the org created in that dev DB."""
+    org_id = uuid4()
+
+    auth = await get_auth_context(x_organization_id=str(org_id))
+
+    assert auth.organization_id == org_id
 
 
 async def test_current_person_shape() -> None:
@@ -88,8 +97,6 @@ async def test_require_permission_blocks_when_flag_off(
 
     # When the flag is off, get_auth_context raises 501 (no real auth yet).
     # We construct an AuthContext directly to exercise the permission check.
-    from uuid import uuid4
-
     auth = AuthContext(
         person_id=uuid4(),
         auth_subject="auth0|real-user",

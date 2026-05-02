@@ -5,7 +5,7 @@ seed EntityAttributes. Rows have is_system_type = true and cannot be deleted
 or renamed via the API.
 
 Revision ID: c3f5e7a9b1d2
-Revises: b2e4f6a8c0d1
+Revises: 485f37aa7554
 Create Date: 2026-04-30
 
 """
@@ -17,7 +17,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "c3f5e7a9b1d2"
-down_revision = "b2e4f6a8c0d1"
+down_revision = "485f37aa7554"
 branch_labels = None
 depends_on = None
 
@@ -41,9 +41,9 @@ def upgrade() -> None:
             INSERT INTO entity_types
                 (id, organization_id, name, slug, is_system_type, is_person_subtype, created_at, updated_at)
             VALUES
-                (:provider_id, NULL, 'provider', 'provider', true, true, now(), now()),
-                (:client_id,   NULL, 'client',   'client',   true, true, now(), now()),
-                (:admin_id,    NULL, 'admin',     'admin',    true, true, now(), now())
+                (CAST(:provider_id AS uuid), NULL, 'provider', 'provider', true, true, now(), now()),
+                (CAST(:client_id AS uuid),   NULL, 'client',   'client',   true, true, now(), now()),
+                (CAST(:admin_id AS uuid),    NULL, 'admin',     'admin',    true, true, now(), now())
             ON CONFLICT DO NOTHING
             """
         ).bindparams(
@@ -72,8 +72,8 @@ def upgrade() -> None:
                     (id, entity_type_id, name, display_name, field_type,
                      is_required, options, display_order, created_at, updated_at)
                 VALUES
-                    (:id, :type_id, :name, :display_name, :field_type,
-                     :is_required, :options::jsonb, :display_order, now(), now())
+                    (CAST(:id AS uuid), CAST(:type_id AS uuid), :name, :display_name, :field_type,
+                     :is_required, CAST(:options AS jsonb), :display_order, now(), now())
                 ON CONFLICT DO NOTHING
                 """
             ).bindparams(
@@ -107,8 +107,8 @@ def upgrade() -> None:
                     (id, entity_type_id, name, display_name, field_type,
                      is_required, options, display_order, created_at, updated_at)
                 VALUES
-                    (:id, :type_id, :name, :display_name, :field_type,
-                     :is_required, :options::jsonb, :display_order, now(), now())
+                    (CAST(:id AS uuid), CAST(:type_id AS uuid), :name, :display_name, :field_type,
+                     :is_required, CAST(:options AS jsonb), :display_order, now(), now())
                 ON CONFLICT DO NOTHING
                 """
             ).bindparams(
@@ -138,8 +138,8 @@ def upgrade() -> None:
                     (id, entity_type_id, name, display_name, field_type,
                      is_required, options, display_order, created_at, updated_at)
                 VALUES
-                    (:id, :type_id, :name, :display_name, :field_type,
-                     :is_required, :options::jsonb, :display_order, now(), now())
+                    (CAST(:id AS uuid), CAST(:type_id AS uuid), :name, :display_name, :field_type,
+                     :is_required, CAST(:options AS jsonb), :display_order, now(), now())
                 ON CONFLICT DO NOTHING
                 """
             ).bindparams(
@@ -159,11 +159,13 @@ def downgrade() -> None:
     # Remove seed attributes first (FK), then entity types.
     op.execute(
         sa.text(
-            "DELETE FROM entity_attributes WHERE entity_type_id IN (:p, :c, :a)"
+            "DELETE FROM entity_attributes WHERE entity_type_id IN "
+            "(CAST(:p AS uuid), CAST(:c AS uuid), CAST(:a AS uuid))"
         ).bindparams(p=PROVIDER_ID, c=CLIENT_ID, a=ADMIN_ID)
     )
     op.execute(
         sa.text(
-            "DELETE FROM entity_types WHERE id IN (:p, :c, :a)"
+            "DELETE FROM entity_types WHERE id IN "
+            "(CAST(:p AS uuid), CAST(:c AS uuid), CAST(:a AS uuid))"
         ).bindparams(p=PROVIDER_ID, c=CLIENT_ID, a=ADMIN_ID)
     )

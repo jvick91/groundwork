@@ -8,9 +8,10 @@ Timezone fields are validated against the IANA tz database via ``zoneinfo``.
 import zoneinfo
 from datetime import datetime
 from typing import Any
+from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.models import FieldType
 
@@ -146,7 +147,6 @@ class OrganizationResponse(BaseModel):
     created_at: datetime
     updated_at: datetime | None
 
-<<<<<<< HEAD
 
 # ---------------------------------------------------------------------------
 # EntityAttribute schemas
@@ -236,29 +236,3 @@ class EntityTypeResponse(BaseModel):
     is_system_type: bool
     is_person_subtype: bool
     created_at: datetime
-=======
-    @model_validator(mode="before")
-    @classmethod
-    def _nest_address(cls, data: Any) -> Any:
-        if isinstance(data, dict):
-            return data
-        return {
-            "id": data.id,
-            "name": data.name,
-            "npi_number": data.npi_number,
-            "tax_id": data.tax_id,
-            "phone": data.phone,
-            "address": {
-                "line1": data.address_line1,
-                "line2": data.address_line2,
-                "city": data.city,
-                "state": data.state,
-                "postal_code": data.postal_code,
-                "country": data.country,
-            },
-            "timezone": data.timezone,
-            "is_active": data.is_active,
-            "created_at": data.created_at,
-            "updated_at": data.updated_at,
-        }
->>>>>>> main

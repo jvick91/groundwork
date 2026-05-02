@@ -16,10 +16,10 @@ and TASK-014/015 will swap the implementation without touching call sites.
 """
 
 from dataclasses import dataclass, field
-from typing import cast
+from typing import Annotated, cast
 from uuid import UUID
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, Header, HTTPException
 from fastapi.params import Depends as DependsParam
 
 from app.core.settings import settings
@@ -45,7 +45,9 @@ class AuthContext:
     permissions: set[str] = field(default_factory=set)
 
 
-async def get_auth_context() -> AuthContext:
+async def get_auth_context(
+    x_organization_id: Annotated[str | None, Header(alias="X-Organization-Id")] = None,
+) -> AuthContext:
     """Return the auth context for the current request.
 
     Stub behavior (``auth_stub_enabled = True``): returns a fixed test
@@ -53,10 +55,19 @@ async def get_auth_context() -> AuthContext:
     TASK-014 replaces this with Auth0 JWT validation.
     """
     if settings.auth_stub_enabled:
+        org_id = _STUB_ORG_ID
+        if x_organization_id is not None:
+            try:
+                org_id = UUID(x_organization_id)
+            except ValueError as err:
+                raise HTTPException(
+                    status_code=400,
+                    detail="X-Organization-Id must be a valid UUID.",
+                ) from err
         return AuthContext(
             person_id=None,
             auth_subject=_STUB_AUTH_SUBJECT,
-            organization_id=_STUB_ORG_ID,
+            organization_id=org_id,
             role_slugs=["stub-admin"],
             permissions=set(),
         )
