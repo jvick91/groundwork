@@ -24,10 +24,12 @@ from fastapi.params import Depends as DependsParam
 
 from app.core.settings import settings
 
-# Fixed test identity used while ``auth_stub_enabled = True``. The UUIDs are
-# deterministic so test assertions can pin against them; the strings make it
-# obvious in logs that the request was unauthenticated.
-_STUB_PERSON_ID = UUID("00000000-0000-0000-0000-0000000000a1")
+# Fixed test identity used while ``auth_stub_enabled = True``.
+#
+# ``person_id`` is None — until TASK-012 (Person model) seeds rows in
+# ``people``, any non-null id would dangle the ``audit_logs.actor_person_id``
+# FK. NULL is the documented value for system-initiated events
+# (SPEC-006 §7), so this is semantically correct, not a workaround.
 _STUB_ORG_ID = UUID("00000000-0000-0000-0000-0000000000b2")
 _STUB_AUTH_SUBJECT = "auth0|stub-test-subject"
 
@@ -36,7 +38,7 @@ _STUB_AUTH_SUBJECT = "auth0|stub-test-subject"
 class AuthContext:
     """Authenticated user context extracted from a validated JWT."""
 
-    person_id: UUID
+    person_id: UUID | None
     auth_subject: str
     organization_id: UUID
     role_slugs: list[str] = field(default_factory=list)
@@ -52,7 +54,7 @@ async def get_auth_context() -> AuthContext:
     """
     if settings.auth_stub_enabled:
         return AuthContext(
-            person_id=_STUB_PERSON_ID,
+            person_id=None,
             auth_subject=_STUB_AUTH_SUBJECT,
             organization_id=_STUB_ORG_ID,
             role_slugs=["stub-admin"],

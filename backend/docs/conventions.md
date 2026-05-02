@@ -96,8 +96,8 @@ List endpoints use the cursor-based helper from [backend/app/utils/pagination.py
 
 While `settings.auth_stub_enabled = True`, the auth dependencies short-circuit:
 
-- `get_auth_context` returns a fixed test identity (UUIDs in `app.core.security`).
+- `get_auth_context` returns a fixed test identity. `person_id` is `None` (system actor — `audit_logs.actor_person_id` is nullable per SPEC-006 §7, and there are no `people` rows to FK against until TASK-012 lands). `organization_id` is a fixed UUID; `auth_subject` is a fixed string.
 - `require_permission(slug)` allow-lists every check.
-- `current_person` / `current_org` return dicts with the documented keys.
+- `current_person` / `current_org` return dicts with the documented keys. Under the stub, `current_person()["id"]` is `None`.
 
 Routers should still wire these dependencies as if they were real. TASK-014 (auth middleware) and TASK-015 (permission resolution) will swap the implementation in one place; the router and service code never changes.

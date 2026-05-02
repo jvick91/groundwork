@@ -146,7 +146,12 @@ class Organization(Base, IdMixin, TimestampMixin):
     npi_number: Mapped[str | None] = mapped_column(String, nullable=True)
     tax_id: Mapped[str | None] = mapped_column(String, nullable=True)
     phone: Mapped[str | None] = mapped_column(String, nullable=True)
-    address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    address_line1: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    address_line2: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    state: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    postal_code: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    country: Mapped[str] = mapped_column(String(2), nullable=False, server_default="US")
     timezone: Mapped[str] = mapped_column(String, nullable=False, server_default="UTC")
     # is_active is a tenant suspension toggle, NOT a soft-delete column
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
