@@ -16,20 +16,19 @@ and TASK-014/015 will swap the implementation without touching call sites.
 """
 
 from dataclasses import dataclass, field
-from typing import Annotated, cast
+from typing import cast
 from uuid import UUID
 
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, HTTPException
 from fastapi.params import Depends as DependsParam
 
 from app.core.settings import settings
 
 # Fixed test identity used while ``auth_stub_enabled = True``.
 #
-# ``person_id`` is None — until TASK-012 (Person model) seeds rows in
-# ``people``, any non-null id would dangle the ``audit_logs.actor_person_id``
-# FK. NULL is the documented value for system-initiated events
-# (SPEC-006 §7), so this is semantically correct, not a workaround.
+# Local development startup seeds these IDs when the auth stub is enabled so
+# audit FK constraints pass while exercising endpoints without real auth.
+_STUB_PERSON_ID = UUID("00000000-0000-0000-0000-0000000000b1")
 _STUB_ORG_ID = UUID("00000000-0000-0000-0000-0000000000b2")
 _STUB_AUTH_SUBJECT = "auth0|stub-test-subject"
 
@@ -45,9 +44,7 @@ class AuthContext:
     permissions: set[str] = field(default_factory=set)
 
 
-async def get_auth_context(
-    x_organization_id: Annotated[str | None, Header(alias="X-Organization-Id")] = None,
-) -> AuthContext:
+async def get_auth_context() -> AuthContext:
     """Return the auth context for the current request.
 
     Stub behavior (``auth_stub_enabled = True``): returns a fixed test
@@ -55,19 +52,10 @@ async def get_auth_context(
     TASK-014 replaces this with Auth0 JWT validation.
     """
     if settings.auth_stub_enabled:
-        org_id = _STUB_ORG_ID
-        if x_organization_id is not None:
-            try:
-                org_id = UUID(x_organization_id)
-            except ValueError as err:
-                raise HTTPException(
-                    status_code=400,
-                    detail="X-Organization-Id must be a valid UUID.",
-                ) from err
         return AuthContext(
-            person_id=None,
+            person_id=_STUB_PERSON_ID,
             auth_subject=_STUB_AUTH_SUBJECT,
-            organization_id=org_id,
+            organization_id=_STUB_ORG_ID,
             role_slugs=["stub-admin"],
             permissions=set(),
         )

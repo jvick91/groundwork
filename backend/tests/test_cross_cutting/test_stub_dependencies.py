@@ -10,7 +10,7 @@ asserted here are the contract the rest of the app will rely on.
 
 from __future__ import annotations
 
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytest
 
@@ -27,35 +27,21 @@ pytestmark = pytest.mark.asyncio
 
 
 async def test_get_auth_context_returns_stub_identity_while_flag_on() -> None:
-    """The stub identity is deterministic — person_id None (system actor),
-    org id and subject pinned. ``person_id`` is ``None`` until TASK-012
-    seeds rows in ``people``; SPEC-006 §7 documents NULL as the value for
-    system-initiated events, so this is the correct stub shape, not a
-    placeholder."""
+    """The stub identity is deterministic and points at dev-seeded rows."""
     assert settings.auth_stub_enabled is True
     auth = await get_auth_context()
     assert isinstance(auth, AuthContext)
-    assert auth.person_id is None
+    assert isinstance(auth.person_id, UUID)
     assert isinstance(auth.organization_id, UUID)
     assert auth.auth_subject.startswith("auth0|")
 
 
-async def test_get_auth_context_accepts_stub_organization_header() -> None:
-    """Local endpoint testing can supply the org created in that dev DB."""
-    org_id = uuid4()
-
-    auth = await get_auth_context(x_organization_id=str(org_id))
-
-    assert auth.organization_id == org_id
-
-
 async def test_current_person_shape() -> None:
-    """current_person returns a dict with id, email, is_active. Under the
-    stub, ``id`` is None — see ``test_get_auth_context_*`` for rationale."""
+    """current_person returns a dict with id, email, is_active."""
     auth = await get_auth_context()
     person = await current_person(auth)
     assert set(person.keys()) >= {"id", "email", "is_active"}
-    assert person["id"] is None
+    assert isinstance(person["id"], UUID)
     assert isinstance(person["email"], str) and "@" in person["email"]
     assert person["is_active"] is True
 
@@ -97,6 +83,8 @@ async def test_require_permission_blocks_when_flag_off(
 
     # When the flag is off, get_auth_context raises 501 (no real auth yet).
     # We construct an AuthContext directly to exercise the permission check.
+    from uuid import uuid4
+
     auth = AuthContext(
         person_id=uuid4(),
         auth_subject="auth0|real-user",
