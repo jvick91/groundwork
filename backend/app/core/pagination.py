@@ -17,20 +17,21 @@ Filter helpers  (SPEC-007 §6.1)
     apply_date_range_filter — WHERE col >= date_from AND col <= date_to
     apply_text_search       — WHERE col ILIKE '%q%'
 
-Usage pattern in a domain router:
+Usage pattern in a domain repository (ADR-009):
     from sqlalchemy import select
-    from app.models.models import Organization
-    from app.schemas.schemas import PaginationParams
-    from app.utils.pagination import paginate
+    from app.core.pagination import paginate
+    from app.models.eav import Organization
+    from app.schemas.pagination import PaginationParams
 
-    SORT_FIELDS = {"created_at": Organization.created_at, "name": Organization.name}
-
-    @router.get("/organizations")
-    async def list_organizations(params: PaginationParams = Depends(), db=Depends(get_db)):
-        stmt = select(Organization).where(Organization.deleted_at.is_(None))
-        items, meta = await paginate(db, stmt, params=params, sort_fields=SORT_FIELDS,
-                                     id_col=Organization.id)
-        return PaginatedResponse(data=items, pagination=meta)
+    class OrganizationRepository:
+        async def list_for_page(self, params: PaginationParams):
+            stmt = select(Organization).where(Organization.deleted_at.is_(None))
+            return await paginate(
+                self._session, stmt, params=params,
+                sort_fields={"created_at": Organization.created_at,
+                             "name": Organization.name},
+                id_col=Organization.id,
+            )
 """
 
 import base64
@@ -44,7 +45,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 
 from app.core.exceptions import BadRequestError
-from app.schemas.schemas import PaginationMeta, PaginationParams, SortDir
+from app.schemas.pagination import PaginationMeta, PaginationParams, SortDir
 
 T = TypeVar("T")
 

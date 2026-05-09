@@ -22,7 +22,7 @@ from uuid import UUID
 from fastapi import Depends, HTTPException
 from fastapi.params import Depends as DependsParam
 
-from app.core.settings import settings
+from app.core.config import settings
 
 # Fixed test identity used while ``auth_stub_enabled = True``.
 #

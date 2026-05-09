@@ -18,9 +18,9 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import NullPool
 
+from app.core.config import settings
 from app.core.database import Base, Database
 from app.core.dependencies import get_db
-from app.core.settings import settings
 from app.main import create_app
 from tests.fixtures import jwt_keys
 

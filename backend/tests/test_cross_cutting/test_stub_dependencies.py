@@ -14,6 +14,7 @@ from uuid import UUID
 
 import pytest
 
+from app.core.config import settings
 from app.core.security import (
     AuthContext,
     current_org,
@@ -21,7 +22,6 @@ from app.core.security import (
     get_auth_context,
     require_permission,
 )
-from app.core.settings import settings
 
 pytestmark = pytest.mark.asyncio
 

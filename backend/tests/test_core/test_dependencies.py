@@ -23,7 +23,8 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.models import AuditLog, Organization
+from app.models.compliance import AuditLog
+from app.models.eav import Organization
 from app.services import audit_service
 from app.services.common import call_service_with_audit
 

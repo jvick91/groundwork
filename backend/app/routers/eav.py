@@ -15,8 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import get_auth_context, get_db, require_permission
 from app.core.security import AuthContext
 from app.schemas.eav import OrganizationCreate, OrganizationResponse, OrganizationUpdate
-from app.schemas.schemas import PaginatedResponse, PaginationParams
-from app.services import eav_service
+from app.schemas.pagination import PaginatedResponse, PaginationParams
+from app.services import organization_service as eav_service
 
 router = APIRouter(prefix="/organizations", tags=["organizations"])
 

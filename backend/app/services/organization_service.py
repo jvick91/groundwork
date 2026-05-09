@@ -1,10 +1,9 @@
 """
-Service layer for EAV domain entities.
+Service layer for the Organization aggregate.
 
-Organization is the root tenant record. All state-changing operations write
-an AuditLog entry and invoke registered on_organization_created hooks inside
-the same transaction (BR-07). The ``get_db`` dependency owns commit/rollback;
-this layer never commits directly.
+This file is the function-based shape inherited from TASK-009 — the renamed
+``eav_service.py`` after the folder restructure. The class-per-aggregate
+conversion happens in the next commit (Step 4 of the architecture reset).
 """
 
 from datetime import UTC, datetime
@@ -15,11 +14,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundError
-from app.models.models import Organization
+from app.core.pagination import paginate
+from app.models.eav import Organization
 from app.schemas.eav import OrganizationCreate, OrganizationUpdate
-from app.schemas.schemas import PaginationMeta, PaginationParams
+from app.schemas.pagination import PaginationMeta, PaginationParams
 from app.services import audit_service, organization_hooks
-from app.utils.pagination import paginate
 
 _SORT_FIELDS = {
     "created_at": Organization.created_at,

@@ -12,7 +12,7 @@ from datetime import UTC
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.models import Organization
+from app.models.eav import Organization
 
 
 async def create_organization(

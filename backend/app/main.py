@@ -11,11 +11,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.core.config import settings
 from app.core.exceptions import GroundworkError
 from app.core.lifespan import lifespan
 from app.core.logger import get_logger
-from app.core.settings import settings
-from app.middleware.request_logger import RequestLoggerMiddleware
+from app.core.request_logger import RequestLoggerMiddleware
 from app.routers import compliance as compliance_router
 from app.routers import eav as eav_router
 from app.routers import health as health_router

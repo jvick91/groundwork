@@ -26,7 +26,8 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.core.security import AuthContext, get_auth_context
 from app.main import create_app
-from app.models.models import AuditLog, Organization
+from app.models.compliance import AuditLog
+from app.models.eav import Organization
 from app.services import audit_service
 from app.services.audit_service import PHI_EXCLUDED_FIELDS, filter_phi
 

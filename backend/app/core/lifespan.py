@@ -10,9 +10,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.core.config import settings
 from app.core.database import Database
 from app.core.logger import get_logger, setup_logging
-from app.core.settings import settings
 
 logger = get_logger(__name__)
 

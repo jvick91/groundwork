@@ -18,10 +18,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db
 from app.core.exceptions import NotFoundError
+from app.core.pagination import apply_date_range_filter, apply_exact_filter, paginate
 from app.core.security import require_permission
-from app.models.models import AuditLog
-from app.schemas.schemas import PaginatedResponse, PaginationParams
-from app.utils.pagination import apply_date_range_filter, apply_exact_filter, paginate
+from app.models.compliance import AuditLog
+from app.schemas.pagination import PaginatedResponse, PaginationParams
 
 router = APIRouter(prefix="/audit-log", tags=["compliance"])
 
@@ -47,6 +47,7 @@ def _serialize(entry: AuditLog) -> dict[str, Any]:
         "next_state": entry.next_state,
         "ip_address": entry.ip_address,
         "user_agent": entry.user_agent,
+        "outcome": entry.outcome,
         "occurred_at": entry.occurred_at.isoformat() if entry.occurred_at else None,
     }
 

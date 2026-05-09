@@ -19,7 +19,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.phi import PHI_EXCLUDED_FIELDS
-from app.models.models import AuditLog
+from app.models.compliance import AuditLog
 
 __all__ = ["PHI_EXCLUDED_FIELDS", "filter_phi", "log_action"]
 
