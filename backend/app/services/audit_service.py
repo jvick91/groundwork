@@ -1,115 +1,121 @@
 """
-Audit service — BR-07 compliance (SPEC-006 §4, §7).
+Audit collaborator — BR-07 compliance (SPEC-006 §4, §7).
 
-Provides a single ``log_action()`` function that every domain service calls
-to write an immutable AuditLog entry in the same transaction as the business
-operation it records.
+``AuditWriter`` is the injected collaborator every Service holds in its
+constructor (ADR-009). On the success path the writer adds an ``AuditLog``
+row to the same ``AsyncSession`` the service operates in, so the audit
+write commits or rolls back atomically with the business mutation. The
+``get_db`` dependency owns the commit; this module never commits.
 
-PHI field exclusion (BR-08) is enforced here.  Callers supply raw state
-snapshots; this module strips PHI before the row is written.  Individual
-callers must never attempt their own PHI filtering — the exclusion list here
-is the single platform-wide source of truth.
+On the failure path the route-level exception handler (registered in
+``app/main.py``) constructs a fresh session, instantiates an
+``AuditWriter`` with ``outcome="failure"``, writes the row, and commits
+that fresh session — independent of the request transaction (ADR-009).
+
+PHI field exclusion (BR-08) is enforced before write via
+``app.core.phi.filter_phi``. The ``PHI_EXCLUDED_FIELDS`` frozenset is the
+single platform-wide source of truth.
 """
 
-import uuid
+from contextvars import ContextVar
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.phi import PHI_EXCLUDED_FIELDS
+from app.core.phi import PHI_EXCLUDED_FIELDS, filter_phi
 from app.models.compliance import AuditLog
 
-__all__ = ["PHI_EXCLUDED_FIELDS", "filter_phi", "log_action"]
+
+@dataclass(slots=True)
+class _AuditScope:
+    """Per-request audit metadata (org, actor, request envelope)."""
+
+    org_id: UUID
+    actor_id: UUID | None
+    ip_address: str | None = None
+    user_agent: str | None = None
 
 
-def filter_phi(
-    snapshot: dict[str, Any] | list[Any] | None,
-) -> dict[str, Any] | list[Any] | None:
-    """Strip PHI fields from a state snapshot before writing to AuditLog.
+_audit_scope: ContextVar[_AuditScope | None] = ContextVar("_audit_scope", default=None)
 
-    Recurses into nested dicts and lists so PHI hidden inside JSONB blobs
-    (e.g. ``content.subjective`` or ``items[].dob``) is also stripped.
 
-    - Returns ``None`` if input is ``None``.
-    - Never mutates the input.
-    - Returns an empty dict ``{}`` if all fields were PHI.
+class AuditWriter:
+    """Writes BR-07 audit rows to a session.
+
+    On the success path the session is the request session shared with the
+    business mutation. On the failure path the session is a fresh one
+    opened by the route-level exception handler — see ADR-009.
     """
-    if snapshot is None:
-        return None
-    if isinstance(snapshot, list):
-        return [filter_phi(item) if isinstance(item, dict | list) else item for item in snapshot]
-    return {
-        k: (filter_phi(v) if isinstance(v, dict | list) else v)
-        for k, v in snapshot.items()
-        if k not in PHI_EXCLUDED_FIELDS
-    }
+
+    def __init__(self, session: AsyncSession, scope: _AuditScope) -> None:
+        self._session = session
+        self._scope = scope
+
+    async def write(
+        self,
+        *,
+        action: str,
+        resource_type: str,
+        resource_id: UUID,
+        organization_id: UUID | None = None,
+        previous_state: dict[str, Any] | None = None,
+        next_state: dict[str, Any] | None = None,
+        outcome: str = "success",
+    ) -> AuditLog:
+        """Add an AuditLog row to the session and flush.
+
+        PHI is stripped from ``previous_state`` and ``next_state`` via
+        ``filter_phi`` before the row is added. The caller's transaction
+        owns the commit; this method only flushes.
+
+        Parameters
+        ----------
+        action:
+            Verb describing the operation: ``"create"``, ``"update"``,
+            ``"delete"``, ``"sign"``, ``"void"``, ``"expire"``, etc.
+        resource_type:
+            Python class name of the resource (e.g. ``"Organization"``).
+        resource_id:
+            Primary key of the changed resource.
+        organization_id:
+            Override for the scope's ``org_id`` — needed when the audit
+            row belongs to a different tenant than the request's auth
+            context, most notably when the resource being audited *is*
+            an Organization (tenant creation). Defaults to the scope's
+            ``org_id``.
+        previous_state, next_state:
+            PHI-stripped JSON snapshots before/after the change.
+        outcome:
+            ``"success"`` (default — used by domain services on the
+            success path) or ``"failure"`` (used by the route-level
+            exception handler when translating ``GroundworkError`` to
+            HTTP).
+        """
+        entry = AuditLog(
+            organization_id=organization_id if organization_id is not None else self._scope.org_id,
+            actor_person_id=self._scope.actor_id,
+            action=action,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            previous_state=filter_phi(previous_state),
+            next_state=filter_phi(next_state),
+            ip_address=self._scope.ip_address,
+            user_agent=self._scope.user_agent,
+            outcome=outcome,
+            occurred_at=datetime.now(tz=UTC),
+        )
+        self._session.add(entry)
+        await self._session.flush()
+        return entry
 
 
-# ---------------------------------------------------------------------------
-# Core audit function
-# ---------------------------------------------------------------------------
-
-
-async def log_action(
-    db: AsyncSession,
-    *,
-    org_id: UUID,
-    actor_id: UUID | None,
-    action: str,
-    resource_type: str,
-    resource_id: UUID,
-    previous_state: dict[str, Any] | None = None,
-    next_state: dict[str, Any] | None = None,
-    ip_address: str | None = None,
-    user_agent: str | None = None,
-) -> AuditLog:
-    """Write an AuditLog entry in the current session (same transaction as caller).
-
-    The caller **must not** commit the session before calling this function.
-    The audit entry and the triggering business operation are committed
-    atomically.  If this function raises, the caller's transaction rolls back
-    and the business operation is also undone (SPEC-006 §7 audit atomicity).
-
-    Parameters
-    ----------
-    db:
-        Active ``AsyncSession`` — must be in an open, uncommitted transaction.
-    org_id:
-        Organization that owns the changed resource.
-    actor_id:
-        Person who triggered the change.  Pass ``None`` for system- or
-        cron-initiated events (e.g., ``expire_consents``).
-    action:
-        Verb describing the operation: ``"create"``, ``"update"``,
-        ``"delete"``, ``"sign"``, ``"void"``, ``"expire"``, etc.
-    resource_type:
-        Python class name of the resource (e.g. ``"ClinicalNote"``).
-    resource_id:
-        Primary key of the changed resource.
-    previous_state:
-        Snapshot of relevant fields *before* the change.  PHI is stripped
-        automatically via ``filter_phi()``.
-    next_state:
-        Snapshot of relevant fields *after* the change.  PHI is stripped.
-    ip_address:
-        Forwarded IP from the request context, if available.
-    user_agent:
-        ``User-Agent`` header from the request context, if available.
-    """
-    entry = AuditLog(
-        id=uuid.uuid4(),
-        organization_id=org_id,
-        actor_person_id=actor_id,
-        action=action,
-        resource_type=resource_type,
-        resource_id=resource_id,
-        previous_state=filter_phi(previous_state),
-        next_state=filter_phi(next_state),
-        ip_address=ip_address,
-        user_agent=user_agent,
-        occurred_at=datetime.now(tz=UTC),
-    )
-    db.add(entry)
-    return entry
+__all__ = [
+    "PHI_EXCLUDED_FIELDS",
+    "AuditWriter",
+    "_AuditScope",
+    "_audit_scope",
+    "filter_phi",
+]

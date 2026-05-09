@@ -24,12 +24,22 @@ from sqlalchemy import select, text, update
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
+from app.core.phi import PHI_EXCLUDED_FIELDS, filter_phi
 from app.core.security import AuthContext, get_auth_context
 from app.main import create_app
 from app.models.compliance import AuditLog
 from app.models.eav import Organization
-from app.services import audit_service
-from app.services.audit_service import PHI_EXCLUDED_FIELDS, filter_phi
+from app.services.audit_service import AuditWriter, _AuditScope
+
+
+def _writer(
+    session: AsyncSession,
+    org_id: uuid.UUID,
+    actor_id: uuid.UUID | None = None,
+) -> AuditWriter:
+    """Construct an AuditWriter for tests scoped to ``org_id`` / ``actor_id``."""
+    return AuditWriter(session, _AuditScope(org_id=org_id, actor_id=actor_id))
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -133,14 +143,11 @@ def audit_client(db_session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_state_change_writes_audit_entry(db_session: AsyncSession):
-    """BR-07: log_action() adds an AuditLog row to the current transaction."""
+    """BR-07: AuditWriter.write() adds an AuditLog row to the current transaction."""
     org = await _make_org(db_session)
     resource_id = uuid.uuid4()
 
-    entry = await audit_service.log_action(
-        db_session,
-        org_id=org.id,
-        actor_id=None,
+    entry = await _writer(db_session, org.id).write(
         action="create",
         resource_type="Organization",
         resource_id=resource_id,
@@ -173,10 +180,7 @@ async def test_audit_failure_rolls_back_business_operation(db_session: AsyncSess
     )
     db_session.add(new_org)
 
-    audit_entry = await audit_service.log_action(
-        db_session,
-        org_id=org.id,
-        actor_id=None,
+    audit_entry = await _writer(db_session, org.id).write(
         action="create",
         resource_type="Organization",
         resource_id=target_id,
@@ -222,10 +226,7 @@ async def test_audit_snapshot_excludes_phi_fields(db_session: AsyncSession):
     org = await _make_org(db_session)
     resource_id = uuid.uuid4()
 
-    entry = await audit_service.log_action(
-        db_session,
-        org_id=org.id,
-        actor_id=None,
+    entry = await _writer(db_session, org.id).write(
         action="update",
         resource_type="Person",
         resource_id=resource_id,
@@ -256,10 +257,7 @@ async def test_audit_snapshot_excludes_phi_fields(db_session: AsyncSession):
 async def test_update_audit_log_row_rejected(db_session: AsyncSession):
     """AuditLog rows cannot be modified (DB-level trigger, SPEC-006 §2)."""
     org = await _make_org(db_session)
-    entry = await audit_service.log_action(
-        db_session,
-        org_id=org.id,
-        actor_id=None,
+    entry = await _writer(db_session, org.id).write(
         action="create",
         resource_type="Organization",
         resource_id=org.id,
@@ -279,10 +277,7 @@ async def test_delete_audit_log_row_rejected(db_session: AsyncSession):
     from sqlalchemy import delete as sa_delete
 
     org = await _make_org(db_session)
-    entry = await audit_service.log_action(
-        db_session,
-        org_id=org.id,
-        actor_id=None,
+    entry = await _writer(db_session, org.id).write(
         action="create",
         resource_type="Organization",
         resource_id=org.id,
@@ -300,10 +295,8 @@ async def test_system_triggered_audit_has_null_actor(db_session: AsyncSession):
     org = await _make_org(db_session)
     resource_id = uuid.uuid4()
 
-    entry = await audit_service.log_action(
-        db_session,
-        org_id=org.id,
-        actor_id=None,  # system event
+    # actor_id=None — system event (e.g. expire_consents cron)
+    entry = await _writer(db_session, org.id, actor_id=None).write(
         action="expire",
         resource_type="ClientConsent",
         resource_id=resource_id,
@@ -324,18 +317,12 @@ async def test_audit_log_filters_by_org(db_session: AsyncSession):
     resource_a = uuid.uuid4()
     resource_b = uuid.uuid4()
 
-    await audit_service.log_action(
-        db_session,
-        org_id=org_a.id,
-        actor_id=None,
+    await _writer(db_session, org_a.id).write(
         action="create",
         resource_type="Widget",
         resource_id=resource_a,
     )
-    await audit_service.log_action(
-        db_session,
-        org_id=org_b.id,
-        actor_id=None,
+    await _writer(db_session, org_b.id).write(
         action="create",
         resource_type="Widget",
         resource_id=resource_b,

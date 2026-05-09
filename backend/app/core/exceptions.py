@@ -5,8 +5,16 @@ All domain exceptions inherit from GroundworkError so the FastAPI exception
 handlers in main.py can catch them uniformly and return the standard JSON
 envelope defined in SPEC-007 §7.
 
-Error codes match SPEC-007 §7.3 exactly.  Error messages and details must
+Error codes match SPEC-007 §7.3 exactly. Error messages and details must
 never contain PHI field values (SPEC-007 §7.4).
+
+Per ADR-009, every ``GroundworkError`` may also carry audit-context fields
+(``audit_action``, ``audit_entity_type``, ``audit_entity_id``,
+``audit_actor_id``). When set, the route-level exception handler in
+``app/main.py`` writes a failure-audit row in a fresh session before
+translating the error to HTTP. Subclasses with structural context
+(``NotFoundError``, ``StateTransitionDeniedError``,
+``OrganizationAlreadyInactive``) populate them automatically.
 """
 
 from typing import Any
@@ -22,11 +30,23 @@ class GroundworkError(Exception):
         message: str = "An unexpected error occurred.",
         status_code: int = 500,
         details: list[dict[str, Any]] | None = None,
+        *,
+        audit_action: str | None = None,
+        audit_entity_type: str | None = None,
+        audit_entity_id: UUID | None = None,
+        audit_actor_id: UUID | None = None,
     ):
         self.error = error
         self.message = message
         self.status_code = status_code
         self.details = details or []
+        # ADR-009 audit-context fields. The route-level exception handler
+        # writes a failure audit when (action, entity_type, entity_id) are
+        # all non-None.
+        self.audit_action = audit_action
+        self.audit_entity_type = audit_entity_type
+        self.audit_entity_id = audit_entity_id
+        self.audit_actor_id = audit_actor_id
         super().__init__(self.message)
 
 
@@ -106,7 +126,14 @@ class OrgAccessDeniedError(GroundworkError):
 
 
 class NotFoundError(GroundworkError):
-    def __init__(self, resource: str, resource_id: UUID):
+    def __init__(
+        self,
+        resource: str,
+        resource_id: UUID,
+        *,
+        action: str = "read",
+        actor_id: UUID | None = None,
+    ):
         # `resource_id` is typed as UUID only — surface-area guard so callers
         # can't accidentally pass PHI (names, emails, etc.) into `details`
         # (SPEC-007 §7.4). Lookups by non-UUID keys should use a domain-specific
@@ -116,6 +143,10 @@ class NotFoundError(GroundworkError):
             message=f"{resource} not found.",
             status_code=404,
             details=[{"resource": resource, "resource_id": str(resource_id)}],
+            audit_action=action,
+            audit_entity_type=resource,
+            audit_entity_id=resource_id,
+            audit_actor_id=actor_id,
         )
 
 
@@ -135,7 +166,15 @@ class ConflictError(GroundworkError):
 
 
 class StateTransitionDeniedError(GroundworkError):
-    def __init__(self, resource: str, current_status: str, target_status: str):
+    def __init__(
+        self,
+        resource: str,
+        current_status: str,
+        target_status: str,
+        *,
+        resource_id: UUID | None = None,
+        actor_id: UUID | None = None,
+    ):
         super().__init__(
             error="state_transition_denied",
             message=f"Cannot transition {resource} from '{current_status}' to '{target_status}'.",
@@ -147,6 +186,37 @@ class StateTransitionDeniedError(GroundworkError):
                     "target_status": target_status,
                 }
             ],
+            audit_action=f"transition_to_{target_status}",
+            audit_entity_type=resource,
+            audit_entity_id=resource_id,
+            audit_actor_id=actor_id,
+        )
+
+
+class OrganizationAlreadyInactive(GroundworkError):
+    """Attempted to deactivate an Organization that is already inactive."""
+
+    def __init__(
+        self,
+        *,
+        organization_id: UUID,
+        actor_id: UUID | None = None,
+    ):
+        super().__init__(
+            error="state_transition_denied",
+            message="Organization is already inactive.",
+            status_code=409,
+            details=[
+                {
+                    "resource": "Organization",
+                    "current_status": "inactive",
+                    "target_status": "inactive",
+                }
+            ],
+            audit_action="deactivate",
+            audit_entity_type="Organization",
+            audit_entity_id=organization_id,
+            audit_actor_id=actor_id,
         )
 
 
