@@ -3,7 +3,7 @@
 **Status:** Container — not directly executable
 **Subtasks:** TASK-011A (type casting engine), TASK-011C (models + migration + CRUD + full fk check), TASK-011B (JSONB aggregation + GET list optimization)
 **Spec sections:** SPEC-001 §2, §4, §5, §6, §7
-**ADRs:** ADR-001, ADR-002, ADR-004
+**ADRs:** ADR-001, ADR-002, ADR-004, ADR-009
 
 ## Purpose
 

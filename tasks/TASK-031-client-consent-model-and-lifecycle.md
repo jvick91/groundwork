@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-006 §2 (ClientConsent), §3 (consent status lifecycle), §4 (consent rules), §6 (ClientConsent management)
-**ADRs:** ADR-002, ADR-003 (partial unique indexes for one-signed-per-type)
+**ADRs:** ADR-002, ADR-003 (partial unique indexes for one-signed-per-type), ADR-009
 **Depends on:** TASK-004, TASK-006, TASK-011C, TASK-029, TASK-030, TASK-032
 
 ## Dependency Note

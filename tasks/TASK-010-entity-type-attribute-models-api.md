@@ -1,8 +1,8 @@
 # TASK-010: EntityType & EntityAttribute Models, Seed Data, & API
 
-**Status:** Complete
+**Status:** Complete (refactored to ADR-009 on 2026-05-09 — see merge commit and TASK-008A)
 **Spec sections:** SPEC-001 §2 (EntityType, EntityAttribute), §3 (seed data), §4 (system type protection, required field enforcement), §6 (EntityType management, EntityAttribute management, slug change rules), §7
-**ADRs:** ADR-001, ADR-002
+**ADRs:** ADR-001, ADR-002, ADR-009
 **Depends on:** TASK-004, TASK-009
 
 ## Objective
@@ -37,14 +37,18 @@ Implement EntityType and EntityAttribute models with full CRUD APIs, seed data f
 - [x] All state-changing operations write AuditLog entries per BR-07
 - [x] Tests from SPEC-001 §9: `test_delete_system_entity_type_returns_409`, `test_rename_system_entity_type_returns_409`, `test_duplicate_slug_same_org_returns_409`, `test_system_type_slug_reserved_across_orgs`, `test_create_entity_type_writes_audit_log`, `test_delete_seed_attribute_on_system_type_returns_409`, `test_add_attribute_to_system_type_succeeds`
 
-## Files
+## Files (post-architecture-reset, ADR-009)
 
-- `backend/app/models/models.py` (EntityType, EntityAttribute models)
-- `backend/app/schemas/eav.py` (EntityType, EntityAttribute schemas)
-- `backend/app/services/eav_service.py` (type/attribute service methods)
-- `backend/app/routers/eav.py` (type/attribute endpoints)
-- `backend/tests/test_eav/test_entity_types.py`
-- `backend/alembic/versions/` (model + seed migrations)
+- `backend/app/models/eav.py` — `EntityType` (with `SYSTEM_SLUGS` class attribute and `assert_mutable()` mutator), `EntityAttribute`
+- `backend/app/schemas/eav.py` — `EntityTypeCreate/Update/Response`, `EntityAttributeCreate/Update/Response`
+- `backend/app/repositories/entity_type_repository.py` — `EntityTypeRepository`
+- `backend/app/repositories/entity_attribute_repository.py` — `EntityAttributeRepository`
+- `backend/app/services/entity_type_service.py` — `EntityTypeService` class
+- `backend/app/services/entity_attribute_service.py` — `EntityAttributeService` class
+- `backend/app/routers/entity_types.py` — endpoints (depend on `get_entity_type_service` / `get_entity_attribute_service`)
+- `backend/app/core/dependencies.py` — Depends factories for the repos and services
+- `backend/tests/test_eav/test_entity_types.py`, `backend/tests/test_eav/conftest.py` (seed fixture)
+- `backend/alembic/versions/c3f5e7a9b1d2_seed_system_entity_types_and_attributes.py`
 
 ## Non-goals
 

@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-005 §2 (Invoice, InvoiceLineItem), §4 (one active invoice per session, session prerequisite, line item total consistency, locked invoice editing, CPT/ICD activity, bridge rules, session-invoice consistency, soft delete restriction), §5 (invoice management, line item management, POST /invoices request body)
-**ADRs:** ADR-002, ADR-003 (partial unique index)
+**ADRs:** ADR-002, ADR-003 (partial unique index), ADR-009
 **Depends on:** TASK-004, TASK-021, TASK-025, TASK-015
 
 ## Objective

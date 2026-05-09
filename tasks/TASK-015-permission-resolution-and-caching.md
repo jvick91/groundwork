@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-002 §5 (authorization resolution model), §6 (row-level filtering), §4 (role union rule, hierarchy inheritance); SPEC-007 §3.3 (caching)
-**ADRs:** —
+**ADRs:** ADR-009
 **Depends on:** TASK-013, TASK-014
 
 ## Objective

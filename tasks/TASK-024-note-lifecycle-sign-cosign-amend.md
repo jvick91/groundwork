@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-004 §4 (status lifecycle), §5 (BR-04 sign lock, co-sign permission gate), §6 (amendment model), §7 (lifecycle transition endpoints, amend request body), §8
-**ADRs:** —
+**ADRs:** ADR-009
 **Depends on:** TASK-023
 
 ## Objective

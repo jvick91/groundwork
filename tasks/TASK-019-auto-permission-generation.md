@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-002 §7 (SPEC-001 integration contract — auto-generation trigger); SPEC-001 §6 (dynamic permissions), §9
-**ADRs:** —
+**ADRs:** ADR-009
 **Depends on:** TASK-010, TASK-013
 
 ## Objective

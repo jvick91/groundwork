@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-003 §2 (Session), §4 (BR-01, BR-02, bridge rules, cancellation reason, AppointmentType guard, soft delete), §5 (intake status gate, duration override), §6 (Session management, POST/PATCH schemas, response body)
-**ADRs:** ADR-001, ADR-002
+**ADRs:** ADR-001, ADR-002, ADR-009
 **Depends on:** TASK-004, TASK-011C, TASK-015, TASK-020
 
 ## Objective

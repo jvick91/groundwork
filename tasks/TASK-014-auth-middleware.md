@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-007 §3.1 (authentication flow), §3.2 (organization context); SPEC-002 §4 (auth subject rule, soft delete rule), §9
-**ADRs:** —
+**ADRs:** ADR-009
 **Depends on:** TASK-012, TASK-013
 
 ## Objective

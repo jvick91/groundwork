@@ -3,7 +3,7 @@
 **Status:** Not started
 **Parent:** TASK-011
 **Spec sections:** SPEC-001 §2 (AttributeValue type casting rules)
-**ADRs:** —
+**ADRs:** ADR-009
 **Depends on:** TASK-010
 
 ## Objective

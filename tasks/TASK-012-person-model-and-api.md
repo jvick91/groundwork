@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-002 §2 (Person), §4 (soft delete rule, auth subject rule), §8 (Person management), §9 (Person query scoping)
-**ADRs:** ADR-002
+**ADRs:** ADR-002, ADR-009
 **Depends on:** TASK-004, TASK-009, TASK-006, TASK-008
 
 ## Objective
