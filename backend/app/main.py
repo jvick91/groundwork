@@ -47,6 +47,7 @@ def _resolve_org_for_failure_audit(request: Request) -> UUID | None:
         return _STUB_ORG_ID
     return None
 
+
 # Map common HTTP status codes to stable error codes from SPEC-007 §7.3.
 _HTTP_STATUS_TO_ERROR_CODE: dict[int, str] = {
     400: "bad_request",

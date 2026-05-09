@@ -23,15 +23,8 @@ def _validate_iana_timezone(v: str) -> str:
     return v
 
 
-# Format patterns enforced at the API layer. Stored as VARCHAR; SPEC-001 §Organization
-# documents the formats. Phone is loose-shape only (no normalization) because the
-# clinic platform has no comms feature yet — tighten when one lands.
-_NPI_PATTERN = r"^\d{10}$"
-_TAX_ID_PATTERN = r"^\d{2}-\d{7}$"
-_PHONE_PATTERN = r"^[\d\s\-+().]{7,20}$"
-# Two-letter ISO codes (state subdivision, country alpha-2). Uppercase required
-# from clients — keeps storage canonical without an auto-uppercase validator.
-_ISO_2_PATTERN = r"^[A-Z]{2}$"
+# Field-level regex patterns are inlined at use site below per ADR-009 — no
+# module-level allowlists, regexes, or pattern dicts in governed files.
 
 
 class Address(BaseModel):
@@ -49,13 +42,13 @@ class Address(BaseModel):
     city: str | None = Field(default=None, max_length=100)
     state: str | None = Field(
         default=None,
-        pattern=_ISO_2_PATTERN,
+        pattern=r"^[A-Z]{2}$",
         description="ISO-3166-2:US subdivision code, e.g. 'OR'.",
     )
     postal_code: str | None = Field(default=None, max_length=20)
     country: str = Field(
         default="US",
-        pattern=_ISO_2_PATTERN,
+        pattern=r"^[A-Z]{2}$",
         description="ISO-3166-1 alpha-2 country code.",
     )
 
@@ -72,9 +65,9 @@ class AddressUpdate(BaseModel):
     line1: str | None = Field(default=None, max_length=255)
     line2: str | None = Field(default=None, max_length=255)
     city: str | None = Field(default=None, max_length=100)
-    state: str | None = Field(default=None, pattern=_ISO_2_PATTERN)
+    state: str | None = Field(default=None, pattern=r"^[A-Z]{2}$")
     postal_code: str | None = Field(default=None, max_length=20)
-    country: str | None = Field(default=None, pattern=_ISO_2_PATTERN)
+    country: str | None = Field(default=None, pattern=r"^[A-Z]{2}$")
 
 
 class OrganizationCreate(BaseModel):
@@ -83,17 +76,17 @@ class OrganizationCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255, description="Legal name of the practice.")
     npi_number: str | None = Field(
         default=None,
-        pattern=_NPI_PATTERN,
+        pattern=r"^\d{10}$",
         description="Organization-level NPI (Type 2). 10 digits.",
     )
     tax_id: str | None = Field(
         default=None,
-        pattern=_TAX_ID_PATTERN,
+        pattern=r"^\d{2}-\d{7}$",
         description="EIN in 'NN-NNNNNNN' format.",
     )
     phone: str | None = Field(
         default=None,
-        pattern=_PHONE_PATTERN,
+        pattern=r"^[\d\s\-+().]{7,20}$",
         description="Main practice phone number.",
     )
     address: Address = Field(default_factory=Address, description="Mailing address.")
@@ -112,9 +105,9 @@ class OrganizationUpdate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     name: str | None = Field(default=None, min_length=1, max_length=255)
-    npi_number: str | None = Field(default=None, pattern=_NPI_PATTERN)
-    tax_id: str | None = Field(default=None, pattern=_TAX_ID_PATTERN)
-    phone: str | None = Field(default=None, pattern=_PHONE_PATTERN)
+    npi_number: str | None = Field(default=None, pattern=r"^\d{10}$")
+    tax_id: str | None = Field(default=None, pattern=r"^\d{2}-\d{7}$")
+    phone: str | None = Field(default=None, pattern=r"^[\d\s\-+().]{7,20}$")
     address: AddressUpdate | None = None
     timezone: str | None = None
     is_active: bool | None = None
