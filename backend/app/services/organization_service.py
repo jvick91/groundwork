@@ -88,7 +88,19 @@ class OrganizationService:
 
         Any failure rolls back all three via ``get_db``.
         """
-        org = Organization.from_create(data)
+        org = Organization.from_create(
+            name=data.name,
+            npi_number=data.npi_number,
+            tax_id=data.tax_id,
+            phone=data.phone,
+            timezone=data.timezone,
+            address_line1=data.address.line1,
+            address_line2=data.address.line2,
+            city=data.address.city,
+            state=data.address.state,
+            postal_code=data.address.postal_code,
+            country=data.address.country,
+        )
         await self._save(org)
 
         # Organization is the tenant root; the audit row belongs to the

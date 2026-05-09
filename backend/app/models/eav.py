@@ -13,7 +13,7 @@ partial indexes, mutator methods, and ``@classmethod`` factories.
 import uuid
 import zoneinfo
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from sqlalchemy import (
     Boolean,
@@ -32,9 +32,6 @@ from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from app.core.database import Base, IdMixin, SoftDeleteMixin, TimestampMixin
 from app.enums.eav import FieldType
-
-if TYPE_CHECKING:
-    from app.schemas.eav import OrganizationCreate
 
 
 class Organization(Base, IdMixin, TimestampMixin):
@@ -91,33 +88,41 @@ class Organization(Base, IdMixin, TimestampMixin):
         return value
 
     @classmethod
-    def from_create(cls, data: "OrganizationCreate") -> "Organization":
-        """Construct an Organization from a validated create payload.
+    def from_create(
+        cls,
+        *,
+        name: str,
+        npi_number: str | None,
+        tax_id: str | None,
+        phone: str | None,
+        timezone: str,
+        address_line1: str | None,
+        address_line2: str | None,
+        city: str | None,
+        state: str | None,
+        postal_code: str | None,
+        country: str,
+    ) -> "Organization":
+        """Construct an Organization from primitive fields.
 
-        Maps the nested ``address`` shape (ADR-007) onto the flat DB columns.
-        Per ADR-009 the field map is declared inline at use, not at module
-        scope.
+        The model has no dependency on the schema layer; the service maps
+        the validated request body to keyword arguments here.
         """
-        address_field_map = {
-            "line1": "address_line1",
-            "line2": "address_line2",
-            "city": "city",
-            "state": "state",
-            "postal_code": "postal_code",
-            "country": "country",
-        }
-        kwargs: dict[str, Any] = {
-            "name": data.name,
-            "npi_number": data.npi_number,
-            "tax_id": data.tax_id,
-            "phone": data.phone,
-            "timezone": data.timezone,
-            "is_active": True,
-            "created_at": datetime.now(tz=UTC),
-        }
-        for api_key, column in address_field_map.items():
-            kwargs[column] = getattr(data.address, api_key)
-        return cls(**kwargs)
+        return cls(
+            name=name,
+            npi_number=npi_number,
+            tax_id=tax_id,
+            phone=phone,
+            timezone=timezone,
+            address_line1=address_line1,
+            address_line2=address_line2,
+            city=city,
+            state=state,
+            postal_code=postal_code,
+            country=country,
+            is_active=True,
+            created_at=datetime.now(tz=UTC),
+        )
 
     def deactivate(self) -> None:
         """Mark the organization inactive (tenant suspension).

@@ -19,6 +19,14 @@ The original decision below introduced a per-aggregate `<Aggregate>Repository` c
 
 Until that signal fires, queries inline in the service file under the `# Query helpers` section.
 
+**Schema-layer rule clarified.** The original "schemas live at the router boundary only; never imported in services or repositories" was strict in a way that didn't earn its cost. The actual rule:
+
+- Services *may* consume Pydantic schemas as method input parameters (`*Create`, `*Update`) and consume `PaginationParams` / `PaginationMeta` as pagination DTOs. Pydantic IS the input-DTO type for FastAPI; mirroring every schema with a parallel dataclass would be ceremony without payoff.
+- Services *may not* construct or return `*Response` schemas. Building `OrganizationResponse` from a model is a router-layer concern (it's how the HTTP-shape contract surfaces).
+- Models *may not* depend on schemas at all — not even under `TYPE_CHECKING`. Model factory methods (`Organization.from_create`) take primitive keyword arguments; the service maps the schema's fields to those primitives at the call site.
+
+This is the rule the code now follows after the same-day model→schema decoupling.
+
 The remainder of this document records the original decision and the reasoning that led to the Repository layer; it is preserved because the Model-as-Entity, AuditWriter, lifecycle dispatcher, no-module-level-state, and naming-schema portions are still in force. Read the sections about Repository as historical context for the amendment above.
 
 ---

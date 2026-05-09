@@ -41,12 +41,10 @@ Implement EntityType and EntityAttribute models with full CRUD APIs, seed data f
 
 - `backend/app/models/eav.py` — `EntityType` (with `SYSTEM_SLUGS` class attribute and `assert_mutable()` mutator), `EntityAttribute`
 - `backend/app/schemas/eav.py` — `EntityTypeCreate/Update/Response`, `EntityAttributeCreate/Update/Response`
-- `backend/app/repositories/entity_type_repository.py` — `EntityTypeRepository`
-- `backend/app/repositories/entity_attribute_repository.py` — `EntityAttributeRepository`
-- `backend/app/services/entity_type_service.py` — `EntityTypeService` class
-- `backend/app/services/entity_attribute_service.py` — `EntityAttributeService` class
+- `backend/app/services/entity_type_service.py` — `EntityTypeService` class (queries inlined under `# Query helpers`)
+- `backend/app/services/entity_attribute_service.py` — `EntityAttributeService` class (queries inlined under `# Query helpers`)
 - `backend/app/routers/entity_types.py` — endpoints (depend on `get_entity_type_service` / `get_entity_attribute_service`)
-- `backend/app/core/dependencies.py` — Depends factories for the repos and services
+- `backend/app/core/dependencies.py` — Depends factories for the two services
 - `backend/tests/test_eav/test_entity_types.py`, `backend/tests/test_eav/conftest.py` (seed fixture)
 - `backend/alembic/versions/c3f5e7a9b1d2_seed_system_entity_types_and_attributes.py`
 
