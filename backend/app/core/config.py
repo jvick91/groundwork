@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     # is the single switch those tasks flip off.
     auth_stub_enabled: bool = True
 
+    # Feature flags
+    # Gated behind TASK-019 (auto-permission generation). When False, POST
+    # /entity-types returns 501. GET/PATCH/DELETE on system/seed types always work.
+    custom_entity_types_enabled: bool = False
+
     @property
     def auth0_issuer_url(self) -> str:
         if self.auth0_issuer:

@@ -403,6 +403,7 @@ class TestFilterPhi:
         snapshot = {key: f"note text for {key}" for key in clinical_note_keys}
         snapshot["id"] = "abc123"
         result = filter_phi(snapshot)
+        assert isinstance(result, dict)
         for key in clinical_note_keys:
             assert key not in result, f"clinical-note key '{key}' leaked"
         assert result == {"id": "abc123"}
@@ -491,5 +492,5 @@ class TestPhiExclusionListCentralization:
 
         event = {field: "leak" for field in PHI_EXCLUDED_FIELDS}
         event["event"] = "something happened"
-        out = phi_filter(None, "info", event)  # type: ignore[arg-type]
+        out = phi_filter(None, "info", event)
         assert out == {"event": "something happened"}

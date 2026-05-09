@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql import Select
 
 from app.core.exceptions import BadRequestError
 from app.core.pagination import (
@@ -322,7 +323,7 @@ async def test_paginate_sort_ascending(db_session: AsyncSession):
 class TestFilterHelpers:
     """Smoke tests for filter helpers — just verify they return Select objects."""
 
-    def _base_stmt(self):
+    def _base_stmt(self) -> Select[tuple[Organization]]:
         return select(Organization)
 
     def test_apply_exact_filter_with_value(self):

@@ -19,8 +19,12 @@ from app.core.security import (
     get_auth_context,
     require_permission,
 )
+from app.repositories.entity_attribute_repository import EntityAttributeRepository
+from app.repositories.entity_type_repository import EntityTypeRepository
 from app.repositories.organization_repository import OrganizationRepository
 from app.services.audit_service import AuditWriter, _AuditScope
+from app.services.entity_attribute_service import EntityAttributeService
+from app.services.entity_type_service import EntityTypeService
 from app.services.organization_service import (
     OrganizationService,
     _OrganizationLifecycle,
@@ -97,12 +101,56 @@ async def get_organization_service(
     )
 
 
+async def get_entity_type_repository(
+    session: AsyncSession = Depends(get_db),
+) -> EntityTypeRepository:
+    return EntityTypeRepository(session)
+
+
+async def get_entity_type_service(
+    repo: EntityTypeRepository = Depends(get_entity_type_repository),
+    audit: AuditWriter = Depends(get_audit_writer),
+    auth: AuthContext = Depends(get_auth_context),
+) -> EntityTypeService:
+    return EntityTypeService(
+        repo=repo,
+        audit=audit,
+        tenant_id=auth.organization_id,
+        actor_id=auth.person_id,
+    )
+
+
+async def get_entity_attribute_repository(
+    session: AsyncSession = Depends(get_db),
+) -> EntityAttributeRepository:
+    return EntityAttributeRepository(session)
+
+
+async def get_entity_attribute_service(
+    repo: EntityAttributeRepository = Depends(get_entity_attribute_repository),
+    type_repo: EntityTypeRepository = Depends(get_entity_type_repository),
+    audit: AuditWriter = Depends(get_audit_writer),
+    auth: AuthContext = Depends(get_auth_context),
+) -> EntityAttributeService:
+    return EntityAttributeService(
+        repo=repo,
+        type_repo=type_repo,
+        audit=audit,
+        tenant_id=auth.organization_id,
+        actor_id=auth.person_id,
+    )
+
+
 __all__ = [
     "current_org",
     "current_person",
     "get_audit_writer",
     "get_auth_context",
     "get_db",
+    "get_entity_attribute_repository",
+    "get_entity_attribute_service",
+    "get_entity_type_repository",
+    "get_entity_type_service",
     "get_organization_lifecycle",
     "get_organization_repository",
     "get_organization_service",

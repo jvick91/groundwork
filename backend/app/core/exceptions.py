@@ -150,6 +150,21 @@ class NotFoundError(GroundworkError):
         )
 
 
+class SlugNotFoundError(GroundworkError):
+    """404 for slug-based lookups where no UUID is available.
+
+    The slug itself is safe to surface (it is a URL path segment, not PHI).
+    """
+
+    def __init__(self, resource: str, slug: str):
+        super().__init__(
+            error="not_found",
+            message=f"{resource} not found.",
+            status_code=404,
+            details=[{"resource": resource, "slug": slug}],
+        )
+
+
 # ---------------------------------------------------------------------------
 # 409
 # ---------------------------------------------------------------------------

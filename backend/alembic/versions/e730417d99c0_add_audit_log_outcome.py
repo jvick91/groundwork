@@ -6,7 +6,7 @@ request session — carry ``'success'``. Failure-path audits — written by
 the route-level exception handler in a fresh session — carry ``'failure'``.
 
 Revision ID: e730417d99c0
-Revises: 485f37aa7554
+Revises: c3f5e7a9b1d2
 Create Date: 2026-05-09
 """
 
@@ -18,7 +18,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "e730417d99c0"
-down_revision: Union[str, None] = "485f37aa7554"
+down_revision: Union[str, None] = "c3f5e7a9b1d2"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

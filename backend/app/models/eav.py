@@ -133,12 +133,29 @@ class Organization(Base, IdMixin, TimestampMixin):
 
 
 class EntityType(Base, IdMixin, TimestampMixin):
+    """EAV type definition: ``provider``, ``client``, ``admin`` (system) plus
+    org-defined custom types like ``nutritionist`` (SPEC-001 §4, §6).
+
+    Invariants (ADR-009 — Model-as-entity):
+
+    - System slugs ``provider`` / ``client`` / ``admin`` are globally reserved.
+    - ``is_system_type`` rows cannot be renamed or deleted
+      (``assert_mutable()`` raises ``ResourceLockedError`` for both).
+    - Slug uniqueness within an organization is enforced by the DB
+      ``UniqueConstraint`` below; the service layer pre-checks for a
+      friendlier 409 envelope.
+    """
+
     __tablename__ = "entity_types"
     __table_args__ = (
         # NULL organization_id = system type; system slugs are globally reserved
         # (application layer enforces; DB constraint covers org-scoped uniqueness)
         UniqueConstraint("organization_id", "slug"),
     )
+
+    # System-reserved slugs — set as a frozenset class attribute so the rule
+    # ships with the entity, not as module-level data (ADR-009).
+    SYSTEM_SLUGS: frozenset[str] = frozenset({"provider", "client", "admin"})
 
     # NULLABLE: NULL means system-scoped type (provider, client, admin)
     organization_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -152,6 +169,23 @@ class EntityType(Base, IdMixin, TimestampMixin):
     is_person_subtype: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("false")
     )
+
+    def assert_mutable(self, *, action: str) -> None:
+        """Guard system types from rename/delete (SPEC-001 §4).
+
+        Raises ``ResourceLockedError`` with the specific reason for
+        ``action``. ``action`` should be ``"rename"`` or ``"delete"`` for
+        message clarity.
+        """
+        from app.core.exceptions import ResourceLockedError
+
+        if self.is_system_type:
+            reason = (
+                "system types cannot be renamed or modified"
+                if action == "rename"
+                else "system types cannot be deleted"
+            )
+            raise ResourceLockedError("EntityType", reason)
 
 
 class EntityAttribute(Base, IdMixin, TimestampMixin):

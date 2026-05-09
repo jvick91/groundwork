@@ -60,7 +60,7 @@ async def http_client() -> AsyncGenerator[AsyncClient, None]:
     app = create_app()
 
     stub_auth = AuthContext(
-        person_id=None,  # type: ignore[arg-type]  — system actor; people table empty
+        person_id=None,
         auth_subject="test|stub",
         organization_id=uuid.UUID("00000000-0000-0000-0000-0000000000b2"),
     )
