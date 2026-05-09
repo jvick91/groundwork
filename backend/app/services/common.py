@@ -25,7 +25,7 @@ from app.services import audit_service
 T = TypeVar("T")
 
 
-async def call_service_with_audit(  # noqa: UP047
+async def call_service_with_audit(
     db: AsyncSession,
     *,
     org_id: UUID,
