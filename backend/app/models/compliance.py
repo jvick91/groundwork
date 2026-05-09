@@ -47,9 +47,10 @@ class AuditLog(Base, IdMixin):
 
     __tablename__ = "audit_logs"
     __table_args__ = (
+        # Naming convention adds the ``ck_audit_logs_`` prefix.
         CheckConstraint(
             "outcome IN ('success', 'failure')",
-            name="ck_audit_logs_outcome",
+            name="outcome_valid",
         ),
     )
 
