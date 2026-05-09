@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.models.models import FieldType
 
@@ -135,6 +135,8 @@ class OrganizationResponse(BaseModel):
     across Create / Update / Response while the DB stays flat.
     """
 
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID
     name: str
     npi_number: str | None
@@ -145,6 +147,32 @@ class OrganizationResponse(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: datetime | None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _nest_address(cls, v: Any) -> Any:
+        """Promote flat ORM address columns into a nested ``address`` dict."""
+        if isinstance(v, dict):
+            return v
+        return {
+            "id": v.id,
+            "name": v.name,
+            "npi_number": v.npi_number,
+            "tax_id": v.tax_id,
+            "phone": v.phone,
+            "address": {
+                "line1": v.address_line1,
+                "line2": v.address_line2,
+                "city": v.city,
+                "state": v.state,
+                "postal_code": v.postal_code,
+                "country": v.country,
+            },
+            "timezone": v.timezone,
+            "is_active": v.is_active,
+            "created_at": v.created_at,
+            "updated_at": v.updated_at,
+        }
 
 
 # ---------------------------------------------------------------------------
