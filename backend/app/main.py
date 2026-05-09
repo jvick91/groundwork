@@ -5,6 +5,8 @@ Creates and configures the FastAPI app with middleware, exception handlers,
 and the health check endpoint. Domain routers are added per phase.
 """
 
+from uuid import UUID
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +14,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.config import settings
+from app.core.database import Database
 from app.core.exceptions import GroundworkError
 from app.core.lifespan import lifespan
 from app.core.logger import get_logger
@@ -20,8 +23,29 @@ from app.routers import compliance as compliance_router
 from app.routers import eav as eav_router
 from app.routers import entity_types as entity_types_router
 from app.routers import health as health_router
+from app.services.audit_service import AuditWriter, _AuditScope
 
 logger = get_logger(__name__)
+
+
+def _resolve_org_for_failure_audit(request: Request) -> UUID | None:
+    """Best-effort tenant lookup for the failure-audit row.
+
+    The auth context is normally produced by the ``get_auth_context``
+    dependency during request handling; the exception handler runs after
+    the request session has rolled back, so we read whatever the auth
+    middleware (or the stub) left on ``request.state``. Until TASK-014
+    wires the real middleware, we fall back to the stub org id so local
+    dev still produces failure audits.
+    """
+    auth = getattr(request.state, "auth", None)
+    if auth is not None:
+        return getattr(auth, "organization_id", None)
+    if settings.auth_stub_enabled:
+        from app.core.security import _STUB_ORG_ID
+
+        return _STUB_ORG_ID
+    return None
 
 # Map common HTTP status codes to stable error codes from SPEC-007 §7.3.
 _HTTP_STATUS_TO_ERROR_CODE: dict[int, str] = {
@@ -67,9 +91,46 @@ def create_app() -> FastAPI:
     # processor, so payload field names safe to use here.
     app.add_middleware(RequestLoggerMiddleware)
 
-    # Domain errors — GroundworkError subclasses (SPEC-007 §7.3)
+    # Domain errors — GroundworkError subclasses (SPEC-007 §7.3).
+    # Per ADR-009, this handler is the single owner of failure-audit writes.
+    # When the exception carries audit-context fields, we open a *fresh*
+    # session (the request session is rolling back) and write a row with
+    # outcome="failure" before translating to HTTP. Any failure of the audit
+    # write itself is logged but never masks the original error.
     @app.exception_handler(GroundworkError)
     async def groundwork_error_handler(request: Request, exc: GroundworkError) -> JSONResponse:
+        if (
+            exc.audit_action is not None
+            and exc.audit_entity_type is not None
+            and exc.audit_entity_id is not None
+        ):
+            org_id = _resolve_org_for_failure_audit(request)
+            if org_id is not None:
+                try:
+                    session_factory = Database.get_session_factory()
+                    async with session_factory() as fresh_session:
+                        writer = AuditWriter(
+                            fresh_session,
+                            _AuditScope(
+                                org_id=org_id,
+                                actor_id=exc.audit_actor_id,
+                                ip_address=request.client.host if request.client else None,
+                                user_agent=request.headers.get("user-agent"),
+                            ),
+                        )
+                        await writer.write(
+                            action=exc.audit_action,
+                            resource_type=exc.audit_entity_type,
+                            resource_id=exc.audit_entity_id,
+                            outcome="failure",
+                            next_state={"error": exc.error, "message": exc.message},
+                        )
+                        await fresh_session.commit()
+                except Exception:
+                    logger.exception(
+                        "failure_audit_write_failed",
+                        original_error=exc.error,
+                    )
         return JSONResponse(
             status_code=exc.status_code,
             content={
