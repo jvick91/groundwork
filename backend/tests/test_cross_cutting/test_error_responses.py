@@ -10,6 +10,7 @@ Test routes are registered directly on a fresh app instance per fixture so
 no production routes are required and no domain logic is exercised.
 """
 
+from typing import Any
 from uuid import UUID
 
 import pytest
@@ -183,7 +184,7 @@ async def ec(error_app: FastAPI):
 # ---------------------------------------------------------------------------
 
 
-def assert_envelope(data: dict, error_code: str, status: int) -> None:
+def assert_envelope(data: dict[str, Any], error_code: str, status: int) -> None:
     assert data["error"] == error_code
     assert data["status"] == status
     assert isinstance(data["message"], str) and data["message"]

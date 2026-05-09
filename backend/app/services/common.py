@@ -15,15 +15,17 @@ audit-coverage assertions only need to verify one helper.
 """
 
 from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Any, TypeVar
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services import audit_service
 
+T = TypeVar("T")
 
-async def call_service_with_audit[T](
+
+async def call_service_with_audit(  # noqa: UP047
     db: AsyncSession,
     *,
     org_id: UUID,

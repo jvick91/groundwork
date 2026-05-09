@@ -294,7 +294,7 @@ async def get_entity_type_by_slug(db: AsyncSession, slug: str) -> EntityType:
 async def create_entity_type(
     db: AsyncSession,
     *,
-    org_id: UUID | None,
+    org_id: UUID,
     actor_id: UUID | None,
     data: EntityTypeCreate,
 ) -> EntityType:
@@ -333,7 +333,7 @@ async def update_entity_type(
     db: AsyncSession,
     *,
     slug: str,
-    org_id: UUID | None,
+    org_id: UUID,
     actor_id: UUID | None,
     data: EntityTypeUpdate,
 ) -> EntityType:
@@ -378,7 +378,7 @@ async def delete_entity_type(
     db: AsyncSession,
     *,
     slug: str,
-    org_id: UUID | None,
+    org_id: UUID,
     actor_id: UUID | None,
 ) -> None:
     """Delete a custom EntityType.
@@ -466,7 +466,7 @@ async def create_entity_attribute(
     db: AsyncSession,
     *,
     entity_type_id: UUID,
-    org_id: UUID | None,
+    org_id: UUID,
     actor_id: UUID | None,
     data: EntityAttributeCreate,
 ) -> EntityAttribute:
@@ -505,7 +505,7 @@ async def update_entity_attribute(
     *,
     attr_id: UUID,
     entity_type_id: UUID,
-    org_id: UUID | None,
+    org_id: UUID,
     actor_id: UUID | None,
     data: EntityAttributeUpdate,
 ) -> EntityAttribute:
@@ -541,7 +541,7 @@ async def delete_entity_attribute(
     *,
     attr_id: UUID,
     entity_type_id: UUID,
-    org_id: UUID | None,
+    org_id: UUID,
     actor_id: UUID | None,
 ) -> None:
     """Delete an EntityAttribute.

@@ -26,6 +26,8 @@ empty ``people`` table.
 
 import uuid
 from collections.abc import AsyncGenerator
+from contextlib import AbstractContextManager
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -49,7 +51,7 @@ async def et_client() -> AsyncGenerator[AsyncClient, None]:
 
     app = create_app()
     stub_auth = AuthContext(
-        person_id=None,  # type: ignore[arg-type]  — system actor; people table empty
+        person_id=None,
         auth_subject="test|stub",
         organization_id=_ORG_ID,
     )
@@ -312,12 +314,12 @@ async def test_invalid_slug_format_returns_422(et_client: AsyncClient) -> None:
 _SETTINGS = __import__("app.core.settings", fromlist=["settings"]).settings
 
 
-def _flag_on():
+def _flag_on() -> AbstractContextManager[Any]:
     """Context manager that temporarily enables custom EntityType creation."""
     return mock.patch.object(_SETTINGS, "custom_entity_types_enabled", True)
 
 
-async def _create_custom_type(client: AsyncClient, name: str, slug: str) -> dict:
+async def _create_custom_type(client: AsyncClient, name: str, slug: str) -> dict[str, Any]:
     """Create a custom EntityType (flag on) and return the response body."""
     with _flag_on():
         resp = await client.post(
@@ -325,7 +327,8 @@ async def _create_custom_type(client: AsyncClient, name: str, slug: str) -> dict
             json={"name": name, "slug": slug},
         )
     assert resp.status_code == 201, resp.text
-    return resp.json()
+    body: dict[str, Any] = resp.json()
+    return body
 
 
 # ---------------------------------------------------------------------------

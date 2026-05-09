@@ -47,8 +47,8 @@ async def seed_eav_data(create_tables) -> None:  # depends on create_tables for 
             (TEST_ORG_ID, "Entity-Type Tests Org"),
             (ORGS_TEST_ORG_ID, "Org Tests Org"),
         ]:
-            existing = await session.get(Organization, org_id)
-            if existing is None:
+            existing_org = await session.get(Organization, org_id)
+            if existing_org is None:
                 session.add(
                     Organization(
                         id=org_id,
@@ -69,8 +69,8 @@ async def seed_eav_data(create_tables) -> None:  # depends on create_tables for 
             (ADMIN_ID, "admin", "admin"),
         ]
         for et_id, name, slug in system_types:
-            existing = await session.get(EntityType, et_id)
-            if existing is None:
+            existing_type = await session.get(EntityType, et_id)
+            if existing_type is None:
                 session.add(
                     EntityType(
                         id=et_id,
