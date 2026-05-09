@@ -98,7 +98,8 @@ def test_phi_filter_centralized_list_is_authoritative() -> None:
     Guards against silent drift if a field is added to the centralized
     list but the filter implementation regresses.
     """
-    event: dict[str, object] = {"event": "test"} | {field: "leak" for field in PHI_EXCLUDED_FIELDS}
+    event: dict[str, object] = {"event": "test"}
+    event.update({field: "leak" for field in PHI_EXCLUDED_FIELDS})
 
     filtered = phi_filter(None, "info", event)
 

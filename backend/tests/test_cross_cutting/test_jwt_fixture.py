@@ -11,7 +11,7 @@ Asserts that:
 from __future__ import annotations
 
 import time
-from typing import Any, cast
+from typing import Any
 
 import pytest
 from joserfc import jwt
@@ -25,7 +25,7 @@ def _decode(token: str, public_pem: bytes) -> dict[str, Any]:
     """Verify signature against the test public key and return the claims."""
     key = RSAKey.import_key(public_pem)
     decoded = jwt.decode(token, key)
-    return cast(dict[str, Any], decoded.claims)
+    return decoded.claims
 
 
 def test_public_and_private_keys_are_pem_encoded(

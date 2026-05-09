@@ -26,10 +26,9 @@ from app.core.settings import settings
 
 # Fixed test identity used while ``auth_stub_enabled = True``.
 #
-# ``person_id`` is None — until TASK-012 (Person model) seeds rows in
-# ``people``, any non-null id would dangle the ``audit_logs.actor_person_id``
-# FK. NULL is the documented value for system-initiated events
-# (SPEC-006 §7), so this is semantically correct, not a workaround.
+# Local development startup seeds these IDs when the auth stub is enabled so
+# audit FK constraints pass while exercising endpoints without real auth.
+_STUB_PERSON_ID = UUID("00000000-0000-0000-0000-0000000000b1")
 _STUB_ORG_ID = UUID("00000000-0000-0000-0000-0000000000b2")
 _STUB_AUTH_SUBJECT = "auth0|stub-test-subject"
 
@@ -54,7 +53,7 @@ async def get_auth_context() -> AuthContext:
     """
     if settings.auth_stub_enabled:
         return AuthContext(
-            person_id=None,
+            person_id=_STUB_PERSON_ID,
             auth_subject=_STUB_AUTH_SUBJECT,
             organization_id=_STUB_ORG_ID,
             role_slugs=["stub-admin"],

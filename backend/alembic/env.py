@@ -6,6 +6,7 @@ Imports Base and all models so autogenerate can detect schema changes.
 
 import asyncio
 from logging.config import fileConfig
+from typing import Any
 
 from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -14,7 +15,7 @@ from app.core.database import Base
 from app.core.settings import settings
 
 # Import all models so they register with Base.metadata
-import app.models.models  # noqa: F401
+import app.models.models
 
 config = context.config
 if config.config_file_name is not None:
@@ -37,7 +38,7 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
-def do_run_migrations(connection):
+def do_run_migrations(connection: Any) -> None:
     context.configure(connection=connection, target_metadata=target_metadata)
     with context.begin_transaction():
         context.run_migrations()
