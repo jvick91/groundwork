@@ -1,5 +1,5 @@
 """
-Direct unit tests for ``EntityAttributeService`` (ADR-009).
+Direct unit tests for ``EntityAttributeService``.
 
 Covers create / get / list / update / delete with the system-type
 protection rule for attribute deletion.
@@ -13,8 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import NotFoundError, ResourceLockedError
 from app.enums.eav import FieldType
 from app.models.eav import EntityType, Organization
-from app.repositories.entity_attribute_repository import EntityAttributeRepository
-from app.repositories.entity_type_repository import EntityTypeRepository
 from app.schemas.eav import EntityAttributeCreate, EntityAttributeUpdate
 from app.schemas.pagination import PaginationParams
 from app.services.audit_service import AuditWriter, _AuditScope
@@ -58,8 +56,7 @@ async def _make_type(
 def _service(session: AsyncSession, tenant_id: uuid.UUID) -> EntityAttributeService:
     audit = AuditWriter(session, _AuditScope(org_id=tenant_id, actor_id=None))
     return EntityAttributeService(
-        repo=EntityAttributeRepository(session),
-        type_repo=EntityTypeRepository(session),
+        session=session,
         audit=audit,
         tenant_id=tenant_id,
         actor_id=None,
@@ -224,7 +221,7 @@ async def test_delete_removes_attribute_on_custom_type(db_session: AsyncSession)
         ),
     )
 
-    await service.delete(created.id, et.id)
+    await service.delete(created.id, et)
 
     with pytest.raises(NotFoundError):
         await service.get(created.id, et.id)
@@ -247,4 +244,4 @@ async def test_delete_attribute_on_system_type_raises_resource_locked(
     )
 
     with pytest.raises(ResourceLockedError, match="cannot be deleted"):
-        await service.delete(created.id, sys_et.id)
+        await service.delete(created.id, sys_et)

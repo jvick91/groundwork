@@ -1,8 +1,27 @@
-# ADR-009 — Service + Repository pattern with Model-as-Entity for multi-tenant FastAPI
+# ADR-009 — Service + Model-as-Entity for multi-tenant FastAPI
 
 **Date:** 2026-05-09
 **Author:** claude-code
-**Status:** Accepted
+**Status:** Accepted (amended 2026-05-09 — Repository layer removed; see "Amendment" below)
+
+## Amendment 2026-05-09 — Repository layer removed
+
+The original decision below introduced a per-aggregate `<Aggregate>Repository` class as the single owner of every SQL statement for that aggregate. After landing the first three services (Organization, EntityType, EntityAttribute), the repositories proved to be thin SQL wrappers — three to five methods each, each called from exactly one service. They added indirection without behavior, file count without payoff.
+
+**The amendment:** drop the Repository layer. Services hold the `AsyncSession` directly. All SQL for one aggregate lives in a `# Query helpers` section at the bottom of `services/<aggregate>_service.py`, alongside the use-case methods that call it. ADR-002's "explicit joins reviewable in one auditable place per aggregate" property is preserved because each aggregate has exactly one Service file.
+
+**The architecture is now three layers:** router → service → model. Services orchestrate use cases, hold their session, and own their queries. Models hold schema and invariants. Routers are thin HTTP adapters that depend on a single `Depends(get_<aggregate>_service)`.
+
+**When to re-introduce a Repository:** the trigger is *queries shared across multiple services or multiple methods in different services* — not "the service file is getting big." Concrete signals:
+- Permission resolution and `current_org` both walk the role hierarchy → extract a `RoleRepository`.
+- Audit-log read paths needed by both the compliance API and an export job → extract an `AuditLogRepository`.
+- A complex projection (e.g., the JSONB EntityInstance aggregation in TASK-011B) consumed by more than one caller.
+
+Until that signal fires, queries inline in the service file under the `# Query helpers` section.
+
+The remainder of this document records the original decision and the reasoning that led to the Repository layer; it is preserved because the Model-as-Entity, AuditWriter, lifecycle dispatcher, no-module-level-state, and naming-schema portions are still in force. Read the sections about Repository as historical context for the amendment above.
+
+---
 
 ## Context
 

@@ -1,19 +1,19 @@
 """
-Direct unit tests for ``OrganizationService`` (ADR-009).
+Direct unit tests for ``OrganizationService``.
 
-These tests instantiate the service with a real ``db_session``, real
-repository, and real ``AuditWriter`` — no HTTP layer, no FastAPI Depends.
-The point of class-per-aggregate Service + Repository is that each layer
-is independently testable; these tests exercise that property directly.
+These tests instantiate the service with a real ``db_session`` and a real
+``AuditWriter`` — no HTTP layer, no FastAPI Depends. The class-per-aggregate
+Service is independently testable by design; these tests exercise that.
 """
 
 import uuid
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundError, OrganizationAlreadyInactive
-from app.repositories.organization_repository import OrganizationRepository
+from app.models.eav import Organization
 from app.schemas.eav import (
     Address,
     AddressUpdate,
@@ -40,7 +40,6 @@ def _service(session: AsyncSession, *, actor_id: uuid.UUID | None = None) -> Org
     audit = AuditWriter(session, _AuditScope(org_id=org_for_audit, actor_id=actor_id))
     return OrganizationService(
         session=session,
-        repo=OrganizationRepository(session),
         audit=audit,
         lifecycle=_OrganizationLifecycle(),
         actor_id=actor_id,
@@ -78,8 +77,10 @@ async def test_create_persists_org_and_writes_audit(db_session: AsyncSession):
     assert org.name == "Acme Therapy"
     assert org.is_active is True
     assert org.country == "US"
-    # Round-trip through the repo to confirm the row hit the DB.
-    fetched = await OrganizationRepository(db_session).get(org.id)
+    # Round-trip via a direct query to confirm the row hit the DB.
+    fetched = (
+        await db_session.execute(select(Organization).where(Organization.id == org.id))
+    ).scalar_one_or_none()
     assert fetched is not None
     assert fetched.id == org.id
 

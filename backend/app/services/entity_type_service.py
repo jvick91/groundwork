@@ -1,9 +1,13 @@
-"""Service for the EntityType aggregate (ADR-009).
+"""Service for the EntityType aggregate.
 
 Manages EntityType lifecycle (create / read / update / delete). System types
 are protected from rename and delete via ``EntityType.assert_mutable()``.
 Slug uniqueness within an org is checked at the service layer for a friendly
 409 envelope; the DB ``UniqueConstraint`` is the safety net.
+
+All SQL for the EntityType aggregate lives in the "query helpers" section
+at the bottom of the file (per ADR-002 — explicit joins reviewable in one
+place per aggregate).
 """
 
 from collections.abc import Sequence
@@ -11,9 +15,12 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
+from sqlalchemy import or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.exceptions import ConflictError, SlugNotFoundError
+from app.core.pagination import paginate
 from app.models.eav import EntityType
-from app.repositories.entity_type_repository import EntityTypeRepository
 from app.schemas.eav import EntityTypeCreate, EntityTypeUpdate
 from app.schemas.pagination import PaginationMeta, PaginationParams
 from app.services.audit_service import AuditWriter
@@ -24,23 +31,27 @@ class EntityTypeService:
 
     def __init__(
         self,
-        repo: EntityTypeRepository,
+        session: AsyncSession,
         audit: AuditWriter,
         tenant_id: UUID,
         actor_id: UUID | None,
     ) -> None:
-        self._repo = repo
+        self._session = session
         self._audit = audit
         self._tenant_id = tenant_id
         self._actor_id = actor_id
 
+    # ------------------------------------------------------------------
+    # Public use-case methods
+    # ------------------------------------------------------------------
+
     async def list(self, params: PaginationParams) -> tuple[Sequence[EntityType], PaginationMeta]:
         """Return system types plus the tenant's custom types, paginated."""
-        return await self._repo.list_for_page(params, org_id=self._tenant_id)
+        return await self._list_page(params)
 
     async def get_by_slug(self, slug: str) -> EntityType:
         """Return an EntityType by slug or raise ``SlugNotFoundError``."""
-        et = await self._repo.get_by_slug(slug)
+        et = await self._find_by_slug(slug)
         if et is None:
             raise SlugNotFoundError("EntityType", slug)
         return et
@@ -63,7 +74,7 @@ class EntityTypeService:
             is_person_subtype=False,
             created_at=datetime.now(tz=UTC),
         )
-        await self._repo.save(et)
+        await self._save(et)
 
         await self._audit.write(
             action="create",
@@ -94,7 +105,7 @@ class EntityTypeService:
             setattr(et, field, value)
 
         et.updated_at = datetime.now(tz=UTC)
-        await self._repo.save(et)
+        await self._save(et)
 
         await self._audit.write(
             action="update",
@@ -116,7 +127,7 @@ class EntityTypeService:
             resource_id=et.id,
             previous_state=_et_snapshot(et),
         )
-        await self._repo.delete(et)
+        await self._delete(et)
 
     async def _assert_slug_available(
         self,
@@ -130,12 +141,68 @@ class EntityTypeService:
                 f"Slug '{slug}' is a system-reserved slug and cannot be used for a custom type.",
                 details=[{"slug": slug}],
             )
-        existing = await self._repo.find_in_scope(slug, self._tenant_id, exclude_id=exclude_id)
+        existing = await self._find_in_scope(slug, self._tenant_id, exclude_id=exclude_id)
         if existing is not None:
             raise ConflictError(
                 f"An EntityType with slug '{slug}' already exists in this organization.",
                 details=[{"slug": slug}],
             )
+
+    # ------------------------------------------------------------------
+    # Query helpers
+    # ------------------------------------------------------------------
+
+    async def _find_by_slug(self, slug: str) -> EntityType | None:
+        result = await self._session.execute(select(EntityType).where(EntityType.slug == slug))
+        return result.scalar_one_or_none()
+
+    async def _find_in_scope(
+        self,
+        slug: str,
+        org_id: UUID | None,
+        *,
+        exclude_id: UUID | None = None,
+    ) -> EntityType | None:
+        stmt = select(EntityType).where(EntityType.slug == slug)
+        if org_id is None:
+            stmt = stmt.where(EntityType.organization_id.is_(None))
+        else:
+            stmt = stmt.where(EntityType.organization_id == org_id)
+        if exclude_id is not None:
+            stmt = stmt.where(EntityType.id != exclude_id)
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def _list_page(
+        self, params: PaginationParams
+    ) -> tuple[Sequence[EntityType], PaginationMeta]:
+        stmt = select(EntityType)
+        if self._tenant_id is not None:
+            stmt = stmt.where(
+                or_(
+                    EntityType.organization_id.is_(None),
+                    EntityType.organization_id == self._tenant_id,
+                )
+            )
+        return await paginate(
+            self._session,
+            stmt,
+            params=params,
+            sort_fields={
+                "created_at": EntityType.created_at,
+                "name": EntityType.name,
+                "slug": EntityType.slug,
+            },
+            id_col=EntityType.id,
+        )
+
+    async def _save(self, et: EntityType) -> None:
+        self._session.add(et)
+        await self._session.flush()
+
+    async def _delete(self, et: EntityType) -> None:
+        await self._session.delete(et)
+        await self._session.flush()
 
 
 def _et_snapshot(et: EntityType) -> dict[str, Any]:

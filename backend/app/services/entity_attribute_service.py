@@ -1,8 +1,15 @@
-"""Service for the EntityAttribute aggregate (ADR-009).
+"""Service for the EntityAttribute aggregate.
 
 Adds, updates, and removes attributes on an EntityType. Both system and
 custom types accept new attributes (SPEC-001 §4); seed attributes on
 system types cannot be deleted.
+
+The service expects the parent ``EntityType`` to be passed in by the router
+(it has already been fetched via ``EntityTypeService.get_by_slug``); this
+avoids duplicating the type lookup inside this aggregate's queries.
+
+All SQL for the EntityAttribute aggregate lives in the "query helpers"
+section at the bottom of the file.
 """
 
 from collections.abc import Sequence
@@ -10,10 +17,12 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.exceptions import NotFoundError, ResourceLockedError
-from app.models.eav import EntityAttribute
-from app.repositories.entity_attribute_repository import EntityAttributeRepository
-from app.repositories.entity_type_repository import EntityTypeRepository
+from app.core.pagination import paginate
+from app.models.eav import EntityAttribute, EntityType
 from app.schemas.eav import EntityAttributeCreate, EntityAttributeUpdate
 from app.schemas.pagination import PaginationMeta, PaginationParams
 from app.services.audit_service import AuditWriter
@@ -24,27 +33,29 @@ class EntityAttributeService:
 
     def __init__(
         self,
-        repo: EntityAttributeRepository,
-        type_repo: EntityTypeRepository,
+        session: AsyncSession,
         audit: AuditWriter,
         tenant_id: UUID,
         actor_id: UUID | None,
     ) -> None:
-        self._repo = repo
-        self._type_repo = type_repo
+        self._session = session
         self._audit = audit
         self._tenant_id = tenant_id
         self._actor_id = actor_id
+
+    # ------------------------------------------------------------------
+    # Public use-case methods
+    # ------------------------------------------------------------------
 
     async def list(
         self, entity_type_id: UUID, params: PaginationParams
     ) -> tuple[Sequence[EntityAttribute], PaginationMeta]:
         """List attributes for an EntityType, paginated."""
-        return await self._repo.list_for_type(entity_type_id, params)
+        return await self._list_page(entity_type_id, params)
 
     async def get(self, attr_id: UUID, entity_type_id: UUID) -> EntityAttribute:
         """Return an attribute scoped to an EntityType, or raise 404."""
-        ea = await self._repo.get_for_type(attr_id, entity_type_id)
+        ea = await self._find_in_type(attr_id, entity_type_id)
         if ea is None:
             raise NotFoundError(
                 "EntityAttribute",
@@ -70,7 +81,7 @@ class EntityAttributeService:
             display_order=data.display_order,
             created_at=datetime.now(tz=UTC),
         )
-        await self._repo.save(ea)
+        await self._save(ea)
 
         await self._audit.write(
             action="create",
@@ -95,7 +106,7 @@ class EntityAttributeService:
             setattr(ea, field, value)
 
         ea.updated_at = datetime.now(tz=UTC)
-        await self._repo.save(ea)
+        await self._save(ea)
 
         await self._audit.write(
             action="update",
@@ -106,12 +117,16 @@ class EntityAttributeService:
         )
         return ea
 
-    async def delete(self, attr_id: UUID, entity_type_id: UUID) -> None:
-        """Delete an attribute. Attributes on system types are protected."""
-        ea = await self.get(attr_id, entity_type_id)
+    async def delete(self, attr_id: UUID, parent: EntityType) -> None:
+        """Delete an attribute. Attributes on system types are protected.
 
-        parent = await self._type_repo.get(entity_type_id)
-        if parent is not None and parent.is_system_type:
+        ``parent`` is the resolved EntityType (passed in by the router after
+        its own ``EntityTypeService.get_by_slug`` call) so this service
+        never re-queries for the type.
+        """
+        ea = await self.get(attr_id, parent.id)
+
+        if parent.is_system_type:
             raise ResourceLockedError(
                 "EntityAttribute",
                 "attributes on system types cannot be deleted",
@@ -123,7 +138,48 @@ class EntityAttributeService:
             resource_id=ea.id,
             previous_state=_ea_snapshot(ea),
         )
-        await self._repo.delete(ea)
+        await self._delete(ea)
+
+    # ------------------------------------------------------------------
+    # Query helpers
+    # ------------------------------------------------------------------
+
+    async def _find_in_type(self, attr_id: UUID, entity_type_id: UUID) -> EntityAttribute | None:
+        """Return the attribute *if* it belongs to ``entity_type_id``.
+
+        The combined filter prevents cross-type data exposure.
+        """
+        result = await self._session.execute(
+            select(EntityAttribute).where(
+                EntityAttribute.id == attr_id,
+                EntityAttribute.entity_type_id == entity_type_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def _list_page(
+        self, entity_type_id: UUID, params: PaginationParams
+    ) -> tuple[Sequence[EntityAttribute], PaginationMeta]:
+        stmt = select(EntityAttribute).where(EntityAttribute.entity_type_id == entity_type_id)
+        return await paginate(
+            self._session,
+            stmt,
+            params=params,
+            sort_fields={
+                "created_at": EntityAttribute.created_at,
+                "display_order": EntityAttribute.display_order,
+                "name": EntityAttribute.name,
+            },
+            id_col=EntityAttribute.id,
+        )
+
+    async def _save(self, ea: EntityAttribute) -> None:
+        self._session.add(ea)
+        await self._session.flush()
+
+    async def _delete(self, ea: EntityAttribute) -> None:
+        await self._session.delete(ea)
+        await self._session.flush()
 
 
 def _ea_snapshot(ea: EntityAttribute) -> dict[str, Any]:

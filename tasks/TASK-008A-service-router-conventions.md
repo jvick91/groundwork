@@ -1,8 +1,8 @@
 # TASK-008A: Service & Router Layer Conventions (Shared Plumbing)
 
-**Status:** Complete (rewritten 2026-05-09 to align with ADR-009)
+**Status:** Complete (rewritten 2026-05-09 to align with ADR-009; amended same day to drop the Repository layer)
 **Spec sections:** SPEC-007 §12.2 (layer responsibilities), §12.3 (dependency injection)
-**ADRs:** ADR-002 (FK-only, explicit queries), ADR-008 (request-context & auth/org boundary), ADR-009 (Service + Repository + Model-as-Entity)
+**ADRs:** ADR-002 (FK-only, explicit queries), ADR-008 (request-context & auth/org boundary), ADR-009 (Service + Model-as-Entity)
 **Depends on:** TASK-002, TASK-003, TASK-004, TASK-006, TASK-007, TASK-008
 
 ## Objective
@@ -21,22 +21,23 @@ The reference implementation is the Organization slice (TASK-009 + this task's a
 - Permission via `dependencies=[require_permission("permission.slug")]` on the route decorator.
 - Routes return Pydantic response models. They never construct ORM objects, never call `db.add` / `db.commit`.
 
-### Service pattern (ADR-009)
+### Service pattern (ADR-009 — amended)
 
 - One file per aggregate: `services/<aggregate>_service.py` containing one `<Aggregate>Service` class.
-- Constructor injection: `__init__(self, repo, audit, lifecycle, tenant_id, actor_id, ...)`. Collaborators are wired by `core/dependencies.py`. No global state.
-- Methods orchestrate use cases: load via repository → mutate via model methods (mutators / factories) → persist via repository → write success audit via `AuditWriter`.
+- Constructor injection: `__init__(self, session, audit, lifecycle, tenant_id, actor_id, ...)`. Collaborators are wired by `core/dependencies.py`. No global state.
+- Methods orchestrate use cases: load → mutate via model methods (mutators / factories) → persist → write success audit via `AuditWriter`.
 - Services raise domain exceptions (subclasses of `GroundworkError`); they never raise `HTTPException` and never commit.
-- Services do **not** import `select`, call `session.execute`, or hold a SQLAlchemy reference except via the repository.
+- All SQL for the aggregate lives in a `# Query helpers` section at the bottom of the service file (private `_get_by_id`, `_list_page`, `_save`, etc.). ADR-002's explicit-join policy is operationalized by keeping every query for one aggregate in one auditable file (the service file) — there is no separate Repository class.
 
-### Repository pattern (ADR-009)
+### When to introduce a Repository class
 
-- One file per aggregate: `repositories/<aggregate>_repository.py` containing one `<Aggregate>Repository` class.
-- Constructor takes `AsyncSession` (via `Depends(get_db)`). That is the only dependency.
-- Owns every `select` / `insert` / `update` / `delete` and every explicit join (preserving ADR-002).
-- Returns Model instances. Does not enforce business rules and does not write audit.
-- Method names: `get`, `list_for_<scope>`, `find_by_<field>` for reads; `save` for writes; `delete` is rare (prefer soft-delete via a model mutator).
-- No generic `BaseRepository` — the per-aggregate class IS the explicit-join policy operationalized.
+Only when an aggregate's queries are genuinely shared. Concrete signals:
+
+- The same query is called from two services (e.g. permission resolution + `current_org` both walking role hierarchy).
+- A complex projection is consumed by both an API service and an export/ETL job.
+- A query needs caching or deduplication that doesn't belong inside one service's lifecycle.
+
+Until then, queries inline in the service. Adding a Repository "in case we'll need it later" is the kind of premature abstraction CLAUDE.md's working rules warn against.
 
 ### Model-as-entity pattern (ADR-009)
 
@@ -89,11 +90,11 @@ Files under `services/`, `repositories/`, `models/`, `enums/`, and `schemas/` de
 
 - **Files:** `common.py`, `utils.py`, `helpers.py`, `misc.py`, `lib.py`, `shared.py`, `manager.py`, `handler.py`, `processor.py`, `worker.py`, `_lifecycle.py`, `_hooks.py`, `_transaction.py`.
 - **Classes:** `BaseService`, `BaseRepository`, `GenericRepository`, `<X>Manager`, `<X>Helper`, `<X>Util`.
-- **Folders:** `helpers/`, `utils/`, `common/`, `lib/`, `misc/`, `managers/`, `handlers/`, `processors/`, `middleware/`.
+- **Folders:** `helpers/`, `utils/`, `common/`, `lib/`, `misc/`, `managers/`, `handlers/`, `processors/`, `middleware/`, `repositories/`.
 
 ## Acceptance Criteria
 
-- [x] `app/core/dependencies.py` exports `get_db`, `get_audit_writer`, the per-aggregate factories (`get_<aggregate>_service`, `get_<aggregate>_repository`), and the auth re-exports (`get_auth_context`, `current_person`, `current_org`, `require_permission`).
+- [x] `app/core/dependencies.py` exports `get_db`, `get_audit_writer`, the per-aggregate `get_<aggregate>_service` factories, and the auth re-exports (`get_auth_context`, `current_person`, `current_org`, `require_permission`).
 - [x] Stubs are feature-flagged via `settings.auth_stub_enabled` so TASK-014/015 can flip the flag off in one place.
 - [x] `app/services/audit_service.py` exports an `AuditWriter` class and the `_AuditScope` dataclass; the legacy `log_action` free function is gone.
 - [x] `app/main.py` registers a `GroundworkError` handler that writes a failure audit in a fresh session when the exception carries audit-context fields.

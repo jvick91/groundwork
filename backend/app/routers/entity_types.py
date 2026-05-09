@@ -229,4 +229,4 @@ async def delete_entity_attribute(
 ) -> None:
     """Delete an EntityAttribute (seed attributes on system types return 409)."""
     et = await type_service.get_by_slug(slug)
-    await service.delete(attr_id, et.id)
+    await service.delete(attr_id, et)

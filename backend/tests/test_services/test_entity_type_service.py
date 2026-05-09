@@ -1,9 +1,9 @@
 """
-Direct unit tests for ``EntityTypeService`` (ADR-009).
+Direct unit tests for ``EntityTypeService``.
 
 Exercises the create / get / list / update / delete methods directly with a
-real session, real repository, and real ``AuditWriter``. Also exercises the
-system-type guard via ``EntityType.assert_mutable``.
+real session and a real ``AuditWriter``. Also exercises the system-type
+guard via ``EntityType.assert_mutable``.
 """
 
 import uuid
@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ConflictError, ResourceLockedError, SlugNotFoundError
 from app.models.eav import EntityType, Organization
-from app.repositories.entity_type_repository import EntityTypeRepository
 from app.schemas.eav import EntityTypeCreate, EntityTypeUpdate
 from app.schemas.pagination import PaginationParams
 from app.services.audit_service import AuditWriter, _AuditScope
@@ -51,7 +50,7 @@ async def _make_system_type(session: AsyncSession, slug: str) -> EntityType:
 def _service(session: AsyncSession, tenant_id: uuid.UUID) -> EntityTypeService:
     audit = AuditWriter(session, _AuditScope(org_id=tenant_id, actor_id=None))
     return EntityTypeService(
-        repo=EntityTypeRepository(session),
+        session=session,
         audit=audit,
         tenant_id=tenant_id,
         actor_id=None,
