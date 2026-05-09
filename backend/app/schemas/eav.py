@@ -8,7 +8,6 @@ Timezone fields are validated against the IANA tz database via ``zoneinfo``.
 import zoneinfo
 from datetime import datetime
 from typing import Any
-from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
