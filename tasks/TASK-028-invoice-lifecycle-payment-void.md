@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-005 §2 (Payment), §3 (invoice status lifecycle), §4 (payment rules, void rules, overpayment handling, insurance payer required), §5 (invoice lifecycle endpoints, payment management)
-**ADRs:** ADR-002, ADR-003
+**ADRs:** ADR-002, ADR-003, ADR-009
 **Depends on:** TASK-006, TASK-026, TASK-027
 
 ## Objective

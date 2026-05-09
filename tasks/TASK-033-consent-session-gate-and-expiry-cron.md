@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-003 §4 (consent gate), §7 (consent gate as service-layer dependency); SPEC-006 §3 (expiry lifecycle), §4 (consent session gate), §7 (consent session gate implementation)
-**ADRs:** ADR-006 (consent expiry sweep endpoint)
+**ADRs:** ADR-006 (consent expiry sweep endpoint), ADR-009
 **Depends on:** TASK-022, TASK-031
 
 ## Objective

@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-002 §8 (Role and permission management)
-**ADRs:** ADR-002 (FK-only), ADR-003 (partial unique indexes for revocable RolePermission grants)
+**ADRs:** ADR-002 (FK-only), ADR-003 (partial unique indexes for revocable RolePermission grants), ADR-009
 **Depends on:** TASK-013, TASK-015
 
 ## Objective

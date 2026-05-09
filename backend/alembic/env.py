@@ -12,10 +12,12 @@ from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.core.database import Base
-from app.core.settings import settings
+from app.core.config import settings
 
-# Import all models so they register with Base.metadata
-import app.models.models
+# Import all models so they register with Base.metadata.
+# The ``app.models`` package re-exports every per-domain model class via its
+# ``__init__``; importing the package is sufficient to populate metadata.
+import app.models  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:

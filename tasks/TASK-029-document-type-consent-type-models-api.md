@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-006 §2 (DocumentType, ConsentType), §4 (system type protection, activity checks), §6 (DocumentType management, ConsentType management)
-**ADRs:** ADR-002
+**ADRs:** ADR-002, ADR-009
 **Depends on:** TASK-004, TASK-009, TASK-015
 
 ## Objective

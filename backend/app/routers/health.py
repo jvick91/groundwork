@@ -16,8 +16,8 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
+from app.core.config import settings
 from app.core.database import Database
-from app.core.settings import settings
 
 router = APIRouter(prefix="/health", tags=["health"])
 

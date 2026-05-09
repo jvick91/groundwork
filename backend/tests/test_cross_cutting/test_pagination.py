@@ -20,9 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
 
 from app.core.exceptions import BadRequestError
-from app.models.models import Organization
-from app.schemas.schemas import PaginationParams, SortDir
-from app.utils.pagination import (
+from app.core.pagination import (
     apply_date_range_filter,
     apply_exact_filter,
     apply_in_filter,
@@ -31,6 +29,8 @@ from app.utils.pagination import (
     encode_cursor,
     paginate,
 )
+from app.models.eav import Organization
+from app.schemas.pagination import PaginationParams, SortDir
 
 # ===========================================================================
 # Part 1 — Unit tests

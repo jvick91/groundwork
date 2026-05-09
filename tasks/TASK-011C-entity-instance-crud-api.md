@@ -3,7 +3,7 @@
 **Status:** Not started
 **Parent:** TASK-011
 **Spec sections:** SPEC-001 §2 (EntityInstance, AttributeValue), §4 (soft delete, multi-tenancy, bridge rule, required field enforcement), §6 (EntityInstance management), §7 (audit PHI filtering)
-**ADRs:** ADR-001, ADR-002
+**ADRs:** ADR-001, ADR-002, ADR-009
 **Depends on:** TASK-004, TASK-011A, TASK-008A
 
 ## Objective

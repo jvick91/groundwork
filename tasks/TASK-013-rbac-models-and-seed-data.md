@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-002 §2 (Role, Permission, PersonRole, RolePermission), §3 (seed roles, seed permissions, seed role-permission matrix, inheritance model), §4 (hierarchy invariant, revocation rule)
-**ADRs:** ADR-002, ADR-003 (partial unique indexes)
+**ADRs:** ADR-002, ADR-003 (partial unique indexes), ADR-009
 **Depends on:** TASK-009, TASK-012
 
 ## Objective

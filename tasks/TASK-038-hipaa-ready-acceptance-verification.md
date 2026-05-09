@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-000 §6 (HIPAA-ready acceptance criteria)
-**ADRs:** ADR-005 (file storage & encryption)
+**ADRs:** ADR-005 (file storage & encryption), ADR-009
 **Depends on:** TASK-013, TASK-014, TASK-029, TASK-030, TASK-035
 
 ## Objective

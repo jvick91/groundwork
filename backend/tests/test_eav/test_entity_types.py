@@ -84,7 +84,7 @@ async def test_post_entity_type_returns_501_when_custom_types_disabled(
     et_client: AsyncClient,
 ) -> None:
     """POST /entity-types returns 501 when custom_entity_types_enabled is False."""
-    from app.core import settings as settings_module
+    from app.core import config as settings_module
 
     with mock.patch.object(settings_module.settings, "custom_entity_types_enabled", False):
         resp = await et_client.post(
@@ -163,7 +163,7 @@ async def test_create_and_get_custom_entity_type(et_client: AsyncClient) -> None
     """Creating a custom type (flag on) then retrieving it returns consistent data."""
     slug = _unique_slug()
     with mock.patch.object(
-        __import__("app.core.settings", fromlist=["settings"]).settings,
+        __import__("app.core.config", fromlist=["settings"]).settings,
         "custom_entity_types_enabled",
         True,
     ):
@@ -186,7 +186,7 @@ async def test_delete_custom_entity_type_returns_204(et_client: AsyncClient) -> 
     """DELETE on a custom type returns 204."""
     slug = _unique_slug()
     with mock.patch.object(
-        __import__("app.core.settings", fromlist=["settings"]).settings,
+        __import__("app.core.config", fromlist=["settings"]).settings,
         "custom_entity_types_enabled",
         True,
     ):
@@ -212,7 +212,7 @@ async def test_duplicate_slug_same_org_returns_409(et_client: AsyncClient) -> No
     """Creating two custom types with the same slug returns 409 on the second (SPEC-001 §9)."""
     slug = _unique_slug()
     with mock.patch.object(
-        __import__("app.core.settings", fromlist=["settings"]).settings,
+        __import__("app.core.config", fromlist=["settings"]).settings,
         "custom_entity_types_enabled",
         True,
     ):
@@ -234,7 +234,7 @@ async def test_duplicate_slug_same_org_returns_409(et_client: AsyncClient) -> No
 async def test_system_type_slug_reserved_across_orgs(et_client: AsyncClient) -> None:
     """Attempting to create a custom type with a system slug returns 409 (SPEC-001 §9)."""
     with mock.patch.object(
-        __import__("app.core.settings", fromlist=["settings"]).settings,
+        __import__("app.core.config", fromlist=["settings"]).settings,
         "custom_entity_types_enabled",
         True,
     ):
@@ -256,7 +256,7 @@ async def test_create_entity_type_writes_audit_log(et_client: AsyncClient) -> No
     """Creating a custom EntityType writes a 'create' AuditLog entry (BR-07 / SPEC-001 §9)."""
     slug = _unique_slug()
     with mock.patch.object(
-        __import__("app.core.settings", fromlist=["settings"]).settings,
+        __import__("app.core.config", fromlist=["settings"]).settings,
         "custom_entity_types_enabled",
         True,
     ):
@@ -292,7 +292,7 @@ async def test_create_entity_type_writes_audit_log(et_client: AsyncClient) -> No
 async def test_invalid_slug_format_returns_422(et_client: AsyncClient) -> None:
     """Slugs with uppercase or spaces are rejected at schema level."""
     with mock.patch.object(
-        __import__("app.core.settings", fromlist=["settings"]).settings,
+        __import__("app.core.config", fromlist=["settings"]).settings,
         "custom_entity_types_enabled",
         True,
     ):
@@ -311,7 +311,7 @@ async def test_invalid_slug_format_returns_422(et_client: AsyncClient) -> None:
 # Helpers
 # ---------------------------------------------------------------------------
 
-_SETTINGS = __import__("app.core.settings", fromlist=["settings"]).settings
+_SETTINGS = __import__("app.core.config", fromlist=["settings"]).settings
 
 
 def _flag_on() -> AbstractContextManager[Any]:

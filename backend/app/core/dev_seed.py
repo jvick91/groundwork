@@ -9,10 +9,11 @@ auth/RBAC implementation is still pending.
 import asyncio
 from datetime import UTC, datetime
 
+from app.core.config import settings
 from app.core.database import Database
 from app.core.security import _STUB_AUTH_SUBJECT, _STUB_ORG_ID, _STUB_PERSON_ID
-from app.core.settings import settings
-from app.models.models import Organization, Person
+from app.models.eav import Organization
+from app.models.identity import Person
 
 _DEV_ENVIRONMENTS = {"development", "dev", "local"}
 

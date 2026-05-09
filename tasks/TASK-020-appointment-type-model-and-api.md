@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-003 §2 (AppointmentType), §5 (intake status gate, duration consistency), §6 (AppointmentType management)
-**ADRs:** ADR-002
+**ADRs:** ADR-002, ADR-009
 **Depends on:** TASK-004, TASK-009, TASK-015, TASK-025
 
 ## Objective

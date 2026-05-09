@@ -3,7 +3,7 @@
 **Status:** Not started
 **Parent:** TASK-011
 **Spec sections:** SPEC-001 §5 (canonical query patterns)
-**ADRs:** ADR-004 (JSONB aggregation at query time)
+**ADRs:** ADR-004 (JSONB aggregation at query time), ADR-009
 **Depends on:** TASK-011C
 
 ## Objective

@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-16
 **Author:** claude-code
-**Status:** Accepted (retrospective — implemented in `sql_models` branch)
+**Status:** Accepted (retrospective — implemented in `sql_models` branch). Amended 2026-05-09 to align with ADR-009.
 
 ## Context
 
@@ -14,7 +14,7 @@ In a multi-tenant PHI context, implicit queries are not merely inefficient — t
 
 Models expose foreign-key columns only — e.g., `Session.client_instance_id: UUID` and `Session.provider_instance_id: UUID`. No `relationship()`, no `backref`, no implicit-load attributes of any kind.
 
-All joins are written explicitly in the service or repository layer using `select(A).join(B, A.fk_id == B.id)`. When a route handler needs related data, the service constructs the exact query it needs. The ORM never issues a query implicitly on attribute access.
+All joins are written explicitly in the service layer using `select(A).join(B, A.fk_id == B.id)`. When a route handler needs related data, the service constructs the exact query it needs. The ORM never issues a query implicitly on attribute access. (ADR-009 originally added a per-aggregate Repository class as the home for these queries; the 2026-05-09 amendment to ADR-009 dropped that layer because each repo was a one-service wrapper. Queries now live inline in the service file under a `# Query helpers` section. The "explicit, reviewable in one file per aggregate" property is preserved.)
 
 This is enforced by convention — there is nothing SQLAlchemy-level preventing `relationship()` from being added to a model. A lint check (grep / pre-commit) flags any `= relationship(` appearing in `models.py`. This lint is deferred until the first enforcement PR ships, but the policy is in effect now.
 
@@ -29,14 +29,14 @@ This is enforced by convention — there is nothing SQLAlchemy-level preventing 
 ## Consequences
 
 - (+) All queries are explicit and visible at the service layer. N+1 cannot hide in a dereference chain.
-- (+) Tenant filters are enforced at every query construction site (via `BaseRepository`, when it ships), not trusted to survive implicit cascades.
+- (+) Tenant filters are enforced at every query construction site — one site per aggregate, the `<Aggregate>Repository` class (see ADR-009) — not trusted to survive implicit cascades.
 - (+) Async safety is straightforward — no greenlet or lazy-load hazards when awaiting a model attribute.
-- (+) The boundary between "data" (models) and "behavior" (services) stays clean. Models describe schema only.
-- (−) Boilerplate: every service method that needs related data writes an explicit `join`. `BaseRepository` helpers will absorb much of this for the common cases.
+- (+) The boundary stays well-defined: models hold schema and invariants (validators, constraints, partial unique indexes, mutators, factories — see ADR-009); services orchestrate use cases AND own their queries (under a `# Query helpers` section, post-2026-05-09 amendment).
+- (−) Boilerplate: every aggregate's queries are centralized in its `<Aggregate>Service` class. ADR-009 originally specified a separate `<Aggregate>Repository` class for this; the same-day amendment removed it as premature abstraction (each repo was a one-service wrapper). Re-introduce a Repository when queries are genuinely shared across services.
 - (−) The ergonomic `parent.child.name` access pattern is gone. Teams coming from Django or Rails will find the discipline foreign and need a ramp-up.
 - (−) Developer temptation: someone will want to add a `relationship()` "just for this one case." The lint check is the guard; without it, policy drift is near-certain.
 
 ## References
 
-- Code anchor: `backend/app/models/models.py` (every FK column is a scalar `UUID`, no `relationship()` anywhere)
-- Related ADRs: ADR-001 (data model shape), future ADR on `BaseRepository` (where the explicit-join policy is operationalized and the lint check lands)
+- Code anchor: `backend/app/models/` (every FK column is a scalar `UUID`, no `relationship()` anywhere)
+- Related ADRs: ADR-001 (data model shape); ADR-009 (Service + Repository + Model-as-Entity — operationalizes the explicit-join policy via per-aggregate `<Aggregate>Repository` classes; no generic `BaseRepository` is introduced).

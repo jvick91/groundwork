@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-006 §2 (FormTemplate, FormTemplate schema structure), §4 (FormTemplate rules), §6 (FormTemplate management), §7
-**ADRs:** ADR-002
+**ADRs:** ADR-002, ADR-009
 **Depends on:** TASK-004, TASK-009, TASK-015
 
 ## Objective

@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-007 §15 (all subsections)
-**ADRs:** —
+**ADRs:** ADR-009
 **Depends on:** TASK-001, TASK-006, TASK-007, TASK-014
 
 ## Dependency Note

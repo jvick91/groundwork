@@ -14,17 +14,23 @@ EntityAttribute:
   GET    /entity-types/{slug}/attributes/{attr_id} — single attribute      entity_types.read
   PATCH  /entity-types/{slug}/attributes/{attr_id} — update attribute      entity_types.write
   DELETE /entity-types/{slug}/attributes/{attr_id} — delete attribute      entity_types.delete
+
+Per ADR-009: routers are thin. They depend on a single ``<Aggregate>Service``
+factory; ``actor_id`` and ``tenant_id`` are closed over inside the service
+constructor; routers never import SQLAlchemy.
 """
 
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_auth_context, get_db, require_permission
-from app.core.security import AuthContext
-from app.core.settings import settings
+from app.core.config import settings
+from app.core.dependencies import (
+    get_entity_attribute_service,
+    get_entity_type_service,
+    require_permission,
+)
 from app.schemas.eav import (
     EntityAttributeCreate,
     EntityAttributeResponse,
@@ -33,19 +39,11 @@ from app.schemas.eav import (
     EntityTypeResponse,
     EntityTypeUpdate,
 )
-from app.schemas.schemas import PaginatedResponse, PaginationParams
-from app.services import eav_service
+from app.schemas.pagination import PaginatedResponse, PaginationParams
+from app.services.entity_attribute_service import EntityAttributeService
+from app.services.entity_type_service import EntityTypeService
 
 router = APIRouter(prefix="/entity-types", tags=["entity-types"])
-
-_FLAG_OFF_BODY = {
-    "error": "not_implemented",
-    "message": (
-        "Custom EntityType creation is not available until auto-permission "
-        "generation (TASK-019) lands."
-    ),
-    "details": [],
-}
 
 
 @router.get(
@@ -55,15 +53,10 @@ _FLAG_OFF_BODY = {
 )
 async def list_entity_types(
     params: PaginationParams = Depends(),
-    auth: AuthContext = Depends(get_auth_context),
-    db: AsyncSession = Depends(get_db),
+    service: EntityTypeService = Depends(get_entity_type_service),
 ) -> PaginatedResponse:
     """Return cursor-paginated EntityTypes (system + org-scoped custom)."""
-    items, meta = await eav_service.list_entity_types(
-        db,
-        params=params,
-        org_id=auth.organization_id,
-    )
+    items, meta = await service.list(params)
     return PaginatedResponse(
         data=[EntityTypeResponse.model_validate(et).model_dump() for et in items],
         pagination=meta,
@@ -78,24 +71,28 @@ async def list_entity_types(
 )
 async def create_entity_type(
     body: EntityTypeCreate,
-    auth: AuthContext = Depends(get_auth_context),
-    db: AsyncSession = Depends(get_db),
+    service: EntityTypeService = Depends(get_entity_type_service),
 ) -> EntityTypeResponse | JSONResponse:
     """Create a custom EntityType.
 
-    Gated behind ``custom_entity_types_enabled``.  When the flag is off,
+    Gated behind ``custom_entity_types_enabled``. When the flag is off,
     returns HTTP 501 so that auto-permission generation (TASK-019) can be
     implemented before any custom type is live.
     """
     if not settings.custom_entity_types_enabled:
-        return JSONResponse(status_code=501, content=_FLAG_OFF_BODY)
+        return JSONResponse(
+            status_code=501,
+            content={
+                "error": "not_implemented",
+                "message": (
+                    "Custom EntityType creation is not available until auto-permission "
+                    "generation (TASK-019) lands."
+                ),
+                "details": [],
+            },
+        )
 
-    et = await eav_service.create_entity_type(
-        db,
-        org_id=auth.organization_id,
-        actor_id=auth.person_id,
-        data=body,
-    )
+    et = await service.create(body)
     return EntityTypeResponse.model_validate(et)
 
 
@@ -106,10 +103,10 @@ async def create_entity_type(
 )
 async def get_entity_type(
     slug: str,
-    db: AsyncSession = Depends(get_db),
+    service: EntityTypeService = Depends(get_entity_type_service),
 ) -> EntityTypeResponse:
     """Retrieve a single EntityType by slug."""
-    et = await eav_service.get_entity_type_by_slug(db, slug)
+    et = await service.get_by_slug(slug)
     return EntityTypeResponse.model_validate(et)
 
 
@@ -121,17 +118,10 @@ async def get_entity_type(
 async def update_entity_type(
     slug: str,
     body: EntityTypeUpdate,
-    auth: AuthContext = Depends(get_auth_context),
-    db: AsyncSession = Depends(get_db),
+    service: EntityTypeService = Depends(get_entity_type_service),
 ) -> EntityTypeResponse:
     """Partially update a custom EntityType (system types return 409)."""
-    et = await eav_service.update_entity_type(
-        db,
-        slug=slug,
-        org_id=auth.organization_id,
-        actor_id=auth.person_id,
-        data=body,
-    )
+    et = await service.update(slug, body)
     return EntityTypeResponse.model_validate(et)
 
 
@@ -142,16 +132,10 @@ async def update_entity_type(
 )
 async def delete_entity_type(
     slug: str,
-    auth: AuthContext = Depends(get_auth_context),
-    db: AsyncSession = Depends(get_db),
+    service: EntityTypeService = Depends(get_entity_type_service),
 ) -> None:
     """Delete a custom EntityType (system types return 409)."""
-    await eav_service.delete_entity_type(
-        db,
-        slug=slug,
-        org_id=auth.organization_id,
-        actor_id=auth.person_id,
-    )
+    await service.delete(slug)
 
 
 # ---------------------------------------------------------------------------
@@ -167,15 +151,12 @@ async def delete_entity_type(
 async def list_entity_attributes(
     slug: str,
     params: PaginationParams = Depends(),
-    db: AsyncSession = Depends(get_db),
+    type_service: EntityTypeService = Depends(get_entity_type_service),
+    service: EntityAttributeService = Depends(get_entity_attribute_service),
 ) -> PaginatedResponse:
     """Return cursor-paginated attributes for the given EntityType."""
-    et = await eav_service.get_entity_type_by_slug(db, slug)
-    items, meta = await eav_service.list_entity_attributes(
-        db,
-        entity_type_id=et.id,
-        params=params,
-    )
+    et = await type_service.get_by_slug(slug)
+    items, meta = await service.list(et.id, params)
     return PaginatedResponse(
         data=[EntityAttributeResponse.model_validate(ea).model_dump() for ea in items],
         pagination=meta,
@@ -191,18 +172,12 @@ async def list_entity_attributes(
 async def create_entity_attribute(
     slug: str,
     body: EntityAttributeCreate,
-    auth: AuthContext = Depends(get_auth_context),
-    db: AsyncSession = Depends(get_db),
+    type_service: EntityTypeService = Depends(get_entity_type_service),
+    service: EntityAttributeService = Depends(get_entity_attribute_service),
 ) -> EntityAttributeResponse:
     """Add an attribute to an EntityType (system types are extensible)."""
-    et = await eav_service.get_entity_type_by_slug(db, slug)
-    ea = await eav_service.create_entity_attribute(
-        db,
-        entity_type_id=et.id,
-        org_id=auth.organization_id,
-        actor_id=auth.person_id,
-        data=body,
-    )
+    et = await type_service.get_by_slug(slug)
+    ea = await service.create(et.id, body)
     return EntityAttributeResponse.model_validate(ea)
 
 
@@ -214,11 +189,12 @@ async def create_entity_attribute(
 async def get_entity_attribute(
     slug: str,
     attr_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    type_service: EntityTypeService = Depends(get_entity_type_service),
+    service: EntityAttributeService = Depends(get_entity_attribute_service),
 ) -> EntityAttributeResponse:
     """Retrieve a single EntityAttribute by ID."""
-    et = await eav_service.get_entity_type_by_slug(db, slug)
-    ea = await eav_service.get_entity_attribute(db, attr_id=attr_id, entity_type_id=et.id)
+    et = await type_service.get_by_slug(slug)
+    ea = await service.get(attr_id, et.id)
     return EntityAttributeResponse.model_validate(ea)
 
 
@@ -231,19 +207,12 @@ async def update_entity_attribute(
     slug: str,
     attr_id: UUID,
     body: EntityAttributeUpdate,
-    auth: AuthContext = Depends(get_auth_context),
-    db: AsyncSession = Depends(get_db),
+    type_service: EntityTypeService = Depends(get_entity_type_service),
+    service: EntityAttributeService = Depends(get_entity_attribute_service),
 ) -> EntityAttributeResponse:
     """Partially update an EntityAttribute definition."""
-    et = await eav_service.get_entity_type_by_slug(db, slug)
-    ea = await eav_service.update_entity_attribute(
-        db,
-        attr_id=attr_id,
-        entity_type_id=et.id,
-        org_id=auth.organization_id,
-        actor_id=auth.person_id,
-        data=body,
-    )
+    et = await type_service.get_by_slug(slug)
+    ea = await service.update(attr_id, et.id, body)
     return EntityAttributeResponse.model_validate(ea)
 
 
@@ -255,15 +224,9 @@ async def update_entity_attribute(
 async def delete_entity_attribute(
     slug: str,
     attr_id: UUID,
-    auth: AuthContext = Depends(get_auth_context),
-    db: AsyncSession = Depends(get_db),
+    type_service: EntityTypeService = Depends(get_entity_type_service),
+    service: EntityAttributeService = Depends(get_entity_attribute_service),
 ) -> None:
     """Delete an EntityAttribute (seed attributes on system types return 409)."""
-    et = await eav_service.get_entity_type_by_slug(db, slug)
-    await eav_service.delete_entity_attribute(
-        db,
-        attr_id=attr_id,
-        entity_type_id=et.id,
-        org_id=auth.organization_id,
-        actor_id=auth.person_id,
-    )
+    et = await type_service.get_by_slug(slug)
+    await service.delete(attr_id, et)

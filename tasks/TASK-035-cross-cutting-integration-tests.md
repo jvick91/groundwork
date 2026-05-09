@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-007 §13.6 (test_cross_cutting/); SPEC-000 §5 (testing strategy); SPEC-006 §4 (BR-08)
-**ADRs:** —
+**ADRs:** ADR-009
 **Depends on:** TASK-003, TASK-004, TASK-006, TASK-007, TASK-008, TASK-011C, TASK-014, TASK-015, TASK-021, TASK-023, TASK-027, TASK-030, TASK-031
 
 ## Objective

@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-003 §3 (status lifecycle), §4 (BR-03 overlap, cancellation reason, consent gate), §6 (transition endpoints), §7 (overlap in transaction, consent gate)
-**ADRs:** —
+**ADRs:** ADR-009
 **Depends on:** TASK-006, TASK-021
 
 ## Objective

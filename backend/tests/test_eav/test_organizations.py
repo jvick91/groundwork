@@ -32,8 +32,8 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.dependencies import get_organization_lifecycle
 from app.main import create_app
-from app.services import organization_hooks
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -75,10 +75,10 @@ async def http_client() -> AsyncGenerator[AsyncClient, None]:
 
 @pytest.fixture(autouse=True)
 def reset_hooks():
-    """Clear the hook registry before and after each test."""
-    organization_hooks.clear_hooks()
+    """Clear the singleton lifecycle dispatcher before and after each test."""
+    get_organization_lifecycle().clear()
     yield
-    organization_hooks.clear_hooks()
+    get_organization_lifecycle().clear()
 
 
 # ---------------------------------------------------------------------------
@@ -489,7 +489,7 @@ async def test_registered_hook_fires_on_create(http_client: AsyncClient):
     async def _my_hook(db: AsyncSession, org_id: uuid.UUID) -> None:
         fired.append(org_id)
 
-    organization_hooks.register_on_create_hook(_my_hook)
+    get_organization_lifecycle().register_post_create(_my_hook)
 
     resp = await http_client.post(
         "/api/v1/organizations",
@@ -513,7 +513,7 @@ async def test_hook_failure_rolls_back_organization_create(http_client: AsyncCli
     async def _failing_hook(db: AsyncSession, org_id: uuid.UUID) -> None:
         raise RuntimeError("seed data unavailable — intentional test failure")
 
-    organization_hooks.register_on_create_hook(_failing_hook)
+    get_organization_lifecycle().register_post_create(_failing_hook)
 
     doomed_name = f"Doomed Org {uuid.uuid4()}"
     resp = await http_client.post(

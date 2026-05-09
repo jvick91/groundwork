@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-004 §2 (ClinicalNote), §3 (format content schemas), §5 (one-note-per-session, session prerequisite, author bridge rule, draft editability, soft delete rule), §7 (ClinicalNote management, cross-entity listing)
-**ADRs:** ADR-001, ADR-002
+**ADRs:** ADR-001, ADR-002, ADR-009
 **Depends on:** TASK-004, TASK-021, TASK-015
 
 ## Objective

@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-005 §2 (CPTCode, ICDCode), §4 (code activity rule), §5 (reference code management)
-**ADRs:** ADR-001, ADR-002
+**ADRs:** ADR-001, ADR-002, ADR-009
 **Depends on:** TASK-004, TASK-009, TASK-015
 
 ## Objective

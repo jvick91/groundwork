@@ -17,7 +17,8 @@ from uuid import UUID, uuid4
 import pytest_asyncio
 
 from app.core.database import Database
-from app.models.models import EntityAttribute, EntityType, FieldType, Organization
+from app.enums.eav import FieldType
+from app.models.eav import EntityAttribute, EntityType, Organization
 
 # Must match TASK-010 migration revision c3f5e7a9b1d2.
 PROVIDER_ID = UUID("00000000-0000-0000-0000-000000000001")

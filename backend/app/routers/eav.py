@@ -5,18 +5,20 @@ POST   /organizations            — create a new org (settings.write)
 GET    /organizations            — paginated list     (settings.read)
 GET    /organizations/{org_id}   — single org         (settings.read)
 PATCH  /organizations/{org_id}   — partial update     (settings.write)
+
+Per ADR-009: routes are thin. They depend on a single ``OrganizationService``
+factory; ``actor_id`` is closed over inside the service constructor; routers
+never import SQLAlchemy.
 """
 
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_auth_context, get_db, require_permission
-from app.core.security import AuthContext
+from app.core.dependencies import get_organization_service, require_permission
 from app.schemas.eav import OrganizationCreate, OrganizationResponse, OrganizationUpdate
-from app.schemas.schemas import PaginatedResponse, PaginationParams
-from app.services import eav_service
+from app.schemas.pagination import PaginatedResponse, PaginationParams
+from app.services.organization_service import OrganizationService
 
 router = APIRouter(prefix="/organizations", tags=["organizations"])
 
@@ -29,15 +31,10 @@ router = APIRouter(prefix="/organizations", tags=["organizations"])
 )
 async def create_organization(
     body: OrganizationCreate,
-    auth: AuthContext = Depends(get_auth_context),
-    db: AsyncSession = Depends(get_db),
+    service: OrganizationService = Depends(get_organization_service),
 ) -> OrganizationResponse:
     """Create a new Organization (root tenant record)."""
-    org = await eav_service.create_organization(
-        db,
-        actor_id=auth.person_id,
-        data=body,
-    )
+    org = await service.create(body)
     return OrganizationResponse.model_validate(org)
 
 
@@ -48,10 +45,10 @@ async def create_organization(
 )
 async def list_organizations(
     params: PaginationParams = Depends(),
-    db: AsyncSession = Depends(get_db),
+    service: OrganizationService = Depends(get_organization_service),
 ) -> PaginatedResponse:
     """Return a cursor-paginated list of organizations."""
-    items, meta = await eav_service.list_organizations(db, params=params)
+    items, meta = await service.list(params)
     return PaginatedResponse(
         data=[OrganizationResponse.model_validate(o).model_dump() for o in items],
         pagination=meta,
@@ -65,10 +62,10 @@ async def list_organizations(
 )
 async def get_organization(
     org_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    service: OrganizationService = Depends(get_organization_service),
 ) -> OrganizationResponse:
     """Retrieve a single Organization by primary key."""
-    org = await eav_service.get_organization(db, org_id)
+    org = await service.get(org_id)
     return OrganizationResponse.model_validate(org)
 
 
@@ -80,14 +77,8 @@ async def get_organization(
 async def update_organization(
     org_id: UUID,
     body: OrganizationUpdate,
-    auth: AuthContext = Depends(get_auth_context),
-    db: AsyncSession = Depends(get_db),
+    service: OrganizationService = Depends(get_organization_service),
 ) -> OrganizationResponse:
     """Partially update an Organization (only provided fields are written)."""
-    org = await eav_service.update_organization(
-        db,
-        org_id=org_id,
-        actor_id=auth.person_id,
-        data=body,
-    )
+    org = await service.update(org_id, body)
     return OrganizationResponse.model_validate(org)

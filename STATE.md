@@ -1,8 +1,9 @@
 # STATE.md — Session Entry Point
 
-**Last updated:** 2026-04-30
-**Active task:** TASK-011A (next — AttributeValue type casting engine)
-**Branch:** entity-type-api
+**Last updated:** 2026-05-09
+**Active task:** TASK-011A (next — AttributeValue type casting engine, on the new ADR-009 pattern)
+**Branch:** architecture-reset-adr-008
+**Last architectural change:** 2026-05-09 — ADR-009 accepted; ADR-002 amended; Organization (TASK-009) and EntityType / EntityAttribute (TASK-010) refactored to class-per-aggregate Service + Model-as-Entity. AuditLog gained an `outcome` column. The route-level `GroundworkError` handler now writes failure audits in a fresh session. TASK-008A rewritten as the canonical conventions doc; all not-yet-shipped tasks reference ADR-009. **Same-day amendment:** Repository layer removed — each repo was a thin SQL wrapper called from one service; queries now inline in the service file under a `# Query helpers` section. Re-introduce a Repository only when queries are genuinely shared across services (e.g. role-hierarchy walks, JSONB projections).
 
 ---
 
@@ -173,25 +174,21 @@ Note: TASK-004 (cursor pagination) is an explicit upstream for every domain CRUD
 
 ---
 
-## Service & Router Conventions (established in TASK-008A, first exercised in TASK-009)
+## Conventions (ADR-009)
 
-### Router layer
-- One file per domain in `app/routers/`, registered via `app.include_router()` in `main.py`
-- No SQLAlchemy imports, no business logic, no direct DB access
-- Permission: `Depends(require_permission("slug"))`
-- Calls service functions, returns Pydantic response models
+**Authority:** [ADR-009](adrs/ADR-009-service-repository-model-as-entity.md) is the foundational architecture decision; [TASK-008A](tasks/TASK-008A-service-router-conventions.md) is the canonical conventions doc. The Organization slice and the EntityType slice are the two reference implementations.
 
-### Service layer
-- Plain async functions in `app/services/` — not classes
-- Signature: `async def create_X(db: AsyncSession, org_id: UUID, data: CreateSchema) -> Model`
-- `db` passed from router dependency — service never creates its own session
-- Raises domain exceptions from `app.core.exceptions`
-- Calls `audit_service.log_action()` in the same session before commit
+- **Layering:** router → service → model. One direction. No `BaseService`, no `relationship()` (ADR-002). Repository layer was deferred until shared-query pressure justifies it.
+- **Class per aggregate** for Service — one class per file (`<aggregate>_service.py`); all SQL for the aggregate inlined in a `# Query helpers` section at the bottom of the file.
+- **Domain-grouped** Models, Schemas, Enums — one file per spec domain.
+- **Constructor injection** via `core/dependencies.py`. Routers depend on `Depends(get_<aggregate>_service)` only — they do not import SQLAlchemy or take `db` / `auth` as route-handler args.
+- **Models hold invariants** (`@validates`, `CheckConstraint`, partial unique indexes, mutators, `@classmethod` factories) — there is no separate domain layer.
+- **Audit:** success path via injected `AuditWriter` (request session); failure path via the route-level `GroundworkError` handler in `app/main.py` (fresh session, `outcome="failure"`).
+- **`get_db` owns commit/rollback;** nothing else commits.
+- **`tenant_id` and `actor_id`** enter Services as primitive UUIDs — structured `RequestContext` lands via TASK-014/015 (see ADR-008).
+- **No module-level mutable state** in `services/` / `repositories/` / `models/` / `enums/` / `schemas/` (ADR-009).
 
-### Audit integration
-- `await audit_service.log_action(db, org_id, actor_id, action, resource_type, resource_id, prev, next)`
-- PHI exclusion applied automatically by audit service
-- Same session = atomic with business operation
+See ADR-009 for the full naming schema and forbidden-name list.
 
 ---
 

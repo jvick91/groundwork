@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-007 §11 (all subsections)
-**ADRs:** ADR-003, ADR-004 (EAV query performance)
+**ADRs:** ADR-003, ADR-004 (EAV query performance), ADR-009
 **Depends on:** TASK-011C, TASK-013, TASK-020, TASK-021, TASK-023, TASK-025, TASK-026, TASK-027, TASK-028, TASK-029, TASK-030, TASK-031, TASK-032
 
 ## Objective

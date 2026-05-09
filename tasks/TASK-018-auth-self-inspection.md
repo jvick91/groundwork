@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-002 §8 (Auth self-inspection); SPEC-007 §3.4 (/auth/me response), §3.5 (/auth/me/permissions response)
-**ADRs:** —
+**ADRs:** ADR-009
 **Depends on:** TASK-014, TASK-015
 
 ## Objective
