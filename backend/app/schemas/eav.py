@@ -261,3 +261,51 @@ class EntityTypeResponse(BaseModel):
     is_system_type: bool
     is_person_subtype: bool
     created_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# EntityInstance schemas
+# ---------------------------------------------------------------------------
+
+
+class EntityInstanceCreate(BaseModel):
+    """Create payload for an EntityInstance.
+
+    ``values`` maps attribute machine-names to their raw string values
+    (or ``None`` to explicitly clear a field). All values are validated
+    against the parent EntityAttribute's ``field_type`` by the service.
+    """
+
+    person_id: UUID | None = None
+    values: dict[str, str | None] = Field(default_factory=dict)
+
+
+class EntityInstanceUpdate(BaseModel):
+    """Partial update payload — only supplied fields are applied (PATCH semantics).
+
+    ``values`` is a merge dict: only keys present in the payload are updated.
+    Pass ``None`` as a value to clear that attribute.
+    """
+
+    is_active: bool | None = None
+    person_id: UUID | None = None
+    values: dict[str, str | None] | None = None
+
+
+class EntityInstanceResponse(BaseModel):
+    """Response shape for a single EntityInstance with its attribute values.
+
+    ``values`` maps attribute machine-names to their current stored text
+    (or ``None`` when unset). Constructed explicitly by the router from the
+    ``EntityInstanceWithValues`` dataclass returned by the service.
+    """
+
+    id: UUID
+    entity_type_id: UUID
+    organization_id: UUID
+    person_id: UUID | None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime | None
+    deleted_at: datetime | None
+    values: dict[str, str | None]
