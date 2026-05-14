@@ -558,9 +558,7 @@ async def test_list_via_api_returns_seeded_person(http_client: AsyncClient) -> N
     async def _seed(s: AsyncSession):
         role = await _seed_role_for_org(s, _HTTP_ORG_ID)
         person = await create_person(s, last_name="HTTPListed")
-        await _attach_role(
-            s, person_id=person.id, organization_id=_HTTP_ORG_ID, role_id=role.id
-        )
+        await _attach_role(s, person_id=person.id, organization_id=_HTTP_ORG_ID, role_id=role.id)
         return person
 
     person = await _commit(_seed)
@@ -577,9 +575,7 @@ async def test_patch_person_via_api_updates_fields(http_client: AsyncClient) -> 
     async def _seed(s: AsyncSession):
         role = await _seed_role_for_org(s, _HTTP_ORG_ID)
         person = await create_person(s, last_name="Before")
-        await _attach_role(
-            s, person_id=person.id, organization_id=_HTTP_ORG_ID, role_id=role.id
-        )
+        await _attach_role(s, person_id=person.id, organization_id=_HTTP_ORG_ID, role_id=role.id)
         return person
 
     person = await _commit(_seed)
@@ -598,9 +594,7 @@ async def test_delete_person_via_api_returns_204(http_client: AsyncClient) -> No
     async def _seed(s: AsyncSession):
         role = await _seed_role_for_org(s, _HTTP_ORG_ID)
         person = await create_person(s, last_name="HTTPDeleted")
-        await _attach_role(
-            s, person_id=person.id, organization_id=_HTTP_ORG_ID, role_id=role.id
-        )
+        await _attach_role(s, person_id=person.id, organization_id=_HTTP_ORG_ID, role_id=role.id)
         return person
 
     person = await _commit(_seed)
