@@ -24,6 +24,7 @@ from app.routers import eav as eav_router
 from app.routers import entity_instances as entity_instances_router
 from app.routers import entity_types as entity_types_router
 from app.routers import health as health_router
+from app.routers import identity as identity_router
 from app.services.audit_service import AuditWriter, _AuditScope
 
 logger = get_logger(__name__)
@@ -227,8 +228,11 @@ def create_app() -> FastAPI:
     # EAV domain — EntityInstance CRUD (SPEC-001 §6, TASK-011C)
     app.include_router(entity_instances_router.router, prefix="/api/v1")
 
+    # Identity domain — Person CRUD (SPEC-002 §8, TASK-012)
+    app.include_router(identity_router.router, prefix="/api/v1")
+
     # TODO: Phase 1 - Include EntityAttribute router (TASK-010 Phase 2)
-    # TODO: Phase 2 - Include Identity/RBAC routers
+    # TODO: Phase 2 - Include remaining Identity/RBAC routers (Roles, Permissions, PersonRoles)
     # TODO: Phase 3 - Include Scheduling routers
     # TODO: Phase 4 - Include Clinical, Billing, Compliance routers
     # TODO: Phase 5 - API hardening middleware

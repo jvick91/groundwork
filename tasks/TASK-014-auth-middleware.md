@@ -27,6 +27,7 @@ Implement the three-layer auth middleware: JWT validation against Auth0 JWKS, pe
 - [ ] `/auth/me` exempted from org header requirement per SPEC-007 §3.2
 - [ ] Health endpoints exempted from all auth per SPEC-007 §8.8
 - [ ] Tests from SPEC-002 §11: `test_person_without_auth_subject_cannot_authenticate`, `test_inactive_person_returns_401`, `test_person_role_cross_tenant_returns_403`
+- [ ] **Deferred from TASK-012:** `test_soft_deleted_person_returns_401` (SPEC-002 §11, "soft delete rule" / §4 auth subject rule). TASK-012 listed this in its AC but could not implement it because the 401 path is owned by this middleware. Add it here alongside `test_inactive_person_returns_401` — same shape, different precondition (`Person.deleted_at IS NOT NULL`).
 - [ ] Test: missing JWT returns 401
 - [ ] Test: expired JWT returns 401
 - [ ] Test: missing X-Organization-Id returns 400

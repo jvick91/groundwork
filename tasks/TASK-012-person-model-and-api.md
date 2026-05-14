@@ -28,7 +28,8 @@ Implement the Person model — the tenant-independent canonical identity record 
 - [ ] Soft-deleted persons excluded from list endpoints per BR-05
 - [ ] `date_of_birth` excluded from application logs per BR-08
 - [ ] All state-changing operations write AuditLog entries per BR-07
-- [ ] Tests from SPEC-002 §11: `test_soft_deleted_person_excluded_from_list`, `test_soft_deleted_person_returns_401`
+- [ ] Tests from SPEC-002 §11: `test_soft_deleted_person_excluded_from_list`
+- [ ] `test_soft_deleted_person_returns_401` — **deferred to TASK-014** (auth middleware owns the 401 path; the Person model exposes the precondition this task needs, but the response code only exists once TASK-014 lands)
 
 ## Files
 
