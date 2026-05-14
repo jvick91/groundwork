@@ -17,7 +17,6 @@ All tests use a real database session and cover the SPEC-001 §9 test table:
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -25,8 +24,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import DomainValidationError, NotFoundError
 from app.enums.eav import FieldType
-from app.models.eav import EntityAttribute, EntityInstance, EntityType, Organization
 from app.models.compliance import AuditLog
+from app.models.eav import EntityAttribute, EntityType, Organization
 from app.schemas.eav import EntityInstanceCreate, EntityInstanceUpdate
 from app.schemas.pagination import PaginationParams
 from app.services.audit_service import AuditWriter, _AuditScope
@@ -359,8 +358,8 @@ async def test_list_instances_filters_by_org(db_session: AsyncSession) -> None:
     await svc_a.create(et_a.slug, EntityInstanceCreate())
     await svc_b.create(et_b.slug, EntityInstanceCreate())
 
-    items_a, meta_a = await svc_a.list(et_a.slug, PaginationParams())
-    items_b, meta_b = await svc_b.list(et_b.slug, PaginationParams())
+    items_a, _meta_a = await svc_a.list(et_a.slug, PaginationParams())
+    items_b, _meta_b = await svc_b.list(et_b.slug, PaginationParams())
 
     assert len(items_a) == 2
     assert len(items_b) == 1

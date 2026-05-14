@@ -126,7 +126,9 @@ async def _add_value(
 
 
 def _params(**kwargs: Any) -> PaginationParams:
-    defaults: dict[str, Any] = {"limit": 20, "cursor": None, "sort": "created_at", "sort_dir": "desc"}
+    defaults: dict[str, Any] = {
+        "limit": 20, "cursor": None, "sort": "created_at", "sort_dir": "desc",
+    }
     defaults.update(kwargs)
     return PaginationParams(**defaults)
 
@@ -140,7 +142,7 @@ class TestAggregationCorrectness:
     async def test_multi_attribute_instance_returns_correct_values(
         self, db_session: AsyncSession
     ) -> None:
-        """AC: aggregation returns correct attribute key-value pairs for a multi-attribute instance."""
+        """AC: aggregation returns correct attribute key-value pairs for a multi-attribute instance."""  # noqa: E501
         org = await _make_org(db_session)
         et = await _make_type(db_session, org.id)
         attr_a = await _make_attr(db_session, et.id, name="field_a")
@@ -151,7 +153,7 @@ class TestAggregationCorrectness:
         await _add_value(db_session, inst.id, attr_b.id, "world")
         await db_session.commit()
 
-        rows, meta = await list_instances_jsonb(
+        rows, _meta = await list_instances_jsonb(
             db_session,
             org_id=org.id,
             entity_type_id=et.id,
@@ -172,7 +174,7 @@ class TestAggregationCorrectness:
         # Define an attribute but add NO values for this instance.
         await _make_attr(db_session, et.id, name="unused_field")
 
-        inst = await _make_instance(db_session, org.id, et.id)
+        await _make_instance(db_session, org.id, et.id)
         await db_session.commit()
 
         rows, _ = await list_instances_jsonb(
@@ -224,7 +226,7 @@ class TestSoftDeleteExclusion:
         await _make_instance(db_session, org.id, et.id, deleted=True)
         await db_session.commit()
 
-        rows, meta = await list_instances_jsonb(
+        rows, _meta = await list_instances_jsonb(
             db_session,
             org_id=org.id,
             entity_type_id=et.id,
@@ -377,7 +379,7 @@ class TestPagination:
             await _make_instance(db_session, org.id, et.id)
         await db_session.commit()
 
-        first_rows, first_meta = await list_instances_jsonb(
+        _first_rows, first_meta = await list_instances_jsonb(
             db_session,
             org_id=org.id,
             entity_type_id=et.id,

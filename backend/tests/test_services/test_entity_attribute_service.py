@@ -169,7 +169,7 @@ async def test_list_returns_attributes_for_type(db_session: AsyncSession):
             ),
         )
 
-    items, meta = await service.list(et.id, PaginationParams(limit=10))
+    items, _meta = await service.list(et.id, PaginationParams(limit=10))
     assert len(items) == 3
     assert all(it.entity_type_id == et.id for it in items)
 

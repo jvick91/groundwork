@@ -31,7 +31,9 @@ async def _cast(
     return await cast_attribute_value(ATTR, field_type, value, options)
 
 
-def _assert_fail(exc_info: pytest.ExceptionInfo[DomainValidationError], expected_fragment: str) -> None:
+def _assert_fail(
+    exc_info: pytest.ExceptionInfo[DomainValidationError], expected_fragment: str
+) -> None:
     err = exc_info.value
     assert err.error == "validation_error"
     assert err.status_code == 422

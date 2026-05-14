@@ -303,7 +303,10 @@ class EntityInstanceService:
 
         if found is None:
             raise DomainValidationError(
-                message=f"fk value '{value}': referenced EntityInstance does not exist or is not accessible",
+                message=(
+                    f"fk value '{value}': referenced EntityInstance"
+                    " does not exist or is not accessible"
+                ),
                 details=[{"value": value, "reason": "referenced instance not found"}],
             )
 
@@ -343,7 +346,10 @@ class EntityInstanceService:
         if missing:
             raise DomainValidationError(
                 message=f"required fields are missing or null: {', '.join(sorted(missing))}",
-                details=[{"attribute": name, "reason": "required field is missing or null"} for name in sorted(missing)],
+                details=[
+                    {"attribute": name, "reason": "required field is missing or null"}
+                    for name in sorted(missing)
+                ],
             )
 
     async def _upsert_value(
