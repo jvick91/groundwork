@@ -99,16 +99,24 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
     ``await db_session.rollback()`` directly in the test body — which runs
     inside the test task and has the correct loop context.
 
-    We deliberately avoid ``await session.rollback()`` in the finalizer because
-    that finalizer runs in a separate pytest-asyncio task whose greenlet bridge
-    state differs from the session that handled the test, causing the same loop
-    mismatch in teardown.
+    Connection release: ``await session.close()`` runs in the finalizer
+    wrapped in ``contextlib.suppress`` so the known greenlet-bridge / task
+    mismatch (which would otherwise prevent ``rollback`` from working) is
+    tolerated. The previous design accumulated every session for the whole
+    test run and only closed at the session-end ``create_tables`` teardown;
+    that leaked one Postgres connection per ``db_session``-using test and
+    blew through ``max_connections`` once the suite crossed ~100 tests.
+    Closing here releases the NullPool connection back to the OS while the
+    suppress keeps any greenlet-bridge failure non-fatal — equivalent to
+    the suppress used at session-end teardown for the same reason.
     """
     session: AsyncSession = Database.get_session_factory()()
     _open_sessions.append(session)
-    yield session
-    # No per-test async teardown — sessions are closed in create_tables
-    # teardown (session-scoped, same event loop) before drop_all runs.
+    try:
+        yield session
+    finally:
+        with contextlib.suppress(Exception):
+            await session.close()
 
 
 @pytest_asyncio.fixture(loop_scope="session")

@@ -26,6 +26,7 @@ from app.services.audit_service import AuditWriter, _AuditScope
 from app.services.entity_attribute_service import EntityAttributeService
 from app.services.entity_instance_service import EntityInstanceService
 from app.services.entity_type_service import EntityTypeService
+from app.services.identity_service import PersonService
 from app.services.organization_service import (
     OrganizationService,
     _OrganizationLifecycle,
@@ -132,6 +133,19 @@ async def get_entity_instance_service(
     )
 
 
+async def get_person_service(
+    session: AsyncSession = Depends(get_db),
+    audit: AuditWriter = Depends(get_audit_writer),
+    auth: AuthContext = Depends(get_auth_context),
+) -> PersonService:
+    return PersonService(
+        session=session,
+        audit=audit,
+        tenant_id=auth.organization_id,
+        actor_id=auth.person_id,
+    )
+
+
 __all__ = [
     "current_org",
     "current_person",
@@ -143,6 +157,7 @@ __all__ = [
     "get_entity_type_service",
     "get_organization_lifecycle",
     "get_organization_service",
+    "get_person_service",
     "require_permission",
     "require_type_permission",
 ]
