@@ -162,7 +162,7 @@ def _cast_jsonb(attr_name: str, value: str) -> str:
         _fail(attr_name, f"jsonb value is not valid JSON: {exc}")
         raise  # unreachable
 
-    if not isinstance(parsed, (dict, list)):
+    if not isinstance(parsed, dict | list):
         _fail(attr_name, "jsonb top-level value must be a JSON object or array, not a scalar")
     return value
 
