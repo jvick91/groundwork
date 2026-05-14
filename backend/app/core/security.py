@@ -118,3 +118,30 @@ def require_permission(permission_slug: str) -> DependsParam:
         return auth
 
     return cast(DependsParam, Depends(_check_permission))
+
+
+def require_type_permission(action: str) -> DependsParam:
+    """Dependency factory for dynamic ``{type_slug}.{action}`` permission checks.
+
+    The permission slug is constructed from the ``type_slug`` path parameter so
+    that ``GET /entities/provider`` requires ``provider.read``, etc.
+
+    Stub behavior (``auth_stub_enabled = True``): allow-lists every check.
+    TASK-015 wires in real RBAC resolution.
+    """
+
+    async def _check_type_permission(
+        type_slug: str,
+        auth: AuthContext = Depends(get_auth_context),
+    ) -> AuthContext:
+        if settings.auth_stub_enabled:
+            return auth
+        permission = f"{type_slug}.{action}"
+        if permission not in auth.permissions:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Missing required permission: {permission}",
+            )
+        return auth
+
+    return cast(DependsParam, Depends(_check_type_permission))
