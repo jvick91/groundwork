@@ -90,10 +90,7 @@ class EntityInstanceService:
             entity_type_id=et.id,
             params=params,
         )
-        result = [
-            EntityInstanceWithValues(instance=inst, values=values)
-            for inst, values in rows
-        ]
+        result = [EntityInstanceWithValues(instance=inst, values=values) for inst, values in rows]
         return result, meta
 
     async def get(self, type_slug: str, instance_id: UUID) -> EntityInstanceWithValues:
@@ -110,9 +107,7 @@ class EntityInstanceService:
         values = await self._load_values(instance_id)
         return EntityInstanceWithValues(instance=inst, values=values)
 
-    async def create(
-        self, type_slug: str, data: EntityInstanceCreate
-    ) -> EntityInstanceWithValues:
+    async def create(self, type_slug: str, data: EntityInstanceCreate) -> EntityInstanceWithValues:
         """Create a new EntityInstance and persist its initial AttributeValues.
 
         Validates every value against its EntityAttribute's field_type (including
@@ -322,9 +317,7 @@ class EntityInstanceService:
                 ],
             )
 
-    async def _enforce_required(
-        self, instance_id: UUID, attrs: Sequence[EntityAttribute]
-    ) -> None:
+    async def _enforce_required(self, instance_id: UUID, attrs: Sequence[EntityAttribute]) -> None:
         """Raise 422 if any required attribute is missing or null on the instance."""
         required = {a.id: a.name for a in attrs if a.is_required}
         if not required:
@@ -338,11 +331,7 @@ class EntityInstanceService:
         )
         present = {row[0]: row[1] for row in result.fetchall()}
 
-        missing = [
-            required[attr_id]
-            for attr_id in required
-            if present.get(attr_id) is None
-        ]
+        missing = [required[attr_id] for attr_id in required if present.get(attr_id) is None]
         if missing:
             raise DomainValidationError(
                 message=f"required fields are missing or null: {', '.join(sorted(missing))}",

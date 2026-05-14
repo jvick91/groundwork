@@ -92,9 +92,7 @@ async def _make_attr(
 
 def _service(session: AsyncSession, tenant_id: uuid.UUID) -> EntityInstanceService:
     audit = AuditWriter(session, _AuditScope(org_id=tenant_id, actor_id=None))
-    return EntityInstanceService(
-        session=session, audit=audit, tenant_id=tenant_id, actor_id=None
-    )
+    return EntityInstanceService(session=session, audit=audit, tenant_id=tenant_id, actor_id=None)
 
 
 # ---------------------------------------------------------------------------
@@ -135,7 +133,9 @@ async def test_create_writes_entity_instance_audit(db_session: AsyncSession) -> 
     result = await service.create(et.slug, EntityInstanceCreate())
 
     audit_result = await db_session.execute(
-        __import__("sqlalchemy", fromlist=["select"]).select(AuditLog).where(
+        __import__("sqlalchemy", fromlist=["select"])
+        .select(AuditLog)
+        .where(
             AuditLog.resource_type == "EntityInstance",
             AuditLog.resource_id == result.instance.id,
             AuditLog.action == "create",
@@ -166,9 +166,9 @@ async def test_create_attribute_value_audit_excludes_value_field(
     for row in rows:
         for snapshot in (row.previous_state, row.next_state):
             if snapshot is not None:
-                assert "value" not in snapshot, (
-                    f"'value' must never appear in AttributeValue audit snapshot: {snapshot}"
-                )
+                assert (
+                    "value" not in snapshot
+                ), f"'value' must never appear in AttributeValue audit snapshot: {snapshot}"
 
 
 # ---------------------------------------------------------------------------
@@ -416,9 +416,7 @@ async def test_update_writes_audit_log(db_session: AsyncSession) -> None:
 
     service = _service(db_session, org.id)
     created = await service.create(et.slug, EntityInstanceCreate())
-    await service.update(
-        et.slug, created.instance.id, EntityInstanceUpdate(is_active=False)
-    )
+    await service.update(et.slug, created.instance.id, EntityInstanceUpdate(is_active=False))
 
     from sqlalchemy import select as sa_select
 
@@ -438,9 +436,7 @@ async def test_update_missing_required_field_returns_422(db_session: AsyncSessio
     await _make_attr(db_session, et.id, name="must_have", is_required=True)
 
     service = _service(db_session, org.id)
-    created = await service.create(
-        et.slug, EntityInstanceCreate(values={"must_have": "present"})
-    )
+    created = await service.create(et.slug, EntityInstanceCreate(values={"must_have": "present"}))
     with pytest.raises(DomainValidationError) as exc:
         await service.update(
             et.slug,

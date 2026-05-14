@@ -95,8 +95,7 @@ async def list_instances_jsonb(
 
     if params.sort not in _SORT_FIELDS:
         raise BadRequestError(
-            f"Cannot sort by '{params.sort}'. "
-            f"Allowed fields: {sorted(_SORT_FIELDS)}."
+            f"Cannot sort by '{params.sort}'. " f"Allowed fields: {sorted(_SORT_FIELDS)}."
         )
 
     sort_col = _SORT_FIELDS[params.sort]
@@ -142,13 +141,11 @@ async def list_instances_jsonb(
 
         if params.sort_dir == SortDir.DESC:
             stmt = stmt.where(
-                (sort_col < cursor_v)
-                | ((sort_col == cursor_v) & (EntityInstance.id < cursor_id))
+                (sort_col < cursor_v) | ((sort_col == cursor_v) & (EntityInstance.id < cursor_id))
             )
         else:
             stmt = stmt.where(
-                (sort_col > cursor_v)
-                | ((sort_col == cursor_v) & (EntityInstance.id > cursor_id))
+                (sort_col > cursor_v) | ((sort_col == cursor_v) & (EntityInstance.id > cursor_id))
             )
 
     # Stable ordering: (sort_col DESC, id DESC) matches the naive query.
@@ -163,8 +160,7 @@ async def list_instances_jsonb(
 
     # Map raw DB rows to typed (EntityInstance, attributes) tuples.
     items: list[tuple[EntityInstance, dict[str, str | None]]] = [
-        (row[0], dict(row[1]) if row[1] else {})
-        for row in page_rows
+        (row[0], dict(row[1]) if row[1] else {}) for row in page_rows
     ]
 
     # Build cursors from the first / last items on this page.

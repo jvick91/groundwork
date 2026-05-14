@@ -127,7 +127,10 @@ async def _add_value(
 
 def _params(**kwargs: Any) -> PaginationParams:
     defaults: dict[str, Any] = {
-        "limit": 20, "cursor": None, "sort": "created_at", "sort_dir": "desc",
+        "limit": 20,
+        "cursor": None,
+        "sort": "created_at",
+        "sort_dir": "desc",
     }
     defaults.update(kwargs)
     return PaginationParams(**defaults)
@@ -188,9 +191,7 @@ class TestAggregationCorrectness:
         _, attrs = rows[0]
         assert attrs == {}
 
-    async def test_null_value_appears_in_attributes(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_null_value_appears_in_attributes(self, db_session: AsyncSession) -> None:
         """A value row with NULL value should appear as None in the attributes dict."""
         org = await _make_org(db_session)
         et = await _make_type(db_session, org.id)
@@ -215,9 +216,7 @@ class TestAggregationCorrectness:
 
 
 class TestSoftDeleteExclusion:
-    async def test_soft_deleted_instances_excluded(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_soft_deleted_instances_excluded(self, db_session: AsyncSession) -> None:
         """AC: soft-deleted instances are excluded from results."""
         org = await _make_org(db_session)
         et = await _make_type(db_session, org.id)
@@ -236,9 +235,7 @@ class TestSoftDeleteExclusion:
         assert len(rows) == 1
         assert rows[0][0].id == alive.id
 
-    async def test_all_deleted_returns_empty(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_all_deleted_returns_empty(self, db_session: AsyncSession) -> None:
         org = await _make_org(db_session)
         et = await _make_type(db_session, org.id)
 
@@ -257,9 +254,7 @@ class TestSoftDeleteExclusion:
 
 
 class TestMultiTenantIsolation:
-    async def test_org_filter_excludes_other_tenant(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_org_filter_excludes_other_tenant(self, db_session: AsyncSession) -> None:
         org_a = await _make_org(db_session, name="Org A")
         org_b = await _make_org(db_session, name="Org B")
         et = await _make_type(db_session, org_a.id)
@@ -279,9 +274,7 @@ class TestMultiTenantIsolation:
         assert len(rows) == 1
         assert rows[0][0].id == inst_a.id
 
-    async def test_entity_type_filter(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_entity_type_filter(self, db_session: AsyncSession) -> None:
         """Instances of a different entity type in the same org are excluded."""
         org = await _make_org(db_session)
         et_a = await _make_type(db_session, org.id, slug=f"type-a-{uuid.uuid4().hex[:4]}")
@@ -322,9 +315,7 @@ class TestPagination:
         assert meta.has_next is True
         assert meta.next_cursor is not None
 
-    async def test_second_page_excludes_first_page_items(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_second_page_excludes_first_page_items(self, db_session: AsyncSession) -> None:
         org = await _make_org(db_session)
         et = await _make_type(db_session, org.id)
 
