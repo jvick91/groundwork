@@ -14,8 +14,6 @@ from app.core.exceptions import DomainValidationError
 from app.enums.eav import FieldType
 from app.services.eav_type_casting import cast_attribute_value
 
-pytestmark = pytest.mark.anyio
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
