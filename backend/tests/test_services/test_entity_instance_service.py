@@ -166,9 +166,9 @@ async def test_create_attribute_value_audit_excludes_value_field(
     for row in rows:
         for snapshot in (row.previous_state, row.next_state):
             if snapshot is not None:
-                assert (
-                    "value" not in snapshot
-                ), f"'value' must never appear in AttributeValue audit snapshot: {snapshot}"
+                assert "value" not in snapshot, (
+                    f"'value' must never appear in AttributeValue audit snapshot: {snapshot}"
+                )
 
 
 # ---------------------------------------------------------------------------

@@ -152,7 +152,7 @@ async def paginate(
     """
     if params.sort not in sort_fields:
         raise BadRequestError(
-            f"Cannot sort by '{params.sort}'. " f"Allowed fields: {sorted(sort_fields)}."
+            f"Cannot sort by '{params.sort}'. Allowed fields: {sorted(sort_fields)}."
         )
 
     sort_col = sort_fields[params.sort]
