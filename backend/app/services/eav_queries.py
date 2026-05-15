@@ -95,7 +95,7 @@ async def list_instances_jsonb(
 
     if params.sort not in _SORT_FIELDS:
         raise BadRequestError(
-            f"Cannot sort by '{params.sort}'. " f"Allowed fields: {sorted(_SORT_FIELDS)}."
+            f"Cannot sort by '{params.sort}'. Allowed fields: {sorted(_SORT_FIELDS)}."
         )
 
     sort_col = _SORT_FIELDS[params.sort]

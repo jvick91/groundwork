@@ -7,9 +7,12 @@ itself (ADR-009 amendment — services don't construct Response schemas).
 """
 
 from datetime import date, datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from app.enums.identity import RoleDomain
 
 
 class PersonCreate(BaseModel):
@@ -90,3 +93,70 @@ class PersonResponse(BaseModel):
     created_at: datetime
     updated_at: datetime | None
     deleted_at: datetime | None
+
+
+# ---------------------------------------------------------------------------
+# RBAC schemas (TASK-013 — no API endpoints yet; used by TASK-014/016/017)
+# ---------------------------------------------------------------------------
+
+
+class RoleResponse(BaseModel):
+    """Read-only view of a Role row."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    organization_id: UUID | None
+    name: str
+    slug: str
+    primary_domain: RoleDomain
+    parent_role_id: UUID | None
+    is_system_role: bool
+    description: str | None
+    created_at: datetime
+    updated_at: datetime | None
+
+
+class PermissionResponse(BaseModel):
+    """Read-only view of a Permission row."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    organization_id: UUID | None
+    resource_slug: str
+    action: str
+    slug: str
+    description: str | None
+    is_system_permission: bool
+    created_at: datetime
+
+
+class PersonRoleResponse(BaseModel):
+    """Read-only view of a PersonRole assignment."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    organization_id: UUID
+    person_id: UUID
+    role_id: UUID
+    entity_instance_id: UUID | None
+    assigned_at: datetime
+    assigned_by_person_id: UUID | None
+    revoked_at: datetime | None
+
+
+class RolePermissionResponse(BaseModel):
+    """Read-only view of a RolePermission grant."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    organization_id: UUID | None
+    role_id: UUID
+    permission_id: UUID
+    conditions: dict[str, Any] | None
+    granted_at: datetime
+    granted_by_person_id: UUID | None
+    revoked_at: datetime | None
