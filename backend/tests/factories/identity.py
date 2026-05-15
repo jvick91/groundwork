@@ -20,7 +20,7 @@ from datetime import UTC, date
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.enums.identity import RoleDomain
-from app.models.identity import Person, PersonRole, Role
+from app.models.identity import Permission, Person, PersonRole, Role, RolePermission
 
 
 async def create_person(
@@ -80,6 +80,63 @@ async def create_role(
     session.add(role)
     await session.flush()
     return role
+
+
+async def create_permission(
+    session: AsyncSession,
+    *,
+    resource_slug: str | None = None,
+    action: str = "read",
+    organization_id: uuid.UUID | None = None,
+    is_system_permission: bool = False,
+) -> Permission:
+    """Insert a Permission row and flush.
+
+    ``resource_slug`` defaults to a uuid-namespaced value to avoid collisions
+    on the UNIQUE(organization_id, slug) constraint across tests.
+    """
+    suffix = uuid.uuid4().hex[:8]
+    resource = resource_slug if resource_slug is not None else f"resource-{suffix}"
+    slug = f"{resource}.{action}"
+    perm = Permission(
+        organization_id=organization_id,
+        resource_slug=resource,
+        action=action,
+        slug=slug,
+        is_system_permission=is_system_permission,
+        created_at=dt.datetime.now(tz=UTC),
+    )
+    session.add(perm)
+    await session.flush()
+    return perm
+
+
+async def create_role_permission(
+    session: AsyncSession,
+    *,
+    role_id: uuid.UUID,
+    permission_id: uuid.UUID,
+    organization_id: uuid.UUID | None = None,
+    conditions: dict | None = None,
+    revoked_at: dt.datetime | None = None,
+) -> RolePermission:
+    """Insert a RolePermission grant and flush.
+
+    ``organization_id`` defaults to ``None`` (system-level grant). Pass an
+    explicit UUID for org-scoped grants. ``revoked_at`` defaults to ``None``
+    (active grant).
+    """
+    grant = RolePermission(
+        organization_id=organization_id,
+        role_id=role_id,
+        permission_id=permission_id,
+        conditions=conditions,
+        revoked_at=revoked_at,
+        granted_at=dt.datetime.now(tz=UTC),
+    )
+    session.add(grant)
+    await session.flush()
+    return grant
 
 
 async def create_person_role(

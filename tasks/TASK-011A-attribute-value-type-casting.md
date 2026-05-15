@@ -1,6 +1,6 @@
 # TASK-011A: AttributeValue Type Casting Engine
 
-**Status:** Not started
+**Status:** Shipped
 **Parent:** TASK-011
 **Spec sections:** SPEC-001 §2 (AttributeValue type casting rules)
 **ADRs:** ADR-009

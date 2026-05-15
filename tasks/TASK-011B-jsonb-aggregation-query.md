@@ -1,6 +1,6 @@
 # TASK-011B: JSONB Aggregation Query Builder
 
-**Status:** Not started
+**Status:** Shipped
 **Parent:** TASK-011
 **Spec sections:** SPEC-001 §5 (canonical query patterns)
 **ADRs:** ADR-004 (JSONB aggregation at query time), ADR-009
