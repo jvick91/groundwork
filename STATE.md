@@ -1,8 +1,8 @@
 # STATE.md — Session Entry Point
 
-**Last updated:** 2026-05-09
+**Last updated:** 2026-05-15
 **Active task:** TASK-011A (next — AttributeValue type casting engine, on the new ADR-009 pattern)
-**Branch:** architecture-reset-adr-008
+**Branch:** main
 **Last architectural change:** 2026-05-09 — ADR-009 accepted; ADR-002 amended; Organization (TASK-009) and EntityType / EntityAttribute (TASK-010) refactored to class-per-aggregate Service + Model-as-Entity. AuditLog gained an `outcome` column. The route-level `GroundworkError` handler now writes failure audits in a fresh session. TASK-008A rewritten as the canonical conventions doc; all not-yet-shipped tasks reference ADR-009. **Same-day amendment:** Repository layer removed — each repo was a thin SQL wrapper called from one service; queries now inline in the service file under a `# Query helpers` section. Re-introduce a Repository only when queries are genuinely shared across services (e.g. role-hierarchy walks, JSONB projections).
 
 ---
@@ -63,8 +63,8 @@
 
 | # | Task | Status | Depends on |
 |---|------|--------|------------|
-| 012 | [Person model & CRUD API](tasks/TASK-012-person-model-and-api.md) | Not started | 004, 009, 006, 008 |
-| 013 | [RBAC models & seed data](tasks/TASK-013-rbac-models-and-seed-data.md) | Not started | 009, 012 |
+| 012 | [Person model & CRUD API](tasks/TASK-012-person-model-and-api.md) | **Complete** (401 test deferred to TASK-014) | 004, 009, 006, 008 |
+| 013 | [RBAC models & seed data](tasks/TASK-013-rbac-models-and-seed-data.md) | **Complete** (hierarchy invariant not enforced at model level — seed data conforms; revisit in TASK-016) | 009, 012 |
 | 014 | [Auth middleware — JWT, person resolution, org context](tasks/TASK-014-auth-middleware.md) | Not started | 012, 013 |
 | 015 | [Permission resolution, caching, & row-level filtering](tasks/TASK-015-permission-resolution-and-caching.md) | Not started | 013, 014 |
 | 016 | [Role & permission management API](tasks/TASK-016-role-permission-management-api.md) | Not started | 013, 015 |

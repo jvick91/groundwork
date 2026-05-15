@@ -19,16 +19,16 @@ Implement the Person model — the tenant-independent canonical identity record 
 
 - [x] Person model with all SPEC-002 §2 fields: id, auth_subject (unique, nullable), first_name, last_name, email (unique), phone, date_of_birth (nullable, PHI), is_active, created_at, updated_at, deleted_at
 - [x] Person has no organization_id — tenant-independent per SPEC-002 §2 design note
-- [ ] `GET /api/v1/people` lists people with active PersonRole in the requesting org per SPEC-002 §9
-- [ ] List endpoint (GET `/api/v1/people`) uses cursor-based pagination per TASK-004 and SPEC-007 §6 — `?cursor=...&limit=...`, returns `{data, next_cursor}`; never offset.
-- [ ] `POST /api/v1/people` creates a person record with `people.write` permission
-- [ ] `GET /api/v1/people/{id}` retrieves person with `people.read` permission
-- [ ] `PATCH /api/v1/people/{id}` updates person fields with `people.write` permission
-- [ ] `DELETE /api/v1/people/{id}` soft-deletes with `people.delete` permission
-- [ ] Soft-deleted persons excluded from list endpoints per BR-05
-- [ ] `date_of_birth` excluded from application logs per BR-08
-- [ ] All state-changing operations write AuditLog entries per BR-07
-- [ ] Tests from SPEC-002 §11: `test_soft_deleted_person_excluded_from_list`
+- [x] `GET /api/v1/people` lists people with active PersonRole in the requesting org per SPEC-002 §9
+- [x] List endpoint (GET `/api/v1/people`) uses cursor-based pagination per TASK-004 and SPEC-007 §6 — `?cursor=...&limit=...`, returns `{data, next_cursor}`; never offset.
+- [x] `POST /api/v1/people` creates a person record with `people.write` permission
+- [x] `GET /api/v1/people/{id}` retrieves person with `people.read` permission
+- [x] `PATCH /api/v1/people/{id}` updates person fields with `people.write` permission
+- [x] `DELETE /api/v1/people/{id}` soft-deletes with `people.delete` permission
+- [x] Soft-deleted persons excluded from list endpoints per BR-05
+- [x] `date_of_birth` excluded from application logs per BR-08
+- [x] All state-changing operations write AuditLog entries per BR-07
+- [x] Tests from SPEC-002 §11: `test_soft_deleted_person_excluded_from_list`
 - [ ] `test_soft_deleted_person_returns_401` — **deferred to TASK-014** (auth middleware owns the 401 path; the Person model exposes the precondition this task needs, but the response code only exists once TASK-014 lands)
 
 ## Files

@@ -22,16 +22,16 @@ Implement the four RBAC tables — Role, Permission, PersonRole, RolePermission 
 - [x] Permission model with all SPEC-002 §2 fields: id, organization_id (nullable), resource_slug, action (String — see TASK-002 rationale; the §2 enum description is advisory, the §3 seed matrix is authoritative), slug, description, is_system_permission, created_at
 - [x] PersonRole model with all SPEC-002 §2 fields: id, organization_id, person_id, role_id, entity_instance_id (nullable), assigned_at, assigned_by_person_id (nullable), revoked_at
 - [x] RolePermission model with all SPEC-002 §2 fields: id, organization_id, role_id, permission_id, conditions (JSONB, nullable), granted_at, granted_by_person_id (nullable), revoked_at
-- [ ] Partial unique index on PersonRole: `UNIQUE(organization_id, person_id, role_id, entity_instance_id) WHERE revoked_at IS NULL` per ADR-003
-- [ ] Partial unique index on RolePermission: `UNIQUE(organization_id, role_id, permission_id) WHERE revoked_at IS NULL` per ADR-003
-- [ ] UNIQUE(organization_id, slug) on Role; system role slugs globally reserved
-- [ ] UNIQUE(organization_id, slug) on Permission; system permission slugs globally reserved
-- [ ] Hierarchy invariant: child role must share parent's primary_domain per SPEC-002 §4
-- [ ] Seed migration: 11 roles (admin, practice_admin, system_admin, biller, receptionist, provider, therapist, supervisor, prescriber, client, guardian) with correct parent_role_id per SPEC-002 §3
-- [ ] Biller and receptionist are standalone (parent_role_id = null) per SPEC-002 §3 inheritance model
-- [ ] Seed migration: all system permissions per SPEC-002 §3, including the nine EntityType-slug permissions for system types (`provider.read`, `provider.write`, `provider.delete`, `client.read`, `client.write`, `client.delete`, `admin.read`, `admin.write`, `admin.delete`) so SPEC-001 §6's `{type_slug}.read/write/delete` contract is satisfied for system types without running TASK-019
-- [ ] Seed migration: full role-permission grant matrix with correct conditions (own_clients, own_sessions, own_notes for provider roles; null for admin) per SPEC-002 §3/§6
-- [ ] All seed roles/permissions have is_system_role/is_system_permission = true
+- [x] Partial unique index on PersonRole: `UNIQUE(organization_id, person_id, role_id, entity_instance_id) WHERE revoked_at IS NULL` per ADR-003 (`uq_person_roles_active`, `app/models/identity.py`)
+- [x] Partial unique index on RolePermission: `UNIQUE(organization_id, role_id, permission_id) WHERE revoked_at IS NULL` per ADR-003 (`uq_role_permissions_active`, `app/models/identity.py`)
+- [x] UNIQUE(organization_id, slug) on Role; system role slugs globally reserved
+- [x] UNIQUE(organization_id, slug) on Permission; system permission slugs globally reserved
+- [ ] Hierarchy invariant: child role must share parent's primary_domain per SPEC-002 §4 — **deferred to TASK-016**: seed data conforms by construction, but no model-level `@validates` or check constraint enforces it for runtime-created roles. Role-management API task is the natural home for the validator.
+- [x] Seed migration: 11 roles (admin, practice_admin, system_admin, biller, receptionist, provider, therapist, supervisor, prescriber, client, guardian) with correct parent_role_id per SPEC-002 §3 (`alembic/versions/d1e2f3a4b5c6_seed_rbac_roles_permissions_grants.py`)
+- [x] Biller and receptionist are standalone (parent_role_id = null) per SPEC-002 §3 inheritance model
+- [x] Seed migration: all system permissions per SPEC-002 §3, including the nine EntityType-slug permissions for system types (`provider.read`, `provider.write`, `provider.delete`, `client.read`, `client.write`, `client.delete`, `admin.read`, `admin.write`, `admin.delete`) so SPEC-001 §6's `{type_slug}.read/write/delete` contract is satisfied for system types without running TASK-019
+- [x] Seed migration: full role-permission grant matrix with correct conditions (own_clients, own_sessions, own_notes for provider roles; null for admin) per SPEC-002 §3/§6
+- [x] All seed roles/permissions have is_system_role/is_system_permission = true
 
 ## Files
 
