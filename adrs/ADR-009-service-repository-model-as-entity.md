@@ -2,7 +2,21 @@
 
 **Date:** 2026-05-09
 **Author:** claude-code
-**Status:** Accepted (amended 2026-05-09 — Repository layer removed; see "Amendment" below)
+**Status:** Accepted (amended 2026-05-09 — Repository layer removed; amended 2026-05-19 — `middleware/` permitted as a folder; see "Amendment" blocks below)
+
+## Amendment 2026-05-19 — `middleware/` permitted as a folder
+
+The original forbidden-folders list bundled `middleware/` together with generic catch-all buckets like `helpers/` and `utils/`. That bundling was wrong. `helpers/`, `utils/`, `common/`, `lib/`, and similar names are forbidden because they signal a deferred decision about where code belongs. ASGI middleware is the opposite — it is a specific, named Starlette/FastAPI concept (request-lifecycle hooks that wrap every request) and an `app/middleware/` folder is the conventional home for it.
+
+**The amendment:** `middleware/` is removed from the forbidden-folders list. New ASGI middleware (auth, organization context, future CORS / rate-limit / request-id, etc.) lives in `app/middleware/<concern>.py` — one file per concern, named after the concern not the layer.
+
+The existing `app/core/request_logger.py` may stay in `core/` or migrate to `app/middleware/request_logger.py`; both are acceptable. There is no requirement to move it as part of this amendment — that's a separate refactor with its own diff.
+
+The other forbidden folder names (`helpers/`, `utils/`, `common/`, `lib/`, `misc/`, `managers/`, `handlers/`, `processors/`) are unchanged. They remain forbidden because they are decision-deferred buckets, not named concerns.
+
+**Driver:** TASK-014 (auth middleware) needs two new middleware files — `auth.py` (JWT validation + person resolution) and `organization.py` (`X-Organization-Id` extraction + active-role check). A dedicated `middleware/` folder signals "this runs in the ASGI request pipeline" more clearly than burying these in `core/`.
+
+---
 
 ## Amendment 2026-05-09 — Repository layer removed
 
@@ -282,7 +296,7 @@ splitting them keeps each file under cognitive load.
 - **Class names:** `BaseService`, `BaseRepository`, `GenericRepository`,
   `<X>Manager`, `<X>Helper`, `<X>Util`.
 - **Folders:** `helpers/`, `utils/`, `common/`, `lib/`, `misc/`, `managers/`,
-  `handlers/`, `processors/`, `middleware/`.
+  `handlers/`, `processors/`. (`middleware/` was removed from this list by the 2026-05-19 amendment — see top of file.)
 
 If code does not fit a category, the answer is never a new folder or a generic
 file name. Either the code belongs in an existing category (find which) or it

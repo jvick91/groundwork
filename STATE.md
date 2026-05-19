@@ -1,9 +1,11 @@
 # STATE.md — Session Entry Point
 
-**Last updated:** 2026-05-15
-**Active task:** TASK-011A (next — AttributeValue type casting engine, on the new ADR-009 pattern)
+**Last updated:** 2026-05-19
+**Active task:** TASK-014 (next — auth middleware: JWT validation, person resolution, org context)
 **Branch:** main
-**Last architectural change:** 2026-05-09 — ADR-009 accepted; ADR-002 amended; Organization (TASK-009) and EntityType / EntityAttribute (TASK-010) refactored to class-per-aggregate Service + Model-as-Entity. AuditLog gained an `outcome` column. The route-level `GroundworkError` handler now writes failure audits in a fresh session. TASK-008A rewritten as the canonical conventions doc; all not-yet-shipped tasks reference ADR-009. **Same-day amendment:** Repository layer removed — each repo was a thin SQL wrapper called from one service; queries now inline in the service file under a `# Query helpers` section. Re-introduce a Repository only when queries are genuinely shared across services (e.g. role-hierarchy walks, JSONB projections).
+**Last architectural change:** 2026-05-19 — ADR-009 amended (second time): `middleware/` removed from the forbidden-folders list; new ASGI middleware (auth, org context, future CORS/rate-limit/request-id) lives in `app/middleware/<concern>.py`. Existing `app/core/request_logger.py` may stay or migrate — no forced move. Driven by TASK-014 (auth middleware). The other forbidden folder names (`helpers/`, `utils/`, `common/`, `lib/`, `misc/`, `managers/`, `handlers/`, `processors/`) remain forbidden.
+
+**Prior architectural change:** 2026-05-09 — ADR-009 accepted; ADR-002 amended; Organization (TASK-009) and EntityType / EntityAttribute (TASK-010) refactored to class-per-aggregate Service + Model-as-Entity. AuditLog gained an `outcome` column. The route-level `GroundworkError` handler now writes failure audits in a fresh session. TASK-008A rewritten as the canonical conventions doc; all not-yet-shipped tasks reference ADR-009. **Same-day amendment:** Repository layer removed — each repo was a thin SQL wrapper called from one service; queries now inline in the service file under a `# Query helpers` section. Re-introduce a Repository only when queries are genuinely shared across services (e.g. role-hierarchy walks, JSONB projections).
 
 ---
 
@@ -53,7 +55,7 @@
 | 009 | [Organization model & CRUD API (first vertical slice)](tasks/TASK-009-organization-model-and-api.md) | **Complete** | 004, 008A |
 | 010 | [EntityType & EntityAttribute models, seed data, & API](tasks/TASK-010-entity-type-attribute-models-api.md) | **Complete** | 004, 009 |
 | 011 | [EntityInstance & AttributeValue (container — not executable)](tasks/TASK-011-entity-instance-attribute-value-api.md) | Container | — |
-| ↳ 011A | [AttributeValue type casting engine (shape only; fk existence hook deferred)](tasks/TASK-011A-attribute-value-type-casting.md) | Not started | 010 |
+| ↳ 011A | [AttributeValue type casting engine (shape only; fk existence hook deferred)](tasks/TASK-011A-attribute-value-type-casting.md) | **Complete** (shipped in commit `be15329`; task-log not written) | 010 |
 | ↳ 011C | [EntityInstance & AttributeValue models, migration, CRUD, bridge rules](tasks/TASK-011C-entity-instance-crud-api.md) | Not started | 004, 011A, 008A |
 | ↳ 011B | [JSONB aggregation query builder + GET list swap](tasks/TASK-011B-jsonb-aggregation-query.md) | Not started | 011C |
 
