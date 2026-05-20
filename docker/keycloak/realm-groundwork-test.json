@@ -1,0 +1,168 @@
+{
+  "realm": "groundwork-test",
+  "enabled": true,
+  "sslRequired": "none",
+  "accessTokenLifespan": 3600,
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": false,
+  "clients": [
+    {
+      "clientId": "groundwork-backend-test",
+      "name": "Groundwork Backend (Test)",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "test-client-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "implicitFlowEnabled": false,
+      "redirectUris": ["http://localhost:8000/*"],
+      "webOrigins": ["*"],
+      "attributes": {
+        "access.token.lifespan": "3600"
+      },
+      "protocolMappers": [
+        {
+          "name": "audience-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "https://api.groundwork.test/",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "groundwork-backend-test-expiring",
+      "name": "Groundwork Backend (Expiring tokens)",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "test-client-secret-expiring",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "implicitFlowEnabled": false,
+      "attributes": {
+        "access.token.lifespan": "1"
+      },
+      "protocolMappers": [
+        {
+          "name": "audience-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "https://api.groundwork.test/",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "id": "11111111-1111-1111-1111-111111111111",
+      "username": "alice",
+      "email": "alice@groundwork.test",
+      "firstName": "Alice",
+      "lastName": "Admin",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {"type": "password", "value": "alice-password", "temporary": false}
+      ]
+    },
+    {
+      "id": "22222222-2222-2222-2222-222222222222",
+      "username": "bob",
+      "email": "bob@groundwork.test",
+      "firstName": "Bob",
+      "lastName": "Provider",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {"type": "password", "value": "bob-password", "temporary": false}
+      ]
+    },
+    {
+      "id": "33333333-3333-3333-3333-333333333333",
+      "username": "carol",
+      "email": "carol@groundwork.test",
+      "firstName": "Carol",
+      "lastName": "Inactive",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {"type": "password", "value": "carol-password", "temporary": false}
+      ]
+    },
+    {
+      "id": "44444444-4444-4444-4444-444444444444",
+      "username": "dave",
+      "email": "dave@groundwork.test",
+      "firstName": "Dave",
+      "lastName": "Deleted",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {"type": "password", "value": "dave-password", "temporary": false}
+      ]
+    },
+    {
+      "id": "55555555-5555-5555-5555-555555555555",
+      "username": "eve",
+      "email": "eve@groundwork.test",
+      "firstName": "Eve",
+      "lastName": "CrossTenant",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {"type": "password", "value": "eve-password", "temporary": false}
+      ]
+    },
+    {
+      "id": "66666666-6666-6666-6666-666666666666",
+      "username": "frank",
+      "email": "frank@groundwork.test",
+      "firstName": "Frank",
+      "lastName": "NoMatchingPerson",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {"type": "password", "value": "frank-password", "temporary": false}
+      ]
+    },
+    {
+      "id": "77777777-7777-7777-7777-777777777777",
+      "username": "grace",
+      "email": "grace@groundwork.test",
+      "firstName": "Grace",
+      "lastName": "Expiring",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {"type": "password", "value": "grace-password", "temporary": false}
+      ]
+    },
+    {
+      "id": "88888888-8888-8888-8888-888888888888",
+      "username": "henry",
+      "email": "henry@groundwork.test",
+      "firstName": "Henry",
+      "lastName": "Revoked",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {"type": "password", "value": "henry-password", "temporary": false}
+      ]
+    }
+  ]
+}

@@ -1,9 +1,11 @@
 # STATE.md — Session Entry Point
 
-**Last updated:** 2026-05-19
-**Active task:** TASK-014 (next — auth middleware: JWT validation, person resolution, org context)
-**Branch:** main
-**Last architectural change:** 2026-05-19 — ADR-009 amended (second time): `middleware/` removed from the forbidden-folders list; new ASGI middleware (auth, org context, future CORS/rate-limit/request-id) lives in `app/middleware/<concern>.py`. Existing `app/core/request_logger.py` may stay or migrate — no forced move. Driven by TASK-014 (auth middleware). The other forbidden folder names (`helpers/`, `utils/`, `common/`, `lib/`, `misc/`, `managers/`, `handlers/`, `processors/`) remain forbidden.
+**Last updated:** 2026-05-20
+**Active task:** TASK-014 (in progress — auth middleware: JWT validation, person resolution, org context; pending commit + task log)
+**Branch:** task-014-auth-middleware
+**Last architectural change:** 2026-05-20 — ADR-010 fully implemented: `keycloak-test` service added to `docker-compose.yml`, `docker/keycloak/realm-groundwork-test.json` realm import committed, conftest rewritten to fetch real Keycloak tokens via Direct Access Grants, all auth tests rewritten against the live realm, `tests/fixtures/jwt_keys.py` and `tests/test_cross_cutting/test_jwt_fixture.py` removed, TASK-014 ACs amended. Bundled with: OIDC env-var rename (`AUTH0_*` → `OIDC_*`); permission-resolution preview in `OrganizationMiddleware` (walks PersonRole → role hierarchy → RolePermission → Permission so legacy tests pass under real auth — TASK-015 will add caching + row-level filtering); `.env.backend` flips `AUTH_STUB_ENABLED=false` everywhere; default `client` fixture auto-authenticates as alice (Person + admin role + permissions seeded idempotently). 307 tests pass; 0 skipped; 0 xfailed.
+
+**Prior architectural change:** 2026-05-19 (AM) — ADR-009 amended (second time): `middleware/` removed from the forbidden-folders list; new ASGI middleware (auth, org context, future CORS/rate-limit/request-id) lives in `app/middleware/<concern>.py`. Existing `app/core/request_logger.py` may stay or migrate — no forced move. Driven by TASK-014 (auth middleware). The other forbidden folder names (`helpers/`, `utils/`, `common/`, `lib/`, `misc/`, `managers/`, `handlers/`, `processors/`) remain forbidden.
 
 **Prior architectural change:** 2026-05-09 — ADR-009 accepted; ADR-002 amended; Organization (TASK-009) and EntityType / EntityAttribute (TASK-010) refactored to class-per-aggregate Service + Model-as-Entity. AuditLog gained an `outcome` column. The route-level `GroundworkError` handler now writes failure audits in a fresh session. TASK-008A rewritten as the canonical conventions doc; all not-yet-shipped tasks reference ADR-009. **Same-day amendment:** Repository layer removed — each repo was a thin SQL wrapper called from one service; queries now inline in the service file under a `# Query helpers` section. Re-introduce a Repository only when queries are genuinely shared across services (e.g. role-hierarchy walks, JSONB projections).
 
@@ -67,7 +69,7 @@
 |---|------|--------|------------|
 | 012 | [Person model & CRUD API](tasks/TASK-012-person-model-and-api.md) | **Complete** (401 test deferred to TASK-014) | 004, 009, 006, 008 |
 | 013 | [RBAC models & seed data](tasks/TASK-013-rbac-models-and-seed-data.md) | **Complete** (hierarchy invariant not enforced at model level — seed data conforms; revisit in TASK-016) | 009, 012 |
-| 014 | [Auth middleware — JWT, person resolution, org context](tasks/TASK-014-auth-middleware.md) | Not started | 012, 013 |
+| 014 | [Auth middleware — JWT, person resolution, org context](tasks/TASK-014-auth-middleware.md) | In progress (code complete; pending commit + task log) | 012, 013 |
 | 015 | [Permission resolution, caching, & row-level filtering](tasks/TASK-015-permission-resolution-and-caching.md) | Not started | 013, 014 |
 | 016 | [Role & permission management API](tasks/TASK-016-role-permission-management-api.md) | Not started | 013, 015 |
 | 017 | [Person role assignment API](tasks/TASK-017-person-role-assignment-api.md) | Not started | 012, 013, 015 |

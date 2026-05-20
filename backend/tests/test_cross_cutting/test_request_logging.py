@@ -67,12 +67,31 @@ async def test_request_logger_emits_event_on_unhandled_500(
 ) -> None:
     """Unhandled exceptions still produce a request-log event with status_code=500.
 
-    ``raise_app_exceptions=False`` so the test sees the 500 response from
-    Starlette's ServerErrorMiddleware rather than re-raising into pytest.
+    Auth + org middleware run on every request now (ADR-010). We send a
+    real alice token + X-Organization-Id so the request reaches the
+    deliberately-failing route instead of being intercepted at 401.
     """
+    from app.core.database import Database
+    from tests.conftest import (
+        DEFAULT_ORG_ID,
+        _fetch_keycloak_token,
+        _seed_default_identity,
+    )
+
+    session_factory = Database.get_session_factory()
+    async with session_factory() as setup_session:
+        await _seed_default_identity(setup_session)
+    token = await _fetch_keycloak_token("alice")
+    auth_headers = {
+        "Authorization": f"Bearer {token}",
+        "X-Organization-Id": str(DEFAULT_ORG_ID),
+    }
+
     transport = ASGITransport(app=app_with_failing_route, raise_app_exceptions=False)
     with structlog.testing.capture_logs() as captured:
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        async with AsyncClient(
+            transport=transport, base_url="http://test", headers=auth_headers
+        ) as ac:
             response = await ac.get("/test/explode")
 
     assert response.status_code == 500

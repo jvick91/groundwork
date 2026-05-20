@@ -168,13 +168,32 @@ async def ec(error_app: FastAPI):
     """Error client — AsyncClient wired to the error_app.
 
     `raise_app_exceptions=False` so we can assert on the 500 response the
-    catch-all Exception handler produces. Starlette's ServerErrorMiddleware
-    re-raises after invoking the handler to give ASGI servers the original
-    traceback; we don't want that in tests.
+    catch-all Exception handler produces.
+
+    Per ADR-010 / TASK-014, requests go through real auth + org-context
+    middleware. We seed alice (default identity) and bake her token +
+    X-Organization-Id into the client so the test routes (which deliberately
+    raise) actually run instead of being intercepted at 401.
     """
+    from app.core.database import Database
+    from tests.conftest import (
+        DEFAULT_ORG_ID,
+        _fetch_keycloak_token,
+        _seed_default_identity,
+    )
+
+    session_factory = Database.get_session_factory()
+    async with session_factory() as setup_session:
+        await _seed_default_identity(setup_session)
+    token = await _fetch_keycloak_token("alice")
+
     async with AsyncClient(
         transport=ASGITransport(app=error_app, raise_app_exceptions=False),
         base_url="http://test",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "X-Organization-Id": str(DEFAULT_ORG_ID),
+        },
     ) as client:
         yield client
 

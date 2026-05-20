@@ -51,5 +51,28 @@ services:
       timeout: 5s
       retries: 5
 
+  keycloak-test:
+    # Test-only IdP per ADR-010. Imports the realm at startup so the test
+    # token-fetcher (backend/tests/conftest.py) and the auth middleware
+    # have a real OAuth/OIDC issuer to talk to. Not used in dev/staging/prod.
+    image: quay.io/keycloak/keycloak:26.0
+    command: ["start-dev", "--import-realm", "--http-port=8080"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: "true"
+      KC_HTTP_ENABLED: "true"
+    ports:
+      - "8081:8080"
+      - "9000:9000"
+    volumes:
+      - ./docker/keycloak:/opt/keycloak/data/import:ro
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
 volumes:
   pgdata:

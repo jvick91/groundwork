@@ -15,10 +15,12 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.config import settings
 from app.core.database import Database
+from app.core.dependencies import get_jwks_resolver
 from app.core.exceptions import GroundworkError
 from app.core.lifespan import lifespan
 from app.core.logger import get_logger
 from app.core.request_logger import RequestLoggerMiddleware
+from app.middleware import AuthMiddleware, OrganizationMiddleware
 from app.routers import compliance as compliance_router
 from app.routers import eav as eav_router
 from app.routers import entity_instances as entity_instances_router
@@ -88,8 +90,17 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Auth pipeline (TASK-014). ``add_middleware`` prepends to the stack,
+    # so the LAST middleware added runs FIRST on the request. We want:
+    #   request → RequestLogger → AuthMiddleware → OrganizationMiddleware
+    #           → CORSMiddleware → route handler
+    # so Auth sets ``request.state.person_id`` before Organization reads it.
+    # Add order is therefore: Org first, Auth second (Auth wraps Org).
+    app.add_middleware(OrganizationMiddleware)
+    app.add_middleware(AuthMiddleware, resolver=get_jwks_resolver())
+
     # Request logger — added last so it wraps outermost and sees the
-    # client-visible status code after CORS and exception handling.
+    # client-visible status code after CORS, auth, and exception handling.
     # SPEC-006 §4 BR-08: PHI is stripped by the structlog phi_filter
     # processor, so payload field names safe to use here.
     app.add_middleware(RequestLoggerMiddleware)

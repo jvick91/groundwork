@@ -675,7 +675,9 @@ Tests use `httpx.AsyncClient` with FastAPI's `TestClient` integration. The test 
 
 ### 13.4 Auth in tests
 
-Tests do not call Auth0. A test fixture generates valid JWTs signed with a test-only RSA key. The auth middleware is configured to validate against the test key in the test environment. This provides real JWT validation without an external dependency.
+Tests use a containerized Keycloak instance (running as a `docker-compose` service alongside `db-test`) as the IdP. Token-issuance and JWKS endpoints are real. The auth middleware validates against Keycloak's `/.well-known/jwks.json` the same way it would validate against Auth0 in production. Negative-path tokens (expired, wrong-audience, wrong-issuer) are minted by dedicated Keycloak realms with the appropriate configuration. No test-only configuration overrides are required; tests exercise the production code path unchanged.
+
+The `JWKSResolver`'s static-PEM mode remains in production code as a fallback for deployments that prefer a different IdP, but it is no longer the test shape. See ADR-010.
 
 ### 13.5 Test factories
 

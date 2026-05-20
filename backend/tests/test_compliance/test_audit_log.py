@@ -108,32 +108,10 @@ async def install_immutability_trigger(test_engine: AsyncEngine):
         )
 
 
-# ---------------------------------------------------------------------------
-# Auth stub fixture for endpoint tests
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture
-def audit_client(db_session: AsyncSession):
-    """HTTP client with audit.read permission stubbed in."""
-    app = create_app()
-
-    stub_auth = AuthContext(
-        person_id=uuid.uuid4(),
-        auth_subject="test|subject",
-        organization_id=uuid.uuid4(),
-        permissions={"audit.read"},
-    )
-    app.dependency_overrides[get_auth_context] = lambda: stub_auth
-
-    async def _override_db():
-        yield db_session
-
-    from app.core.dependencies import get_db
-
-    app.dependency_overrides[get_db] = _override_db
-
-    return app
+# NOTE: previously defined an ``audit_client`` fixture that used
+# ``app.dependency_overrides[get_auth_context]``. That fixture was never
+# consumed by any test and was removed in TASK-014 alongside the move to
+# real Keycloak auth per ADR-010.
 
 
 # ===========================================================================

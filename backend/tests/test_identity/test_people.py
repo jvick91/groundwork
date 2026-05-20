@@ -431,13 +431,15 @@ _HTTP_ORG_ID = uuid.UUID("00000000-0000-0000-0000-0000000000c2")
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def http_client() -> AsyncGenerator[AsyncClient, None]:
-    """Session-scoped AsyncClient with system-actor stub auth.
+    """Session-scoped AsyncClient with real Keycloak auth (alice).
 
-    A real Organization row matching the stub auth's ``organization_id`` is
-    seeded once via a fresh DB session so audit writes from the request
-    transaction satisfy the ``audit_logs.organization_id`` FK.
+    Per ADR-010 / TASK-014, tests use real OAuth against the containerized
+    Keycloak realm. Alice is seeded as a Person with the ``test-admin``
+    role in ``_HTTP_ORG_ID`` (which has every default permission), and the
+    returned client carries alice's bearer token + ``X-Organization-Id``
+    on every request.
     """
-    from app.core.security import AuthContext, get_auth_context
+    from tests.conftest import _fetch_keycloak_token, seed_authenticated_identity
 
     # Seed the http-test org via a fresh, committing session so it persists
     # across the ASGITransport boundary. INSERT-or-skip keeps it idempotent.
@@ -458,17 +460,19 @@ async def http_client() -> AsyncGenerator[AsyncClient, None]:
             )
             await setup_session.commit()
 
+        # Seed alice + role + permissions + PersonRole bound to _HTTP_ORG_ID.
+        await seed_authenticated_identity(setup_session, _HTTP_ORG_ID)
+
+    token = await _fetch_keycloak_token("alice")
     app = create_app()
-    stub_auth = AuthContext(
-        person_id=None,
-        auth_subject="test|stub",
-        organization_id=_HTTP_ORG_ID,
-    )
-    app.dependency_overrides[get_auth_context] = lambda: stub_auth
 
     async with AsyncClient(
         transport=ASGITransport(app=app, raise_app_exceptions=False),
         base_url="http://test",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "X-Organization-Id": str(_HTTP_ORG_ID),
+        },
     ) as ac:
         yield ac
 

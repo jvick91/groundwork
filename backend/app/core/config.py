@@ -28,10 +28,19 @@ class Settings(BaseSettings):
         "postgresql+asyncpg://groundwork:groundwork@db-test:5432/groundwork_test"
     )
 
-    # Auth0
-    auth0_domain: str = ""
-    auth0_audience: str = ""
-    auth0_issuer: str = ""
+    # OIDC provider settings (vendor-neutral: Auth0, Keycloak, Cognito, …).
+    # ``oidc_domain`` exists for legacy Auth0 deployments that want a
+    # short-form (host-only) config; ``oidc_issuer`` is the full issuer URL.
+    # When both are unset, authentication is unconfigured and every
+    # protected request returns 401.
+    oidc_domain: str = ""
+    oidc_audience: str = ""
+    oidc_issuer: str = ""
+
+    # Test / local-dev override: when non-empty, the JWKS resolver uses this
+    # PEM-encoded public key for every kid instead of fetching from the IdP.
+    # Production must leave this empty so JWKS rotation works.
+    auth_jwt_static_public_key_pem: str = ""
 
     # Stubs
     # Until TASK-014 (auth middleware) and TASK-015 (permission resolution) land,
@@ -45,10 +54,11 @@ class Settings(BaseSettings):
     custom_entity_types_enabled: bool = False
 
     @property
-    def auth0_issuer_url(self) -> str:
-        if self.auth0_issuer:
-            return self.auth0_issuer
-        return f"https://{self.auth0_domain}/"
+    def oidc_issuer_url(self) -> str:
+        """Return the configured OIDC issuer URL, or derive one from the domain."""
+        if self.oidc_issuer:
+            return self.oidc_issuer
+        return f"https://{self.oidc_domain}/"
 
     # CORS
     cors_origins: list[str] = ["http://localhost:3000"]

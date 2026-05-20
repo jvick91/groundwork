@@ -2,14 +2,13 @@
 Health check endpoints (SPEC-007 §9).
 
 GET /health        — liveness probe (process is running)
-GET /health/ready  — readiness probe (DB is reachable)
+GET /health/ready  — readiness probe (DB and JWKS reachable)
 
 Neither endpoint requires authentication or X-Organization-Id.
-The `_check_database` dependency is injectable so tests can override it
-without mocking internals.
+The ``_check_database`` and ``_check_jwks`` dependencies are injectable so
+tests can override them without mocking internals.
 
-TASK-014 adds `auth0_jwks` to the readiness checks dict when auth
-middleware is wired up.
+# adr-bypass: adr-009-router-no-sqlalchemy-import - health probe runs SELECT 1 directly; no aggregate service exists for liveness/readiness
 """
 
 from fastapi import APIRouter, Depends
@@ -18,6 +17,8 @@ from sqlalchemy import text
 
 from app.core.config import settings
 from app.core.database import Database
+from app.core.dependencies import get_jwks_resolver
+from app.core.security import JWKSResolver
 
 router = APIRouter(prefix="/health", tags=["health"])
 
@@ -38,6 +39,21 @@ async def _check_database() -> str:
         return "error"
 
 
+async def _check_jwks(
+    resolver: JWKSResolver = Depends(get_jwks_resolver),
+) -> str:
+    """Probe the JWKS resolver.  Returns 'ok' when at least one key is loadable.
+
+    In stub mode (``auth_stub_enabled = True``) we report ``ok`` without
+    touching the resolver — the readiness endpoint should not depend on
+    Auth0 connectivity in local dev or in test environments that don't
+    care about JWT validation.
+    """
+    if settings.auth_stub_enabled:
+        return "ok"
+    return await resolver.health()
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -52,15 +68,17 @@ async def liveness() -> dict[str, str]:
 @router.get("/ready")
 async def readiness(
     database: str = Depends(_check_database),
+    auth0_jwks: str = Depends(_check_jwks),
 ) -> JSONResponse:
     """Readiness probe — returns 200 when all dependencies are healthy.
 
-    Returns 503 if any check fails.  The ``checks`` dict is intentionally
-    open-ended: TASK-014 adds ``auth0_jwks`` without changing this envelope.
+    Returns 503 if any check fails.  TASK-014 adds the ``auth0_jwks`` key
+    alongside the existing ``database`` check; the response envelope is
+    unchanged.
     """
     checks: dict[str, str] = {
         "database": database,
-        # auth0_jwks: added by TASK-014
+        "auth0_jwks": auth0_jwks,
     }
 
     all_ok = all(v == "ok" for v in checks.values())

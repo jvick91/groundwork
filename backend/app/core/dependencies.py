@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import Database
 from app.core.security import (
     AuthContext,
+    JWKSResolver,
     current_org,
     current_person,
     get_auth_context,
@@ -67,6 +68,18 @@ async def get_audit_writer(
         user_agent=request.headers.get("user-agent"),
     )
     return AuditWriter(session, scope)
+
+
+@lru_cache
+def get_jwks_resolver() -> JWKSResolver:
+    """Process-singleton ``JWKSResolver``.
+
+    Tests that change the resolver's input (e.g. swap the static PEM)
+    call ``get_jwks_resolver.cache_clear()`` between cases. The instance
+    itself caches keys for ten minutes (``JWKSResolver._jwks_ttl_seconds``),
+    so production hot paths never block on a JWKS fetch.
+    """
+    return JWKSResolver()
 
 
 @lru_cache
@@ -155,6 +168,7 @@ __all__ = [
     "get_entity_attribute_service",
     "get_entity_instance_service",
     "get_entity_type_service",
+    "get_jwks_resolver",
     "get_organization_lifecycle",
     "get_organization_service",
     "get_person_service",

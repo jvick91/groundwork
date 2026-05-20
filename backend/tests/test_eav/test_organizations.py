@@ -42,33 +42,34 @@ from app.main import create_app
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def http_client() -> AsyncGenerator[AsyncClient, None]:
-    """Session-scoped AsyncClient using the real get_db (no session override).
+    """Session-scoped AsyncClient with real Keycloak auth (alice).
 
-    ASGITransport does NOT run the app lifespan, so the Database singleton
-    initialised by conftest.initialize_database remains in effect throughout
-    the session.  Each request creates its own DB session via the normal
-    get_db dependency, commits on success, and is fully independent.
-
-    ``get_auth_context`` is overridden to use ``person_id=None`` (system-actor
-    semantics) because the ``people`` table is empty during TASK-009 tests and
-    the stub UUID would fail the ``audit_logs.actor_person_id`` FK check.
-    ``actor_person_id`` is nullable by design (SPEC-006 §7: system events have
-    no actor), so this is semantically correct.
+    Per ADR-010 / TASK-014. Alice is seeded as a Person with the
+    ``test-admin`` role in the default org (UUID 00000000-...b2, kept
+    stable for backward compatibility with tests that hardcoded the
+    stub org id).
     """
-    from app.core.security import AuthContext, get_auth_context
-
-    app = create_app()
-
-    stub_auth = AuthContext(
-        person_id=None,
-        auth_subject="test|stub",
-        organization_id=uuid.UUID("00000000-0000-0000-0000-0000000000b2"),
+    from app.core.database import Database
+    from tests.conftest import (
+        DEFAULT_ORG_ID,
+        _fetch_keycloak_token,
+        _seed_default_identity,
     )
-    app.dependency_overrides[get_auth_context] = lambda: stub_auth
+
+    session_factory = Database.get_session_factory()
+    async with session_factory() as setup_session:
+        await _seed_default_identity(setup_session)
+
+    token = await _fetch_keycloak_token("alice")
+    app = create_app()
 
     async with AsyncClient(
         transport=ASGITransport(app=app, raise_app_exceptions=False),
         base_url="http://test",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "X-Organization-Id": str(DEFAULT_ORG_ID),
+        },
     ) as ac:
         yield ac
 

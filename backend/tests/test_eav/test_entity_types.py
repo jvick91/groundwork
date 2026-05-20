@@ -46,20 +46,43 @@ _ORG_ID = uuid.UUID("00000000-0000-0000-0000-0000000000c1")
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def et_client() -> AsyncGenerator[AsyncClient, None]:
-    """Session-scoped AsyncClient with system-actor stub auth."""
-    from app.core.security import AuthContext, get_auth_context
+    """Session-scoped AsyncClient with real Keycloak auth (alice) in ``_ORG_ID``."""
+    from datetime import UTC, datetime
 
+    from sqlalchemy import select
+
+    from app.core.database import Database
+    from app.models.eav import Organization
+    from tests.conftest import _fetch_keycloak_token, seed_authenticated_identity
+
+    session_factory = Database.get_session_factory()
+    async with session_factory() as setup_session:
+        exists = await setup_session.execute(
+            select(Organization).where(Organization.id == _ORG_ID)
+        )
+        if exists.scalar_one_or_none() is None:
+            setup_session.add(
+                Organization(
+                    id=_ORG_ID,
+                    name="EntityTypes Test Org",
+                    timezone="UTC",
+                    is_active=True,
+                    created_at=datetime.now(tz=UTC),
+                )
+            )
+            await setup_session.commit()
+        await seed_authenticated_identity(setup_session, _ORG_ID)
+
+    token = await _fetch_keycloak_token("alice")
     app = create_app()
-    stub_auth = AuthContext(
-        person_id=None,
-        auth_subject="test|stub",
-        organization_id=_ORG_ID,
-    )
-    app.dependency_overrides[get_auth_context] = lambda: stub_auth
 
     async with AsyncClient(
         transport=ASGITransport(app=app, raise_app_exceptions=False),
         base_url="http://test",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "X-Organization-Id": str(_ORG_ID),
+        },
     ) as ac:
         yield ac
 
