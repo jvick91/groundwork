@@ -8,7 +8,7 @@ Neither endpoint requires authentication or X-Organization-Id.
 The ``_check_database`` and ``_check_jwks`` dependencies are injectable so
 tests can override them without mocking internals.
 
-# adr-bypass: adr-009-router-no-sqlalchemy-import - health probe runs SELECT 1 directly; no aggregate service exists for liveness/readiness
+# adr-bypass: adr-009-router-no-sqlalchemy-import - health probe SELECT 1; no aggregate service.
 """
 
 from fastapi import APIRouter, Depends

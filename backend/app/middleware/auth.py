@@ -44,9 +44,7 @@ from app.core.security import (
 from app.models.identity import Person
 
 # Paths exempted from auth entirely (SPEC-007 §8.8 — health endpoints).
-_AUTH_EXEMPT_PREFIXES: tuple[str, ...] = (
-    "/api/v1/health",
-)
+_AUTH_EXEMPT_PREFIXES: tuple[str, ...] = ("/api/v1/health",)
 
 
 class AuthMiddleware:
@@ -130,7 +128,7 @@ def _extract_bearer_token(scope: Scope) -> str | None:
     Returns ``None`` if the header is missing, not bearer-typed, or has no
     token after the scheme.
     """
-    headers = scope.get("headers", [])
+    headers: list[tuple[bytes, bytes]] = scope.get("headers", [])
     for name, value in headers:
         if name == b"authorization":
             try:

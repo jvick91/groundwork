@@ -40,13 +40,12 @@ async def _ensure_person(
     fixed user UUIDs would otherwise collide on ``UNIQUE(auth_subject)``
     when the same user is referenced by multiple tests across the session.
     """
-    existing = await db_session.execute(
-        select(Person).where(Person.auth_subject == auth_subject)
-    )
+    existing = await db_session.execute(select(Person).where(Person.auth_subject == auth_subject))
     person = existing.scalar_one_or_none()
     if person is not None:
         return person
     return await create_person(db_session, auth_subject=auth_subject)
+
 
 pytestmark = pytest.mark.asyncio
 
@@ -83,9 +82,7 @@ async def test_missing_x_organization_id_returns_400(
 ) -> None:
     org = await _create_org(db_session)
     person = await _ensure_person(db_session, auth_subject=KEYCLOAK_USER_ALICE)
-    role = await create_role(
-        db_session, organization_id=org.id, primary_domain=RoleDomain.ADMIN
-    )
+    role = await create_role(db_session, organization_id=org.id, primary_domain=RoleDomain.ADMIN)
     await create_person_role(
         db_session, person_id=person.id, organization_id=org.id, role_id=role.id
     )
@@ -102,9 +99,7 @@ async def test_invalid_uuid_x_organization_id_returns_400(
 ) -> None:
     org = await _create_org(db_session)
     person = await _ensure_person(db_session, auth_subject=KEYCLOAK_USER_ALICE)
-    role = await create_role(
-        db_session, organization_id=org.id, primary_domain=RoleDomain.ADMIN
-    )
+    role = await create_role(db_session, organization_id=org.id, primary_domain=RoleDomain.ADMIN)
     await create_person_role(
         db_session, person_id=person.id, organization_id=org.id, role_id=role.id
     )
@@ -163,9 +158,7 @@ async def test_revoked_role_excluded_from_org_resolution(
     """SPEC-002 §4 — a revoked PersonRole does not satisfy the org check."""
     org = await _create_org(db_session)
     person = await _ensure_person(db_session, auth_subject=KEYCLOAK_USER_HENRY)
-    role = await create_role(
-        db_session, organization_id=org.id, primary_domain=RoleDomain.ADMIN
-    )
+    role = await create_role(db_session, organization_id=org.id, primary_domain=RoleDomain.ADMIN)
     await create_person_role(
         db_session,
         person_id=person.id,

@@ -26,13 +26,10 @@ from app.enums.identity import RoleDomain
 from app.models.eav import Organization
 from app.models.identity import Person
 from tests.conftest import (
-    KEYCLOAK_EXPIRING_CLIENT_ID,
-    KEYCLOAK_EXPIRING_CLIENT_SECRET,
     KEYCLOAK_USER_ALICE,
     KEYCLOAK_USER_BOB,
     KEYCLOAK_USER_CAROL,
     KEYCLOAK_USER_DAVE,
-    KEYCLOAK_USER_FRANK,
     KEYCLOAK_USER_GRACE,
 )
 from tests.factories.identity import (
@@ -80,9 +77,7 @@ async def _seed_person_with_role(
     db_session.add(org)
     await db_session.flush()
 
-    existing = await db_session.execute(
-        select(Person).where(Person.auth_subject == auth_subject)
-    )
+    existing = await db_session.execute(select(Person).where(Person.auth_subject == auth_subject))
     person = existing.scalar_one_or_none()
     if person is None:
         person = await create_person(
@@ -123,9 +118,7 @@ def _bearer(token: str) -> dict[str, str]:
 async def test_missing_authorization_header_returns_401(
     auth_client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    _, org_id = await _seed_person_with_role(
-        db_session, auth_subject=KEYCLOAK_USER_ALICE
-    )
+    _, org_id = await _seed_person_with_role(db_session, auth_subject=KEYCLOAK_USER_ALICE)
     response = await auth_client.get(
         "/api/v1/people",
         headers={"X-Organization-Id": str(org_id)},
@@ -137,9 +130,7 @@ async def test_missing_authorization_header_returns_401(
 async def test_malformed_authorization_header_returns_401(
     auth_client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    _, org_id = await _seed_person_with_role(
-        db_session, auth_subject=KEYCLOAK_USER_ALICE
-    )
+    _, org_id = await _seed_person_with_role(db_session, auth_subject=KEYCLOAK_USER_ALICE)
     response = await auth_client.get(
         "/api/v1/people",
         headers={
@@ -154,9 +145,7 @@ async def test_malformed_authorization_header_returns_401(
 async def test_bearer_without_token_returns_401(
     auth_client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    _, org_id = await _seed_person_with_role(
-        db_session, auth_subject=KEYCLOAK_USER_ALICE
-    )
+    _, org_id = await _seed_person_with_role(db_session, auth_subject=KEYCLOAK_USER_ALICE)
     response = await auth_client.get(
         "/api/v1/people",
         headers={
@@ -180,9 +169,7 @@ async def test_expired_token_returns_401(
 ) -> None:
     """Keycloak's expiring client mints tokens with 1s lifespan; the
     ``expired_token`` fixture sleeps past that before returning."""
-    _, org_id = await _seed_person_with_role(
-        db_session, auth_subject=KEYCLOAK_USER_GRACE
-    )
+    _, org_id = await _seed_person_with_role(db_session, auth_subject=KEYCLOAK_USER_GRACE)
     response = await auth_client.get(
         "/api/v1/people",
         headers={**_bearer(expired_token), "X-Organization-Id": str(org_id)},
@@ -194,9 +181,7 @@ async def test_expired_token_returns_401(
 async def test_token_with_invalid_signature_returns_401(
     auth_client: AsyncClient, db_session: AsyncSession, keycloak_token
 ) -> None:
-    _, org_id = await _seed_person_with_role(
-        db_session, auth_subject=KEYCLOAK_USER_BOB
-    )
+    _, org_id = await _seed_person_with_role(db_session, auth_subject=KEYCLOAK_USER_BOB)
     token = await keycloak_token("bob")
     # Flip a character in the signature segment to invalidate it.
     header, claims, signature = token.split(".")
@@ -238,9 +223,7 @@ async def test_token_with_no_matching_person_returns_401(
     """
     # Seed Alice so the org exists and has at least one PersonRole, but
     # we send Frank's token (no matching Person row).
-    _, org_id = await _seed_person_with_role(
-        db_session, auth_subject=KEYCLOAK_USER_ALICE
-    )
+    _, org_id = await _seed_person_with_role(db_session, auth_subject=KEYCLOAK_USER_ALICE)
     token = await keycloak_token("frank")
     response = await auth_client.get(
         "/api/v1/people",
@@ -270,9 +253,7 @@ async def test_person_without_auth_subject_cannot_authenticate(
     await db_session.flush()
     # Person with NULL auth_subject — cannot be matched from any JWT
     person = await create_person(db_session, auth_subject=None)
-    role = await create_role(
-        db_session, organization_id=org.id, primary_domain=RoleDomain.CLIENT
-    )
+    role = await create_role(db_session, organization_id=org.id, primary_domain=RoleDomain.CLIENT)
     await create_person_role(
         db_session,
         person_id=person.id,
@@ -348,9 +329,7 @@ async def test_valid_token_with_active_role_passes_auth_and_org_checks(
     ``org_access_denied``. That 403 is the positive signal that the full
     middleware pipeline worked end-to-end.
     """
-    _, org_id = await _seed_person_with_role(
-        db_session, auth_subject=KEYCLOAK_USER_BOB
-    )
+    _, org_id = await _seed_person_with_role(db_session, auth_subject=KEYCLOAK_USER_BOB)
     token = await keycloak_token("bob")
     response = await auth_client.get(
         "/api/v1/people",

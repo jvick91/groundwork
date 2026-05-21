@@ -57,9 +57,7 @@ async def et_client() -> AsyncGenerator[AsyncClient, None]:
 
     session_factory = Database.get_session_factory()
     async with session_factory() as setup_session:
-        exists = await setup_session.execute(
-            select(Organization).where(Organization.id == _ORG_ID)
-        )
+        exists = await setup_session.execute(select(Organization).where(Organization.id == _ORG_ID))
         if exists.scalar_one_or_none() is None:
             setup_session.add(
                 Organization(

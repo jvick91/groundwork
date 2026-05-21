@@ -476,6 +476,6 @@ async def test_pydantic_validation_does_not_echo_submitted_value(ec: AsyncClient
     )
     assert r.status_code == 422
     body = r.text
-    assert phi_like_value not in body, (
-        "Submitted value leaked into response — SPEC-007 §7.4 PHI safety violation."
-    )
+    assert (
+        phi_like_value not in body
+    ), "Submitted value leaked into response — SPEC-007 §7.4 PHI safety violation."

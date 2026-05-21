@@ -101,9 +101,7 @@ class OrganizationMiddleware:
             )
             return
 
-        role_slugs, permissions = await _lookup_roles_and_permissions(
-            person_id, organization_id
-        )
+        role_slugs, permissions = await _lookup_roles_and_permissions(person_id, organization_id)
         if not role_slugs:
             await _emit_error(
                 send,
@@ -136,7 +134,7 @@ def _path_is_exempt(path: str) -> bool:
 
 def _read_header(scope: Scope, name: bytes) -> str | None:
     """Return the first matching header value as a string, or ``None``."""
-    headers = scope.get("headers", [])
+    headers: list[tuple[bytes, bytes]] = scope.get("headers", [])
     for hname, hvalue in headers:
         if hname == name:
             try:

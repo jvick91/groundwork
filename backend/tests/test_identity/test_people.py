@@ -167,9 +167,9 @@ async def test_service_create_with_phi_dob_strips_from_audit(db_session: AsyncSe
     for snapshot in (row.previous_state, row.next_state):
         if snapshot is not None:
             for forbidden in PHI_EXCLUDED_FIELDS:
-                assert forbidden not in snapshot, (
-                    f"PHI field '{forbidden}' leaked into audit snapshot: {snapshot}"
-                )
+                assert (
+                    forbidden not in snapshot
+                ), f"PHI field '{forbidden}' leaked into audit snapshot: {snapshot}"
 
 
 async def test_duplicate_email_returns_409(db_session: AsyncSession) -> None:

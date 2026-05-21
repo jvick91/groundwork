@@ -25,7 +25,6 @@ from typing import Any
 from uuid import UUID
 
 import httpx
-import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
@@ -234,9 +233,7 @@ _DEFAULT_PERMISSIONS: tuple[str, ...] = (
 
 async def _ensure_default_org(session: AsyncSession) -> UUID:
     """Idempotent seed of alice's organization."""
-    existing = await session.execute(
-        select(Organization).where(Organization.id == DEFAULT_ORG_ID)
-    )
+    existing = await session.execute(select(Organization).where(Organization.id == DEFAULT_ORG_ID))
     if existing.scalar_one_or_none() is not None:
         return DEFAULT_ORG_ID
     org = Organization(
