@@ -163,9 +163,7 @@ class JWKSResolver:
                     discovery_payload = discovery.json()
                     jwks_uri = discovery_payload.get("jwks_uri")
                     if not isinstance(jwks_uri, str) or not jwks_uri:
-                        raise UnauthorizedError(
-                            message="OIDC discovery document missing jwks_uri."
-                        )
+                        raise UnauthorizedError(message="OIDC discovery document missing jwks_uri.")
                     jwks_response = await client.get(jwks_uri)
                     jwks_response.raise_for_status()
                     payload = jwks_response.json()
