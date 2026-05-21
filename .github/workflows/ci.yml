@@ -43,13 +43,29 @@ jobs:
 
       # docker-compose.yml references .env and backend/.env.backend (both gitignored
       # since they hold local-dev secrets). Compose treats `env_file:` paths as
-      # required by default and fails if they don't exist. In CI the defaults baked
-      # into compose's `${VAR:-default}` syntax and pydantic-settings' field
-      # defaults are sufficient, so empty stubs are enough.
-      - name: Create stub env files for compose
+      # required by default and fails if they don't exist. Auth-mode env vars
+      # (AUTH_STUB_ENABLED=false + OIDC_*) are required so the backend boots
+      # with the real auth middleware enabled and the JWKSResolver targets the
+      # containerized Keycloak realm (ADR-010). These aren't secrets — the
+      # Keycloak test realm config is committed at docker/keycloak/.
+      - name: Create env files for compose
         run: |
           touch .env
-          touch backend/.env.backend
+          cat > backend/.env.backend <<'EOF'
+          APP_NAME=Groundwork
+          APP_VERSION=0.1.0
+          DEBUG=true
+          ENVIRONMENT=development
+          DATABASE_URL=postgresql+asyncpg://groundwork:groundwork@db:5432/groundwork
+          TEST_DATABASE_URL=postgresql+asyncpg://groundwork:groundwork@db-test:5432/groundwork_test
+          AUTH_STUB_ENABLED=false
+          OIDC_DOMAIN=
+          OIDC_ISSUER=http://keycloak-test:8080/realms/groundwork-test
+          OIDC_AUDIENCE=https://api.groundwork.test/
+          CORS_ORIGINS=["http://localhost:3000"]
+          LOG_LEVEL=INFO
+          LOG_JSON=false
+          EOF
 
       # The backend image bakes pyproject.toml in, so any change there requires a rebuild.
       # The volume mount on app/ and tests/ keeps source iteration fast in dev — in CI we
@@ -57,12 +73,10 @@ jobs:
       - name: Build backend image
         run: docker compose build backend
 
-      - name: Start backend and test database
+      - name: Start backend, test database, and Keycloak test realm
         run: |
-          docker compose up -d backend db-test
-          # Wait for db-test to be healthy so pytest can connect. The compose
-          # `--wait` flag would block on the primary `db` healthcheck only;
-          # we poll docker inspect directly for the test DB.
+          docker compose up -d backend db-test keycloak-test
+          # Wait for db-test to be healthy so pytest can connect to the DB.
           for i in {1..30}; do
             STATUS=$(docker inspect --format='{{.State.Health.Status}}' groundwork-db-test-1 2>/dev/null || echo "starting")
             if [ "$STATUS" = "healthy" ]; then
@@ -70,6 +84,19 @@ jobs:
               break
             fi
             echo "Waiting for db-test... ($i/30): $STATUS"
+            sleep 2
+          done
+          # Wait for keycloak-test to be healthy. Keycloak boots slower than
+          # Postgres (~20-30s on a cold start) — its healthcheck has
+          # start_period=30s + interval=5s + retries=30 (~3 min max).
+          # Tests authenticate against this realm per ADR-010.
+          for i in {1..60}; do
+            STATUS=$(docker inspect --format='{{.State.Health.Status}}' groundwork-keycloak-test-1 2>/dev/null || echo "starting")
+            if [ "$STATUS" = "healthy" ]; then
+              echo "keycloak-test is healthy"
+              break
+            fi
+            echo "Waiting for keycloak-test... ($i/60): $STATUS"
             sleep 2
           done
           docker compose ps
