@@ -312,6 +312,12 @@ All paths are relative to `/api/v1/`. Every endpoint requires Auth0 JWT and `X-O
 |---|---|---|---|---|
 | GET | /auth/me | Person profile with all orgs and roles | authenticated | No |
 | GET | /auth/me/permissions | Effective permissions for current org | authenticated | Yes |
+| POST | /invitations | Create invitation (provider, admin, system_admin, cross_org) | invites.send | Yes |
+| GET | /invitations | List pending invitations for current org | invites.read | Yes |
+| GET | /invitations/{id} | View single invitation | invites.read | Yes |
+| POST | /invitations/{id}/resend | Re-issue email + rotate nonce | invites.send | Yes |
+| DELETE | /invitations/{id} | Revoke pending invitation | invites.revoke | Yes |
+| POST | /invitations/accept | Bind Person.auth_subject by nonce + JWT | authenticated | No |
 
 ### 8.2 EAV Platform (SPEC-001)
 
@@ -344,6 +350,7 @@ All paths are relative to `/api/v1/`. Every endpoint requires Auth0 JWT and `X-O
 | GET | /people/{id}/roles | List role assignments | roles.read |
 | POST | /people/{id}/roles | Assign role | roles.assign |
 | DELETE | /people/{id}/roles/{person_role_id} | Revoke role | roles.assign |
+| POST | /people/{id}/force-revoke | Force-revoke all Auth0 sessions + refresh-token families (security incident response, per TASK-014J) | auth.force_revoke |
 | GET | /roles | List roles | roles.read |
 | POST | /roles | Create custom role | roles.write |
 | PATCH | /roles/{id} | Update role | roles.write |
@@ -458,6 +465,7 @@ All paths are relative to `/api/v1/`. Every endpoint requires Auth0 JWT and `X-O
 |---|---|---|---|---|
 | GET | /health | Health check | none (public) | No |
 | GET | /health/ready | Readiness check (DB) | none (public) | No |
+| POST | /system/bootstrap | One-shot first-admin bootstrap (per TASK-014E); gated by deploy-time token file, not Auth0 JWT | deploy-token (file marker) | No |
 
 ---
 

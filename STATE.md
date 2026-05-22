@@ -1,9 +1,11 @@
 # STATE.md — Session Entry Point
 
-**Last updated:** 2026-05-15
-**Active task:** TASK-011A (next — AttributeValue type casting engine, on the new ADR-009 pattern)
-**Branch:** main
-**Last architectural change:** 2026-05-09 — ADR-009 accepted; ADR-002 amended; Organization (TASK-009) and EntityType / EntityAttribute (TASK-010) refactored to class-per-aggregate Service + Model-as-Entity. AuditLog gained an `outcome` column. The route-level `GroundworkError` handler now writes failure audits in a fresh session. TASK-008A rewritten as the canonical conventions doc; all not-yet-shipped tasks reference ADR-009. **Same-day amendment:** Repository layer removed — each repo was a thin SQL wrapper called from one service; queries now inline in the service file under a `# Query helpers` section. Re-introduce a Repository only when queries are genuinely shared across services (e.g. role-hierarchy walks, JSONB projections).
+**Last updated:** 2026-05-21
+**Active task:** TASK-011A (next — AttributeValue type casting engine, on the new ADR-009 pattern). Auth chain (TASK-014 series) is being designed in parallel on branch `task-014-auth-decomposition`.
+**Branch:** main (auth-chain design work lives on `task-014-auth-decomposition`)
+**Last architectural change:** 2026-05-21 — Auth chain decomposed. ADR-010 (consolidated Auth0 identity architecture: Organizations adopted, universal WebAuthn MFA, 5–15min access tokens + refresh rotation, nonce-only first-login binding, single-connection-per-user for MVP, ServicePrincipal deferred). ADR-011 (invitation lifecycle: PersonRole-at-accept; five-type discriminator; uniform response shape for enumeration mitigation). ADR-012 (`Person.permissions_version` column for zero-staleness permission cache). ADR-008 superseded by ADR-010. TASK-014 decomposed into TASK-014A–014J. Net schema delta for the full auth chain: +1 table (`Invitation`), +1 column (`Person.permissions_version`), +4 seed permissions (`invites.send/revoke/read`, `auth.force_revoke`). All other auth work is Auth0-side configuration or backend code.
+
+**Previous architectural change:** 2026-05-09 — ADR-009 accepted; ADR-002 amended; Organization (TASK-009) and EntityType / EntityAttribute (TASK-010) refactored to class-per-aggregate Service + Model-as-Entity. AuditLog gained an `outcome` column. The route-level `GroundworkError` handler now writes failure audits in a fresh session. TASK-008A rewritten as the canonical conventions doc; all not-yet-shipped tasks reference ADR-009. **Same-day amendment:** Repository layer removed — each repo was a thin SQL wrapper called from one service; queries now inline in the service file under a `# Query helpers` section. Re-introduce a Repository only when queries are genuinely shared across services (e.g. role-hierarchy walks, JSONB projections).
 
 ---
 
@@ -65,10 +67,20 @@
 |---|------|--------|------------|
 | 012 | [Person model & CRUD API](tasks/TASK-012-person-model-and-api.md) | **Complete** (401 test deferred to TASK-014) | 004, 009, 006, 008 |
 | 013 | [RBAC models & seed data](tasks/TASK-013-rbac-models-and-seed-data.md) | **Complete** (hierarchy invariant not enforced at model level — seed data conforms; revisit in TASK-016) | 009, 012 |
-| 014 | [Auth middleware — JWT, person resolution, org context](tasks/TASK-014-auth-middleware.md) | Not started | 012, 013 |
+| 014 | [Auth middleware — JWT, person resolution, org context, `Person.permissions_version` migration](tasks/TASK-014-auth-middleware.md) | Not started | 012, 013, 014A |
+| ↳ 014A | [Consolidated ADR ratification & SPEC-007 edits (ADR-010)](tasks/TASK-014A-auth-consolidated-adr.md) | Not started | — |
+| ↳ 014B | [Auth0 tenant configuration & env doc](tasks/TASK-014B-auth0-tenant-configuration.md) | Not started | 014A |
+| ↳ 014C | [Post-Login Actions & `is_active` mirroring](tasks/TASK-014C-post-login-actions.md) | Not started | 014B |
+| ↳ 014D | [Auth0 Management API integration](tasks/TASK-014D-auth0-management-api.md) | Not started | 014B |
+| ↳ 014E | [Bootstrap first admin (one-shot deploy-token endpoint)](tasks/TASK-014E-bootstrap-first-admin.md) | Not started | 014D |
+| ↳ 014F | [Invitation resource (CRUD, state machine, the one new table)](tasks/TASK-014F-invitation-resource.md) | Not started | 014D |
+| ↳ 014G | [Invitation accept + nonce binding](tasks/TASK-014G-invitation-accept-binding.md) | Not started | 014F |
+| ↳ 014H | [Service caller identity — DEFERRED](tasks/TASK-014H-service-caller-identity-deferred.md) | Deferred (post-MVP) | (TBD when reactivated) |
+| ↳ 014I | [Permission cache invalidation strategy](tasks/TASK-014I-permission-cache-invalidation.md) | Not started | 014, 015 |
+| ↳ 014J | [Force-revoke operator endpoint](tasks/TASK-014J-force-revoke.md) | Not started | 014C, 014D, 014I |
 | 015 | [Permission resolution, caching, & row-level filtering](tasks/TASK-015-permission-resolution-and-caching.md) | Not started | 013, 014 |
-| 016 | [Role & permission management API](tasks/TASK-016-role-permission-management-api.md) | Not started | 013, 015 |
-| 017 | [Person role assignment API](tasks/TASK-017-person-role-assignment-api.md) | Not started | 012, 013, 015 |
+| 016 | [Role & permission management API (adds invites.* + auth.force_revoke seeds; permissions_version write discipline)](tasks/TASK-016-role-permission-management-api.md) | Not started | 013, 015 |
+| 017 | [Person role assignment API (permissions_version write discipline)](tasks/TASK-017-person-role-assignment-api.md) | Not started | 012, 013, 015 |
 | 018 | [Auth self-inspection endpoints](tasks/TASK-018-auth-self-inspection.md) | Not started | 014, 015 |
 | 019 | [Auto-permission generation on EntityType creation](tasks/TASK-019-auto-permission-generation.md) | Not started | 010, 013 |
 
