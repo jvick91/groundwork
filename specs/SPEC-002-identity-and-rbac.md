@@ -207,6 +207,10 @@ On platform initialization, the system seeds baseline roles, permissions, and ro
 | audit.read | audit | read | Query the audit log. |
 | tenants.manage | tenants | manage | Create, suspend, or update tenant organizations. |
 | system.configure | system | manage | Platform-level operational configuration. |
+| invites.send | invites | send | Create and resend invitations for new Persons or new PersonRole assignments (per ADR-011). |
+| invites.revoke | invites | revoke | Revoke pending invitations (per ADR-011). |
+| invites.read | invites | read | List and view invitations for the current organization (per ADR-011). |
+| auth.force_revoke | auth | force_revoke | Force-revoke a Person's Auth0 sessions and refresh-token families across all devices, immediately (per ADR-010 §3 and TASK-014J). Reserved for security incident response. |
 
 ### Seed role-permission matrix
 
@@ -259,6 +263,10 @@ Y = granted. Blank = not granted. Child roles inherit all parent grants (inherit
 | entity_types.delete | | | Y | | | | | | | | |
 | tenants.manage | | | Y | | | | | | | | |
 | system.configure | | | Y | | | | | | | | |
+| invites.send | Y | inh | inh | | | | | | | | |
+| invites.revoke | Y | inh | inh | | | | | | | | |
+| invites.read | Y | inh | inh | | | | | | | | |
+| auth.force_revoke | | | Y | | | | | | | | |
 
 Notes on the matrix:
 
