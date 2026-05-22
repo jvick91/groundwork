@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Spec sections:** SPEC-002 §2 (PersonRole entity_instance_id rules), §8 (Person role assignment)
-**ADRs:** ADR-002 (FK-only), ADR-003 (partial unique indexes for revocable PersonRole grants), ADR-009
+**ADRs:** ADR-002 (FK-only), ADR-003 (partial unique indexes for revocable PersonRole grants), ADR-009, ADR-011 (PersonRole-at-accept; this task owns the direct-assignment path), ADR-012 (permissions_version write discipline)
 **Depends on:** TASK-012, TASK-013, TASK-015
 
 ## Objective
@@ -22,8 +22,11 @@ Implement the person role assignment API: listing role history, assigning roles 
 - [ ] Duplicate active assignment returns 409 per partial unique index
 - [ ] Revoked rows are historical, do not conflict with new assignments
 - [ ] All operations write AuditLog entries per BR-07
+- [ ] **Permissions cache write discipline (per ADR-012):** every `PersonRole` insert (assignment) and every `PersonRole` update setting `revoked_at` (revocation) increments the affected `Person.permissions_version` in the same transaction. This task and TASK-014G (invitation accept) are the two paths that create `PersonRole` rows; both must enforce this discipline.
+- [ ] **Coexistence with the invitation-accept path (per ADR-011):** This task owns direct assignment via `POST /people/{id}/roles` — the path used by admins adding a role to an existing Person. The invitation-accept path in TASK-014G creates `PersonRole` rows as a side effect of binding a newly-invited Person. The two paths must produce identical `PersonRole` rows (same columns set, same audit shape) so downstream queries do not need to distinguish them.
 - [ ] Tests from SPEC-002 §11: `test_duplicate_active_role_returns_409`, `test_assign_provider_role_without_entity_instance_returns_422`, `test_assign_provider_role_with_client_instance_returns_422`, `test_assign_provider_role_with_wrong_org_instance_returns_422`, `test_assign_system_admin_without_entity_instance_succeeds`, `test_revoke_role_sets_revoked_at`, `test_assign_role_writes_audit_log`, `test_revoke_role_writes_audit_log`
 - [ ] Test: `test_assign_role_from_different_org_returns_422` — assigning a non-system role that belongs to a different org is rejected per SPEC-002 §4 (assignment integrity rule)
+- [ ] Tests: `test_assign_role_increments_permissions_version`, `test_revoke_role_increments_permissions_version`
 
 ## Files
 
