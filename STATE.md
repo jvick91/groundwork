@@ -75,7 +75,6 @@
 | ↳ 014E | [Bootstrap first admin (one-shot deploy-token endpoint)](tasks/TASK-014E-bootstrap-first-admin.md) | Not started | 014D |
 | ↳ 014F | [Invitation resource (CRUD, state machine, the one new table)](tasks/TASK-014F-invitation-resource.md) | Not started | 014D |
 | ↳ 014G | [Invitation accept + nonce binding](tasks/TASK-014G-invitation-accept-binding.md) | Not started | 014F |
-| ↳ 014H | [Service caller identity — DEFERRED](tasks/TASK-014H-service-caller-identity-deferred.md) | Deferred (post-MVP) | (TBD when reactivated) |
 | ↳ 014I | [Permission cache invalidation strategy](tasks/TASK-014I-permission-cache-invalidation.md) | Not started | 014, 015 |
 | ↳ 014J | [Force-revoke operator endpoint](tasks/TASK-014J-force-revoke.md) | Not started | 014C, 014D, 014I |
 | 015 | [Permission resolution, caching, & row-level filtering](tasks/TASK-015-permission-resolution-and-caching.md) | Not started | 013, 014 |

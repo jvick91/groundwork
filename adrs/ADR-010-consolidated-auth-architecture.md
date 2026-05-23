@@ -62,17 +62,19 @@ Account-linking — Auth0's primary-user / secondary-user model that allows mult
 
 Roadmap note: practices wanting Google Workspace or Microsoft 365 SSO at sign-up cannot have it under this decision. If early customer conversations surface SSO as a hard requirement, a follow-up ADR moves account-linking into scope.
 
-### 6. Service caller identity: deferred
+### 6. Service caller identity: not in MVP scope
 
 MVP has no inbound machine-to-machine callers. Webhook receivers (Stripe, etc., when they exist) authenticate by shared-secret signature, not JWT. Outbound integrations (insurance eligibility, reminders) run *as* the backend itself. Scheduled work (consent expiry sweep per ADR-006) is invoked as an authenticated admin HTTP request, with the operator as audit actor — no service identity is involved.
 
 Consequently, MVP introduces no `ServicePrincipal` table, no `Principal` parent abstraction, and no `actor_type` enum on `AuditLog`. `Person.auth_subject` stays where it is. `AuditLog.actor_person_id` remains nullable, with `null` meaning system-triggered per existing SPEC-006 design.
 
-When the first real inbound M2M caller appears post-MVP, the migration path is:
+**Anticipated trigger.** The first realistic inbound M2M caller is the Next.js frontend's server process calling FastAPI (server-side rendering, route handlers, server actions). When that integration is scoped, this work becomes a new task at that time. Until then there is no caller to design for.
+
+**Migration path when the work is picked up:**
 
 1. Add a `ServicePrincipal` table with direct `ServicePrincipalPermission` grants (OAuth-scope pattern, no role layer).
 2. Add an `actor_service_principal_id` FK to `AuditLog` and an `actor_type` enum; default existing rows to `'human'`.
-3. Branch the middleware on JWT claim shape: tokens with no user `sub` (M2M tokens have `gty=client-credentials` and no user identity) resolve to a `ServicePrincipal`.
+3. Branch the middleware on JWT claim shape: tokens with `gty=client-credentials` and no user `sub` resolve to a `ServicePrincipal`.
 
 This is straightforward additive work. Introducing the abstraction now, before any caller exists, would be speculative design.
 
@@ -80,7 +82,7 @@ This is straightforward additive work. Introducing the abstraction now, before a
 
 **For:**
 
-- The JWT shape is fully specified before TASK-014 writes a line of code. Downstream tasks (014C–J, 015–019) compose against a stable contract.
+- The JWT shape is fully specified before TASK-014 writes a line of code. Downstream tasks (014C–G, 014I, 014J, 015–019) compose against a stable contract.
 - Stolen access tokens are bounded to one org for at most 15 minutes. Refresh token theft is detected and family-revoked by Auth0 natively.
 - Tenant isolation has two layers: the JWT's `org_id` claim (issuance-time) and Postgres RLS keyed on `app.org_id` (query-time). Either layer alone would be insufficient; together they are HIPAA-defensible.
 - The seam between Auth0 identity and our `Person` model is single-purpose: invitation-accept writes `auth_subject`, every other login resolves by `auth_subject`. There is no email-matching backdoor.
