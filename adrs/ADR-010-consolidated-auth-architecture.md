@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-21
 **Author:** claude-code
-**Status:** Proposed (supersedes ADR-008 when accepted)
+**Status:** Accepted (supersedes ADR-008)
 
 ## Context
 

@@ -1,6 +1,6 @@
 # TASK-014A: Consolidated Auth0 Architecture ADR & Spec Edits
 
-**Status:** Not started
+**Status:** Shipped
 **Spec sections:** SPEC-007 §3 (authentication and organization context)
 **ADRs:** ADR-010 (the ADR this task ratifies), ADR-008 (superseded)
 **Depends on:** (none — first link in the new auth chain)
@@ -11,13 +11,13 @@ Ratify ADR-010 (consolidated Auth0 identity architecture) from Proposed to Accep
 
 ## Acceptance Criteria
 
-- [ ] ADR-010 status changes from `Proposed` to `Accepted`
-- [ ] ADR-008 status changes to `Superseded by ADR-010`
-- [ ] SPEC-007 §3.1 references Auth0 Organizations (`org_id` claim on every JWT) and the binding-by-nonce model
-- [ ] SPEC-007 §3.2 reflects org-switch as a fresh login (not a mid-session `X-Organization-Id` header swap)
-- [ ] SPEC-007 §3 cross-references ADR-010, ADR-011, and ADR-012 in the section header
-- [ ] STATE.md updated to note ADR-010 ratification and the start of the TASK-014 chain decomposition
-- [ ] No code changes — this task is doc-only
+- [x] ADR-010 status changes from `Proposed` to `Accepted`
+- [x] ADR-008 status changes to `Superseded by ADR-010`
+- [x] SPEC-007 §3.1 references Auth0 Organizations (`org_id` claim on every JWT) and the binding-by-nonce model
+- [x] SPEC-007 §3.2 reflects org-switch as a fresh login (not a mid-session `X-Organization-Id` header swap)
+- [x] SPEC-007 §3 cross-references ADR-010, ADR-011, and ADR-012 in the section header
+- [x] STATE.md updated to note ADR-010 ratification and the start of the TASK-014 chain decomposition
+- [x] No code changes — this task is doc-only
 
 ## Files
 

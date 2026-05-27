@@ -27,45 +27,35 @@ Versioning strategy: /api/v1/ prefix for MVP. When breaking changes are introduc
 
 ## 3. Authentication and Organization Context
 
+> **ADR references:** [ADR-010 — Consolidated Auth0 Identity Architecture](../adrs/ADR-010-consolidated-auth-architecture.md) · [ADR-011 — Invitation Lifecycle](../adrs/ADR-011-invitation-lifecycle.md) · [ADR-012 — Permission Cache Invalidation](../adrs/ADR-012-permission-cache-invalidation.md)
+
 ### 3.1 Authentication flow
 
-Every API request (except `/api/v1/health`) must include a valid Auth0 JWT in the `Authorization: Bearer {token}` header. The backend never generates tokens — Auth0 is the sole token issuer.
+Every API request (except `/api/v1/health*`) must include a valid Auth0 JWT in the `Authorization: Bearer {token}` header. The backend never generates tokens — Auth0 is the sole token issuer. Auth0 Organizations are enabled (ADR-010 §1): every JWT carries an `org_id` claim identifying the Auth0 Organization the token was issued for.
 
 Request lifecycle:
 
-1. FastAPI middleware extracts the JWT from the `Authorization` header.
-2. The JWT signature is validated against Auth0's JWKS (JSON Web Key Set) endpoint. The JWKS is cached in-process with a TTL to avoid per-request network calls.
-3. The `sub` claim is extracted from the validated token.
-4. The backend queries `Person` where `auth_subject = sub`. If no match, return 401.
-5. If `Person.is_active = false` or `Person.deleted_at` is not null, return 401.
-6. The organization context is resolved from the `X-Organization-Id` header (see 3.2).
-7. The backend loads active `PersonRole` rows for `(person_id, organization_id)` where `revoked_at IS NULL`.
-8. If no active PersonRole exists for the requested org, return 403.
-9. The effective permission set is computed (see 3.3) and attached to the request context.
+1. FastAPI middleware extracts the JWT from the `Authorization` header. Missing token returns 401.
+2. The JWT signature is validated against Auth0's JWKS (JSON Web Key Set) endpoint. The JWKS is cached in-process with a TTL to avoid per-request network calls. Invalid or expired token returns 401.
+3. The `sub`, `org_id`, and `is_active` claims are read from the validated token. A token missing `org_id` (org-tagless token) is rejected with 401 (`organization_required`) — org-tagless tokens are invalid after Auth0 Organizations adoption.
+4. If the `is_active` claim is `false` or absent, the request is rejected with 401 (`account_inactive`) before any database read. The DB check at step 5 is authoritative; the claim is a fast-path short-circuit.
+5. The backend queries `Person` where `auth_subject = sub`. No match returns 401 (`unauthorized`). If `Person.is_active = false` or `Person.deleted_at IS NOT NULL`, return 401 (`account_inactive`).
+6. The application `Organization` is resolved by matching `organizations.auth_provider_org_id = JWT.org_id`. No match returns 403 (`org_access_denied`).
+7. The backend checks for an active `PersonRole` row for `(person_id, organization_id)` where `revoked_at IS NULL`. This check runs on **every request** and is never derived from claims or skipped on cache hit. No active PersonRole returns 403 (`org_access_denied`).
+8. `SET LOCAL app.org_id = <organization_id>` is issued inside the request transaction so RLS policies enforce tenant scope.
+9. The effective permission set is computed (see 3.3) and attached to the request context alongside `current_person` and `current_org`.
+
+**Binding `Person.auth_subject`:** The first time a user logs in, `Person.auth_subject` is written by `POST /api/v1/invitations/accept` — the only code path that binds a Person row to an Auth0 `sub`. There is no email-matching fallback. See ADR-010 §4 and ADR-011 for the full invitation lifecycle.
 
 ### 3.2 Organization context
 
-The frontend sends the `X-Organization-Id` header on every request. This header is required on all endpoints except `/api/v1/auth/me` and `/api/v1/health`.
+The organization scope is embedded in the JWT at issuance time via Auth0 Organizations. A token issued for Org A is not valid against Org B; the middleware rejects mismatched scope at the JWT layer (step 6 above).
 
-Organization selection happens at login:
+**Org switching requires a fresh login.** A clinician with roles in two practices acquires two distinct tokens — one per org — by logging in to each Auth0 Organization separately. There is no mid-session header swap. This bounds a stolen token's blast radius to one org for at most the access-token TTL (5–15 minutes, ADR-010 §3).
 
-1. After Auth0 authentication, the frontend calls `GET /api/v1/auth/me` (no org header required).
-2. The response includes all organizations the person has active roles in.
-3. If the person belongs to one org, the frontend auto-selects it.
-4. If the person belongs to multiple orgs, the frontend presents an org picker.
-5. The selected org ID is stored client-side and sent as `X-Organization-Id` on all subsequent requests.
+**`X-Organization-Id` header:** This header is no longer required. If it is sent and its value disagrees with the JWT's `org_id`, the middleware returns 400 (`organization_mismatch`). Clients should omit the header; the org is implicit in the token.
 
-Org switching does not require re-authentication. The frontend updates the stored org ID and the next request uses the new context. The backend verifies the person has an active PersonRole in the requested org on every request.
-
-Missing or invalid `X-Organization-Id` returns:
-
-```json
-{
-  "error": "organization_required",
-  "message": "X-Organization-Id header is required.",
-  "status": 400
-}
-```
+**`GET /api/v1/auth/me`:** Exempted from the `org_id` claim requirement. The endpoint resolves the person from `sub` only and returns all organizations where the person holds active roles, allowing the frontend to present an org picker before a scoped token has been acquired.
 
 ### 3.3 Permission resolution and caching
 
@@ -79,9 +69,11 @@ Resolution steps:
 4. Union all permission slugs into the effective set.
 5. Attach the effective set and any row-level conditions to the request context.
 
-**Caching:** The resolved permission set is cached in-process using a TTL cache keyed by `(person_id, organization_id)`. TTL is 60 seconds. Cache entries are invalidated immediately when the current request modifies PersonRole, RolePermission, or Role records. This prevents stale permissions within the same process. Cross-process staleness is bounded by the TTL.
+**Caching (ADR-012):** The resolved permission set is cached in-process using a cache keyed by `(person_id, organization_id, permissions_version)`. `permissions_version` is a monotonically incrementing integer column on `Person` that is bumped inside the same transaction as any mutation to PersonRole, RolePermission, or Role records for that person. This gives **zero-staleness** invalidation: a stale cache entry is unreachable on the very next request because the key version has advanced.
 
-The cache implementation must be thread-safe, support TTL-based expiration, and have a bounded maximum size to prevent unbounded memory growth. Recommended: 10,000 entry maximum.
+The 60-second TTL remains as a **memory ceiling**, not a staleness window. Entries are evicted after 60 seconds regardless, preventing unbounded growth. The cache implementation must be thread-safe and bounded (recommended maximum: 10,000 entries).
+
+The `permissions_version` is per-Person (not per-(Person, org)); a mutation in one org increments the version and causes cache misses across all orgs for that Person. This is intentional: it is a conservative but correct tradeoff. See ADR-012 for the documented escape hatch if per-(person, org) granularity becomes necessary.
 
 ### 3.4 /auth/me response
 

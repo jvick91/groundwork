@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Superseded by ADR-010 (Consolidated Auth0 Identity Architecture, accepted 2026-05-27)
 
 ## Problem
 
