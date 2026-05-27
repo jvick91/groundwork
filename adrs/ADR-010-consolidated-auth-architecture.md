@@ -62,25 +62,15 @@ Account-linking — Auth0's primary-user / secondary-user model that allows mult
 
 Roadmap note: practices wanting Google Workspace or Microsoft 365 SSO at sign-up cannot have it under this decision. If early customer conversations surface SSO as a hard requirement, a follow-up ADR moves account-linking into scope.
 
-### 6. Service caller identity: deferred
+### 6. Service caller identity: not modeled
 
-MVP has no inbound machine-to-machine callers. Webhook receivers (Stripe, etc., when they exist) authenticate by shared-secret signature, not JWT. Outbound integrations (insurance eligibility, reminders) run *as* the backend itself. Scheduled work (consent expiry sweep per ADR-006) is invoked as an authenticated admin HTTP request, with the operator as audit actor — no service identity is involved.
-
-Consequently, MVP introduces no `ServicePrincipal` table, no `Principal` parent abstraction, and no `actor_type` enum on `AuditLog`. `Person.auth_subject` stays where it is. `AuditLog.actor_person_id` remains nullable, with `null` meaning system-triggered per existing SPEC-006 design.
-
-When the first real inbound M2M caller appears post-MVP, the migration path is:
-
-1. Add a `ServicePrincipal` table with direct `ServicePrincipalPermission` grants (OAuth-scope pattern, no role layer).
-2. Add an `actor_service_principal_id` FK to `AuditLog` and an `actor_type` enum; default existing rows to `'human'`.
-3. Branch the middleware on JWT claim shape: tokens with no user `sub` (M2M tokens have `gty=client-credentials` and no user identity) resolve to a `ServicePrincipal`.
-
-This is straightforward additive work. Introducing the abstraction now, before any caller exists, would be speculative design.
+One authenticated principal type — a human, identified by `Person.auth_subject`. System-originated events use `AuditLog.actor_person_id = NULL` per SPEC-006 §3. Inbound webhooks (Auth0 Log Streams, Stripe, etc.) are verified per the issuing vendor's signing standard, not via JWT or any custom scheme. No `Principal` or `ServicePrincipal` abstraction.
 
 ## Consequences
 
 **For:**
 
-- The JWT shape is fully specified before TASK-014 writes a line of code. Downstream tasks (014C–J, 015–019) compose against a stable contract.
+- The JWT shape is fully specified before TASK-014 writes a line of code. Downstream tasks (014C–G, 014I, 014J, 015–019) compose against a stable contract.
 - Stolen access tokens are bounded to one org for at most 15 minutes. Refresh token theft is detected and family-revoked by Auth0 natively.
 - Tenant isolation has two layers: the JWT's `org_id` claim (issuance-time) and Postgres RLS keyed on `app.org_id` (query-time). Either layer alone would be insufficient; together they are HIPAA-defensible.
 - The seam between Auth0 identity and our `Person` model is single-purpose: invitation-accept writes `auth_subject`, every other login resolves by `auth_subject`. There is no email-matching backdoor.
@@ -91,7 +81,6 @@ This is straightforward additive work. Introducing the abstraction now, before a
 - Practices wanting SSO from day one are not supported; the account-linking upgrade is post-MVP work.
 - The 15-minute access-token TTL means routine deactivation propagation has a 15-minute worst-case window. For incident response, this is mitigated by the TASK-014J force-kill endpoint, but operators must remember the procedure exists.
 - Org-switching as a fresh login is a worse UX than header-swap for clinicians who work across multiple practices. The security gain (bounded stolen-token blast radius) is judged to be worth the friction.
-- A future M2M caller will require a schema migration to introduce `ServicePrincipal` and `actor_type`. The migration is additive and bounded, but it is migration work.
 
 ## Alternatives considered
 
@@ -101,7 +90,7 @@ This is straightforward additive work. Introducing the abstraction now, before a
 
 **Email-fallback binding (try `sub`, then email).** Would let users sign up via Auth0 Universal Login without an invitation, then bind to an existing Person row by email match. Rejected: leaks cross-tenant existence and creates a path where any Auth0 user with a known email can bind to a Person they should not have access to.
 
-**`Principal` abstraction with `HumanPrincipal` / `ServicePrincipal` variants in MVP.** Earlier-drafted approach. Adds four tables (`Principal`, `HumanPrincipal`, `ServicePrincipal`, `ServicePrincipalPermission`) and a polymorphic `actor_type` enum on `AuditLog`. Rejected for MVP: no inbound M2M callers exist; the abstraction solves a problem we do not have. Migration path is documented above for when the problem appears.
+**`Principal` / `ServicePrincipal` abstraction.** Rejected. One principal type is sufficient — webhooks verify per vendor signing standard, outbound and scheduled work runs as the backend itself. No parallel identity model.
 
 **Long-lived access tokens (1+ hour) with backend revocation list.** Simpler refresh story, but requires us to maintain a revocation list and consult it per request — adding a database hit per auth check and a new failure mode (revocation list unavailable → fail-open or fail-closed?). Rejected: short TTLs + RT rotation gives equivalent security with no backend state.
 
@@ -111,7 +100,6 @@ This is straightforward additive work. Introducing the abstraction now, before a
 - [ ] Epic 2: TASK-014A acceptance criteria reference this ADR as the foundational contract.
 - [ ] Epic 3: TASK-014B (Auth0 tenant configuration) implements the Auth0-side configuration this ADR mandates (Organizations enabled, universal MFA policy, RT rotation + breach detection, single-connection setup).
 - [ ] Epic 4: TASK-014 (JWT middleware) implements the JWT contract this ADR defines (validate `sub` + `org_id`, resolve `Person`, check active `PersonRole`, set `app.org_id`).
-- [ ] Epic 5: When the first inbound M2M caller is proposed, draft a follow-up ADR for the `ServicePrincipal` introduction; do not introduce the abstraction speculatively.
 
 ## References
 
