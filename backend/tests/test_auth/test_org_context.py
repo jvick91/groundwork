@@ -28,9 +28,12 @@ from tests.fixtures import jwt_keys
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture()
 def real_auth_settings_org():
-    """Configure settings to match the test JWT fixtures and disable the stub."""
+    """Disable the auth stub and configure settings to match the test JWT fixtures.
+
+    Function-scoped so the global settings are restored after every test.
+    """
     orig = {
         "auth_stub_enabled": settings.auth_stub_enabled,
         "auth0_issuer": settings.auth0_issuer,
@@ -72,6 +75,7 @@ def bearer(token: str) -> dict[str, str]:
 async def test_person_without_auth_subject_cannot_authenticate(
     real_auth_client: AsyncClient,
     db_session: AsyncSession,
+    real_auth_settings_org: None,
 ) -> None:
     """SPEC-002 §11: a Person row with NULL auth_subject must not be resolvable."""
     # The default sub in mint_token is "auth0|test-subject". No Person row
@@ -91,6 +95,7 @@ async def test_person_without_auth_subject_cannot_authenticate(
 async def test_inactive_person_returns_401(
     real_auth_client: AsyncClient,
     db_session: AsyncSession,
+    real_auth_settings_org: None,
 ) -> None:
     """SPEC-002 §11: is_active=False person is rejected at the DB check."""
     auth_sub = "auth0|inactive-person-test"
@@ -111,6 +116,7 @@ async def test_inactive_person_returns_401(
 async def test_soft_deleted_person_returns_401(
     real_auth_client: AsyncClient,
     db_session: AsyncSession,
+    real_auth_settings_org: None,
 ) -> None:
     """SPEC-002 §11: deleted_at IS NOT NULL person is rejected at the DB check."""
     import datetime as dt
@@ -136,6 +142,7 @@ async def test_soft_deleted_person_returns_401(
 async def test_person_role_cross_tenant_returns_403(
     real_auth_client: AsyncClient,
     db_session: AsyncSession,
+    real_auth_settings_org: None,
 ) -> None:
     """SPEC-002 §11: active person with no role in the JWT's org → 403."""
     auth_sub = "auth0|cross-tenant-person"
@@ -166,6 +173,7 @@ async def test_person_role_cross_tenant_returns_403(
 async def test_no_active_person_role_returns_403(
     real_auth_client: AsyncClient,
     db_session: AsyncSession,
+    real_auth_settings_org: None,
 ) -> None:
     """Person exists, org links to JWT, but no PersonRole → 403."""
     import datetime as dt

@@ -27,9 +27,13 @@ from tests.fixtures import jwt_keys
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture()
 def real_auth_settings():
-    """Configure settings to match the test JWT fixtures and disable the stub."""
+    """Disable the auth stub and configure settings to match the test JWT fixtures.
+
+    Function-scoped so the global settings are restored after every test,
+    preventing bleed-over into the broader test suite.
+    """
     orig = {
         "auth_stub_enabled": settings.auth_stub_enabled,
         "auth0_issuer": settings.auth0_issuer,
@@ -74,13 +78,17 @@ def bearer(token: str) -> dict[str, str]:
 
 
 @pytest.mark.asyncio
-async def test_health_liveness_no_auth_required(real_auth_client: AsyncClient) -> None:
+async def test_health_liveness_no_auth_required(
+    real_auth_client: AsyncClient, real_auth_settings: None
+) -> None:
     resp = await real_auth_client.get("/api/v1/health")
     assert resp.status_code == 200
 
 
 @pytest.mark.asyncio
-async def test_health_ready_no_auth_required(real_auth_client: AsyncClient) -> None:
+async def test_health_ready_no_auth_required(
+    real_auth_client: AsyncClient, real_auth_settings: None
+) -> None:
     resp = await real_auth_client.get("/api/v1/health/ready")
     assert resp.status_code in (200, 503)
 
@@ -91,14 +99,18 @@ async def test_health_ready_no_auth_required(real_auth_client: AsyncClient) -> N
 
 
 @pytest.mark.asyncio
-async def test_missing_auth_header_returns_401(real_auth_client: AsyncClient) -> None:
+async def test_missing_auth_header_returns_401(
+    real_auth_client: AsyncClient, real_auth_settings: None
+) -> None:
     resp = await real_auth_client.get("/api/v1/people")
     assert resp.status_code == 401
     assert resp.json()["error"] == "unauthorized"
 
 
 @pytest.mark.asyncio
-async def test_malformed_bearer_token_returns_401(real_auth_client: AsyncClient) -> None:
+async def test_malformed_bearer_token_returns_401(
+    real_auth_client: AsyncClient, real_auth_settings: None
+) -> None:
     resp = await real_auth_client.get(
         "/api/v1/people", headers={"Authorization": "Bearer not.a.jwt"}
     )
@@ -111,7 +123,9 @@ async def test_malformed_bearer_token_returns_401(real_auth_client: AsyncClient)
 
 
 @pytest.mark.asyncio
-async def test_expired_token_returns_401(real_auth_client: AsyncClient) -> None:
+async def test_expired_token_returns_401(
+    real_auth_client: AsyncClient, real_auth_settings: None
+) -> None:
     token = jwt_keys.mint_token(exp_offset=-60)
     resp = await real_auth_client.get("/api/v1/people", headers=bearer(token))
     assert resp.status_code == 401
@@ -124,14 +138,18 @@ async def test_expired_token_returns_401(real_auth_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_wrong_issuer_returns_401(real_auth_client: AsyncClient) -> None:
+async def test_wrong_issuer_returns_401(
+    real_auth_client: AsyncClient, real_auth_settings: None
+) -> None:
     token = jwt_keys.mint_token(iss="https://attacker.example.com/")
     resp = await real_auth_client.get("/api/v1/people", headers=bearer(token))
     assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
-async def test_wrong_audience_returns_401(real_auth_client: AsyncClient) -> None:
+async def test_wrong_audience_returns_401(
+    real_auth_client: AsyncClient, real_auth_settings: None
+) -> None:
     token = jwt_keys.mint_token(aud="https://wrong.example.com/")
     resp = await real_auth_client.get("/api/v1/people", headers=bearer(token))
     assert resp.status_code == 401
@@ -143,7 +161,9 @@ async def test_wrong_audience_returns_401(real_auth_client: AsyncClient) -> None
 
 
 @pytest.mark.asyncio
-async def test_missing_org_id_returns_401(real_auth_client: AsyncClient) -> None:
+async def test_missing_org_id_returns_401(
+    real_auth_client: AsyncClient, real_auth_settings: None
+) -> None:
     """Org-tagless tokens are rejected on non-exempt paths (ADR-010 §3.2)."""
     token = jwt_keys.mint_token(org_id=None)
     resp = await real_auth_client.get("/api/v1/people", headers=bearer(token))
@@ -157,7 +177,9 @@ async def test_missing_org_id_returns_401(real_auth_client: AsyncClient) -> None
 
 
 @pytest.mark.asyncio
-async def test_inactive_claim_returns_401(real_auth_client: AsyncClient) -> None:
+async def test_inactive_claim_returns_401(
+    real_auth_client: AsyncClient, real_auth_settings: None
+) -> None:
     token = jwt_keys.mint_token(is_active=False)
     resp = await real_auth_client.get("/api/v1/people", headers=bearer(token))
     assert resp.status_code == 401
@@ -170,7 +192,9 @@ async def test_inactive_claim_returns_401(real_auth_client: AsyncClient) -> None
 
 
 @pytest.mark.asyncio
-async def test_org_id_header_mismatch_returns_400(real_auth_client: AsyncClient) -> None:
+async def test_org_id_header_mismatch_returns_400(
+    real_auth_client: AsyncClient, real_auth_settings: None
+) -> None:
     """Header org disagrees with JWT org_id → 400 organization_mismatch."""
     token = jwt_keys.mint_token()
     resp = await real_auth_client.get(
@@ -182,7 +206,9 @@ async def test_org_id_header_mismatch_returns_400(real_auth_client: AsyncClient)
 
 
 @pytest.mark.asyncio
-async def test_org_id_header_matching_jwt_passes_middleware(real_auth_client: AsyncClient) -> None:
+async def test_org_id_header_matching_jwt_passes_middleware(
+    real_auth_client: AsyncClient, real_auth_settings: None
+) -> None:
     """Header matching JWT org_id passes middleware (may still fail at auth_context)."""
     token = jwt_keys.mint_token()
     resp = await real_auth_client.get(
