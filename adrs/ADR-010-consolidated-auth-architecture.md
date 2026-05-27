@@ -62,18 +62,9 @@ Account-linking — Auth0's primary-user / secondary-user model that allows mult
 
 Roadmap note: practices wanting Google Workspace or Microsoft 365 SSO at sign-up cannot have it under this decision. If early customer conversations surface SSO as a hard requirement, a follow-up ADR moves account-linking into scope.
 
-### 6. Service caller identity: not a design goal
+### 6. Service caller identity: not modeled
 
-The platform has exactly one authenticated principal type: a human, identified by `Person.auth_subject` and represented in audit logs as `AuditLog.actor_person_id`. There is no `ServicePrincipal`, no `Principal` parent abstraction, and no `actor_type` enum on `AuditLog`. System-originated events (no human caller — e.g., lazy consent expiry detected at read time) use `actor_person_id = NULL` per the existing SPEC-006 §3 design.
-
-This is a permanent architectural decision, not a deferral. The cases that might motivate a service-identity layer in another product are handled differently here:
-
-- **Next.js ↔ FastAPI.** The Next.js frontend's server process (server-side rendering, route handlers, server actions) acts *as the user* — it forwards the user's Auth0-issued JWT in the `Authorization` header when calling FastAPI. The Next.js server has no identity of its own from FastAPI's perspective; it is a presentation-layer proxy. Authorization decisions remain keyed to the human `Person` whose token is in transit.
-- **Webhook receivers** (Stripe, etc., when they exist) authenticate by shared-secret signature verification, not JWT. They write audit rows with `actor_person_id = NULL`.
-- **Scheduled work** (consent expiry sweep per ADR-006) is invoked as an authenticated admin HTTP request — the operator's session triggers it, and per-tenant audit rows record the operator as actor.
-- **Outbound integrations** (insurance eligibility, reminders) run *as* the backend itself, not as separate authenticated clients calling in.
-
-The model is one principal type (human), one audit actor column (`actor_person_id`, nullable), one path to authenticate (Auth0-issued JWT for that human). Any future class of caller has to fit one of those slots or be redesigned to fit them. There is no separate identity model on the roadmap.
+One authenticated principal type — a human, identified by `Person.auth_subject`. System-originated events use `AuditLog.actor_person_id = NULL` per SPEC-006 §3. Inbound webhooks (Auth0 Log Streams, Stripe, etc.) are verified per the issuing vendor's signing standard, not via JWT or any custom scheme. No `Principal` or `ServicePrincipal` abstraction.
 
 ## Consequences
 
@@ -90,7 +81,6 @@ The model is one principal type (human), one audit actor column (`actor_person_i
 - Practices wanting SSO from day one are not supported; the account-linking upgrade is post-MVP work.
 - The 15-minute access-token TTL means routine deactivation propagation has a 15-minute worst-case window. For incident response, this is mitigated by the TASK-014J force-kill endpoint, but operators must remember the procedure exists.
 - Org-switching as a fresh login is a worse UX than header-swap for clinicians who work across multiple practices. The security gain (bounded stolen-token blast radius) is judged to be worth the friction.
-- Any future call shape that doesn't fit "a human's JWT in flight" (human user → frontend → API), "shared-secret signature" (webhooks), or "the backend itself" (outbound + scheduled) has to be redesigned to fit one of those slots. The model does not provide an escape hatch into a separate identity layer.
 
 ## Alternatives considered
 
@@ -100,7 +90,7 @@ The model is one principal type (human), one audit actor column (`actor_person_i
 
 **Email-fallback binding (try `sub`, then email).** Would let users sign up via Auth0 Universal Login without an invitation, then bind to an existing Person row by email match. Rejected: leaks cross-tenant existence and creates a path where any Auth0 user with a known email can bind to a Person they should not have access to.
 
-**`Principal` abstraction with `HumanPrincipal` / `ServicePrincipal` variants.** Earlier-drafted approach. Adds four tables (`Principal`, `HumanPrincipal`, `ServicePrincipal`, `ServicePrincipalPermission`) and a polymorphic `actor_type` enum on `AuditLog`. **Rejected permanently** (see §6). The abstraction solves a problem we do not have and do not plan to introduce: every realistic non-human call shape on this platform fits one of three existing patterns — user-JWT-in-flight (BFF/proxy), shared-secret signature (webhooks), or runs *as* the backend (outbound integrations + scheduled work). A schema migration to introduce service-identity machinery is not on the roadmap.
+**`Principal` / `ServicePrincipal` abstraction.** Rejected. One principal type is sufficient — webhooks verify per vendor signing standard, outbound and scheduled work runs as the backend itself. No parallel identity model.
 
 **Long-lived access tokens (1+ hour) with backend revocation list.** Simpler refresh story, but requires us to maintain a revocation list and consult it per request — adding a database hit per auth check and a new failure mode (revocation list unavailable → fail-open or fail-closed?). Rejected: short TTLs + RT rotation gives equivalent security with no backend state.
 
