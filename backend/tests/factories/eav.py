@@ -30,6 +30,7 @@ async def create_organization(
     country: str = "US",
     tz: str = "UTC",
     is_active: bool = True,
+    auth_provider_org_id: str | None = None,
 ) -> Organization:
     """Insert an Organization row and flush to populate server defaults.
 
@@ -52,6 +53,7 @@ async def create_organization(
         country=country,
         timezone=tz,
         is_active=is_active,
+        auth_provider_org_id=auth_provider_org_id,
         created_at=dt.datetime.now(tz=UTC),
     )
     session.add(org)

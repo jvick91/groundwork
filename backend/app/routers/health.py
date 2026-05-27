@@ -18,6 +18,7 @@ from sqlalchemy import text
 
 from app.core.config import settings
 from app.core.database import Database
+from app.core.security import fetch_jwks, jwks_cache_healthy
 
 router = APIRouter(prefix="/health", tags=["health"])
 
@@ -38,6 +39,23 @@ async def _check_database() -> str:
         return "error"
 
 
+async def _check_jwks() -> str:
+    """Ensure the JWKS cache is populated.  Returns 'ok' or 'error'.
+
+    In stub mode the JWKS is never fetched; the check always returns 'ok'
+    so the readiness probe does not block local development.
+    """
+    if settings.auth_stub_enabled:
+        return "ok"
+    if jwks_cache_healthy():
+        return "ok"
+    try:
+        await fetch_jwks()
+        return "ok"
+    except Exception:
+        return "error"
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -52,15 +70,15 @@ async def liveness() -> dict[str, str]:
 @router.get("/ready")
 async def readiness(
     database: str = Depends(_check_database),
+    auth0_jwks: str = Depends(_check_jwks),
 ) -> JSONResponse:
     """Readiness probe — returns 200 when all dependencies are healthy.
 
-    Returns 503 if any check fails.  The ``checks`` dict is intentionally
-    open-ended: TASK-014 adds ``auth0_jwks`` without changing this envelope.
+    Returns 503 if any check fails.
     """
     checks: dict[str, str] = {
         "database": database,
-        # auth0_jwks: added by TASK-014
+        "auth0_jwks": auth0_jwks,
     }
 
     all_ok = all(v == "ok" for v in checks.values())

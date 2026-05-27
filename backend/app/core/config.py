@@ -32,11 +32,12 @@ class Settings(BaseSettings):
     auth0_domain: str = ""
     auth0_audience: str = ""
     auth0_issuer: str = ""
+    # How long to cache the JWKS key set in-process (seconds). Default 10 min.
+    jwks_cache_ttl_seconds: int = 600
 
-    # Stubs
-    # Until TASK-014 (auth middleware) and TASK-015 (permission resolution) land,
-    # auth-related dependencies short-circuit to a fixed test identity. This flag
-    # is the single switch those tasks flip off.
+    # Auth
+    # Flip to False in production to engage real JWT validation.
+    # Tests override to False after wiring the test JWKS via set_test_jwks().
     auth_stub_enabled: bool = True
 
     # Feature flags

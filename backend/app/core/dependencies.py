@@ -7,13 +7,12 @@ aggregate ever become shared across multiple services, that is the signal
 to extract a Repository class.
 """
 
-from collections.abc import AsyncGenerator
 from functools import lru_cache
 
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import Database
+from app.core.database import Database, get_db
 from app.core.security import (
     AuthContext,
     current_org,
@@ -31,21 +30,6 @@ from app.services.organization_service import (
     OrganizationService,
     _OrganizationLifecycle,
 )
-
-
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """FastAPI dependency that yields an async database session.
-
-    Commits on success, rolls back on exception, and always closes the session.
-    """
-    session_factory = Database.get_session_factory()
-    async with session_factory() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
 
 
 async def get_audit_writer(

@@ -19,6 +19,7 @@ from app.core.exceptions import GroundworkError
 from app.core.lifespan import lifespan
 from app.core.logger import get_logger
 from app.core.request_logger import RequestLoggerMiddleware
+from app.middleware.auth import AuthMiddleware
 from app.routers import compliance as compliance_router
 from app.routers import eav as eav_router
 from app.routers import entity_instances as entity_instances_router
@@ -88,10 +89,14 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Request logger — added last so it wraps outermost and sees the
-    # client-visible status code after CORS and exception handling.
-    # SPEC-006 §4 BR-08: PHI is stripped by the structlog phi_filter
-    # processor, so payload field names safe to use here.
+    # Auth middleware — validates JWTs and populates request.state.jwt_claims.
+    # Starlette middleware is executed in reverse registration order (last added
+    # = outermost). AuthMiddleware must run AFTER RequestLoggerMiddleware so the
+    # request logger sees the full response code including 401s from auth.
+    app.add_middleware(AuthMiddleware)
+
+    # Request logger — wraps outermost and sees the client-visible status code.
+    # SPEC-006 §4 BR-08: PHI is stripped by the structlog phi_filter processor.
     app.add_middleware(RequestLoggerMiddleware)
 
     # Domain errors — GroundworkError subclasses (SPEC-007 §7.3).

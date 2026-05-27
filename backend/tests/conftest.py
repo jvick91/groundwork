@@ -12,6 +12,7 @@ from typing import Any
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from joserfc.jwk import KeySet, RSAKey
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     create_async_engine,
@@ -19,8 +20,8 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
-from app.core.database import Base, Database
-from app.core.dependencies import get_db
+from app.core.database import Base, Database, get_db
+from app.core.security import set_test_jwks
 from app.main import create_app
 from tests.fixtures import jwt_keys
 
@@ -137,6 +138,19 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 # ---------------------------------------------------------------------------
 # Auth fixtures (SPEC-007 §13.4)
 # ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="session", autouse=True)
+def install_test_jwks() -> None:
+    """Install the test RSA public key as the JWKS override for the auth middleware.
+
+    Called once per test session. The override bypasses network JWKS fetching
+    so tests can issue signed JWTs via ``jwt_keys.mint_token`` and have them
+    validated by the real middleware code path.
+    """
+    public_key = RSAKey.import_key(jwt_keys.PUBLIC_KEY_PEM, parameters={"kid": jwt_keys.TEST_KID})
+    key_set = KeySet([public_key])
+    set_test_jwks(key_set)
 
 
 @pytest.fixture(scope="session")

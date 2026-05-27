@@ -10,9 +10,11 @@ not at module import time. This ensures proper lifecycle management.
 """
 
 import uuid
+from collections.abc import AsyncGenerator
 from datetime import datetime
 from threading import Lock
 
+from fastapi import Depends  # noqa: F401 — re-used by callers that import get_db here
 from sqlalchemy import DateTime, MetaData, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.asyncio import (
@@ -153,3 +155,20 @@ class Database:
                 await cls._engine.dispose()
                 cls._engine = None
                 cls._session_factory = None
+
+
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    """FastAPI dependency that yields an async database session.
+
+    Commits on success, rolls back on exception, and always closes the session.
+    Defined here (rather than in dependencies.py) so both security.py and
+    dependencies.py can import it without a circular dependency.
+    """
+    session_factory = Database.get_session_factory()
+    async with session_factory() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise

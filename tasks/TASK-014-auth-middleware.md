@@ -1,6 +1,6 @@
 # TASK-014: Auth Middleware — JWT Validation, Person Resolution, Org Context
 
-**Status:** Not started
+**Status:** In progress
 **Spec sections:** SPEC-007 §3.1 (authentication flow), §3.2 (organization context); SPEC-002 §4 (auth subject rule, soft delete rule), §9
 **ADRs:** ADR-009 (layering), ADR-010 (consolidated auth architecture — must be Accepted before this task starts), ADR-012 (permission cache invalidation; this task adds the supporting column)
 **Depends on:** TASK-012, TASK-013, TASK-014A (ADR-010 must be ratified first)

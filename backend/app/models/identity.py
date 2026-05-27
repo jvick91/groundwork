@@ -16,6 +16,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     String,
     Text,
     UniqueConstraint,
@@ -48,6 +49,11 @@ class Person(Base, IdMixin, TimestampMixin, SoftDeleteMixin):
     # PHI — excluded from AuditLog snapshots per BR-08
     date_of_birth: Mapped[date | None] = mapped_column(Date, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    # Incremented on every permission-affecting mutation (ADR-012).
+    # Cache key includes this version for zero-staleness invalidation.
+    permissions_version: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0")
+    )
 
 
 class Role(Base, IdMixin, TimestampMixin):

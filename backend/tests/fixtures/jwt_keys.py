@@ -46,20 +46,32 @@ TEST_KID = "groundwork-test-key"
 _PRIVATE_KEY = RSAKey.import_key(PRIVATE_KEY_PEM, parameters={"kid": TEST_KID})
 
 
+TEST_ORG_ID = "test-auth0-org-id"
+
+_SENTINEL = object()
+
+
 def mint_token(
     *,
     sub: str = "auth0|test-subject",
     iss: str = TEST_ISSUER,
     aud: str | list[str] = TEST_AUDIENCE,
+    org_id: Any = _SENTINEL,
+    is_active: bool = True,
     exp_offset: int = 3600,
     iat_offset: int = 0,
     extra_claims: dict[str, Any] | None = None,
 ) -> str:
     """Mint a signed JWT for tests.
 
-    Defaults produce a valid token. Override ``exp_offset`` to make the
-    token expired (negative seconds), ``iss`` / ``aud`` to test rejection
-    paths, and pass ``extra_claims`` for custom claims (e.g. permissions).
+    Defaults produce a valid token accepted by the auth middleware.
+    Override individual parameters to test negative paths:
+
+        mint_token()                               # valid
+        mint_token(exp_offset=-60)                 # expired
+        mint_token(iss="https://attacker/")        # wrong issuer
+        mint_token(org_id=None)                    # missing org_id → 401
+        mint_token(is_active=False)                # inactive → 401
     """
     now = int(time.time())
     claims: dict[str, Any] = {
@@ -68,7 +80,13 @@ def mint_token(
         "aud": aud,
         "iat": now + iat_offset,
         "exp": now + exp_offset,
+        "is_active": is_active,
     }
+    # org_id defaults to TEST_ORG_ID but callers can pass None to omit the claim.
+    resolved_org_id = TEST_ORG_ID if org_id is _SENTINEL else org_id
+    if resolved_org_id is not None:
+        claims["org_id"] = resolved_org_id
+
     if extra_claims:
         claims.update(extra_claims)
 

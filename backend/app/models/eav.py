@@ -60,6 +60,11 @@ class Organization(Base, IdMixin, TimestampMixin):
     country: Mapped[str] = mapped_column(String(2), nullable=False, server_default="US")
     timezone: Mapped[str] = mapped_column(String, nullable=False, server_default="UTC")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    # Auth0 Organization ID (e.g. "org_abc123"). Populated by TASK-014B/E.
+    # Unique and nullable: NULL until the org is linked to Auth0.
+    auth_provider_org_id: Mapped[str | None] = mapped_column(
+        String, nullable=True, unique=True
+    )
 
     @validates("country")
     def _validate_country(self, _key: str, value: str) -> str:
