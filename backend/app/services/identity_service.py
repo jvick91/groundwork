@@ -32,6 +32,7 @@ from app.models.identity import Person, PersonRole
 from app.schemas.identity import PersonCreate, PersonUpdate
 from app.schemas.pagination import PaginationMeta, PaginationParams
 from app.services.audit_service import AuditWriter
+from app.services.auth0_sync_service import Auth0SyncService
 
 
 class PersonService:
@@ -43,11 +44,14 @@ class PersonService:
         audit: AuditWriter,
         tenant_id: UUID,
         actor_id: UUID | None,
+        auth0_sync: Auth0SyncService | None = None,
     ) -> None:
         self._session = session
         self._audit = audit
         self._tenant_id = tenant_id
         self._actor_id = actor_id
+        # Optional: when None, Auth0 sync is skipped (local dev / tests).
+        self._auth0_sync = auth0_sync
 
     # ------------------------------------------------------------------
     # Public use-case methods
@@ -128,11 +132,23 @@ class PersonService:
         if new_auth_subject is not None and new_auth_subject != person.auth_subject:
             await self._assert_auth_subject_available(new_auth_subject, exclude_id=person.id)
 
+        is_active_changed = (
+            "is_active" in updates and updates["is_active"] != person.is_active
+        )
+
         for field, value in updates.items():
             setattr(person, field, value)
 
         person.updated_at = datetime.now(tz=UTC)
         await self._save(person)
+
+        # Mirror is_active change to Auth0 app_metadata so the Post-Login
+        # Action can gate logins without a synchronous backend call (TASK-014C).
+        # On failure, Auth0ManagementError propagates and rolls back this transaction.
+        if is_active_changed and self._auth0_sync is not None:
+            await self._auth0_sync.sync_person_status(
+                person.auth_subject, is_active=person.is_active
+            )
 
         await self._audit.write(
             action="update",
@@ -157,6 +173,12 @@ class PersonService:
         person.deleted_at = now
         person.updated_at = now
         await self._save(person)
+
+        # Soft-delete is treated as inactive — mirror to Auth0 immediately.
+        if self._auth0_sync is not None:
+            await self._auth0_sync.sync_person_status(
+                person.auth_subject, is_active=False
+            )
 
         await self._audit.write(
             action="delete",

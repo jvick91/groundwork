@@ -317,3 +317,20 @@ class InternalError(GroundworkError):
             message="An unexpected error occurred.",
             status_code=500,
         )
+
+
+class Auth0ManagementError(GroundworkError):
+    """Raised when the Auth0 Management API returns a permanent error or
+    all retry attempts are exhausted (TASK-014D).
+
+    Callers (PersonService, InvitationService, etc.) catch this to roll back
+    any in-flight DB transaction before the error surfaces.
+    """
+
+    def __init__(self, message: str, status_code: int = 502, details: list[dict[str, Any]] | None = None):
+        super().__init__(
+            error="auth0_management_error",
+            message=message,
+            status_code=status_code,
+            details=details,
+        )

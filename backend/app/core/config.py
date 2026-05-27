@@ -28,12 +28,19 @@ class Settings(BaseSettings):
         "postgresql+asyncpg://groundwork:groundwork@db-test:5432/groundwork_test"
     )
 
-    # Auth0
+    # Auth0 — JWT validation (TASK-014)
     auth0_domain: str = ""
     auth0_audience: str = ""
     auth0_issuer: str = ""
     # How long to cache the JWKS key set in-process (seconds). Default 10 min.
     jwks_cache_ttl_seconds: int = 600
+
+    # Auth0 Management API (TASK-014D)
+    # Machine-to-machine app with management API permissions (read:users, etc.)
+    auth0_management_client_id: str = ""
+    auth0_management_client_secret: str = ""
+    # Typically https://<domain>/api/v2/
+    auth0_management_audience: str = ""
 
     # Auth
     # Flip to False in production to engage real JWT validation.
