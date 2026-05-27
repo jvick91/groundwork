@@ -62,21 +62,18 @@ Account-linking — Auth0's primary-user / secondary-user model that allows mult
 
 Roadmap note: practices wanting Google Workspace or Microsoft 365 SSO at sign-up cannot have it under this decision. If early customer conversations surface SSO as a hard requirement, a follow-up ADR moves account-linking into scope.
 
-### 6. Service caller identity: not in MVP scope
+### 6. Service caller identity: not a design goal
 
-MVP has no inbound machine-to-machine callers. Webhook receivers (Stripe, etc., when they exist) authenticate by shared-secret signature, not JWT. Outbound integrations (insurance eligibility, reminders) run *as* the backend itself. Scheduled work (consent expiry sweep per ADR-006) is invoked as an authenticated admin HTTP request, with the operator as audit actor — no service identity is involved.
+The platform has exactly one authenticated principal type: a human, identified by `Person.auth_subject` and represented in audit logs as `AuditLog.actor_person_id`. There is no `ServicePrincipal`, no `Principal` parent abstraction, and no `actor_type` enum on `AuditLog`. System-originated events (no human caller — e.g., lazy consent expiry detected at read time) use `actor_person_id = NULL` per the existing SPEC-006 §3 design.
 
-Consequently, MVP introduces no `ServicePrincipal` table, no `Principal` parent abstraction, and no `actor_type` enum on `AuditLog`. `Person.auth_subject` stays where it is. `AuditLog.actor_person_id` remains nullable, with `null` meaning system-triggered per existing SPEC-006 design.
+This is a permanent architectural decision, not a deferral. The cases that might motivate a service-identity layer in another product are handled differently here:
 
-**Anticipated trigger.** The first realistic inbound M2M caller is the Next.js frontend's server process calling FastAPI (server-side rendering, route handlers, server actions). When that integration is scoped, this work becomes a new task at that time. Until then there is no caller to design for.
+- **Next.js ↔ FastAPI.** The Next.js frontend's server process (server-side rendering, route handlers, server actions) acts *as the user* — it forwards the user's Auth0-issued JWT in the `Authorization` header when calling FastAPI. The Next.js server has no identity of its own from FastAPI's perspective; it is a presentation-layer proxy. Authorization decisions remain keyed to the human `Person` whose token is in transit.
+- **Webhook receivers** (Stripe, etc., when they exist) authenticate by shared-secret signature verification, not JWT. They write audit rows with `actor_person_id = NULL`.
+- **Scheduled work** (consent expiry sweep per ADR-006) is invoked as an authenticated admin HTTP request — the operator's session triggers it, and per-tenant audit rows record the operator as actor.
+- **Outbound integrations** (insurance eligibility, reminders) run *as* the backend itself, not as separate authenticated clients calling in.
 
-**Migration path when the work is picked up:**
-
-1. Add a `ServicePrincipal` table with direct `ServicePrincipalPermission` grants (OAuth-scope pattern, no role layer).
-2. Add an `actor_service_principal_id` FK to `AuditLog` and an `actor_type` enum; default existing rows to `'human'`.
-3. Branch the middleware on JWT claim shape: tokens with `gty=client-credentials` and no user `sub` resolve to a `ServicePrincipal`.
-
-This is straightforward additive work. Introducing the abstraction now, before any caller exists, would be speculative design.
+The model is one principal type (human), one audit actor column (`actor_person_id`, nullable), one path to authenticate (Auth0-issued JWT for that human). Any future class of caller has to fit one of those slots or be redesigned to fit them. There is no separate identity model on the roadmap.
 
 ## Consequences
 
@@ -93,7 +90,7 @@ This is straightforward additive work. Introducing the abstraction now, before a
 - Practices wanting SSO from day one are not supported; the account-linking upgrade is post-MVP work.
 - The 15-minute access-token TTL means routine deactivation propagation has a 15-minute worst-case window. For incident response, this is mitigated by the TASK-014J force-kill endpoint, but operators must remember the procedure exists.
 - Org-switching as a fresh login is a worse UX than header-swap for clinicians who work across multiple practices. The security gain (bounded stolen-token blast radius) is judged to be worth the friction.
-- A future M2M caller will require a schema migration to introduce `ServicePrincipal` and `actor_type`. The migration is additive and bounded, but it is migration work.
+- Any future call shape that doesn't fit "a human's JWT in flight" (human user → frontend → API), "shared-secret signature" (webhooks), or "the backend itself" (outbound + scheduled) has to be redesigned to fit one of those slots. The model does not provide an escape hatch into a separate identity layer.
 
 ## Alternatives considered
 
@@ -103,7 +100,7 @@ This is straightforward additive work. Introducing the abstraction now, before a
 
 **Email-fallback binding (try `sub`, then email).** Would let users sign up via Auth0 Universal Login without an invitation, then bind to an existing Person row by email match. Rejected: leaks cross-tenant existence and creates a path where any Auth0 user with a known email can bind to a Person they should not have access to.
 
-**`Principal` abstraction with `HumanPrincipal` / `ServicePrincipal` variants in MVP.** Earlier-drafted approach. Adds four tables (`Principal`, `HumanPrincipal`, `ServicePrincipal`, `ServicePrincipalPermission`) and a polymorphic `actor_type` enum on `AuditLog`. Rejected for MVP: no inbound M2M callers exist; the abstraction solves a problem we do not have. Migration path is documented above for when the problem appears.
+**`Principal` abstraction with `HumanPrincipal` / `ServicePrincipal` variants.** Earlier-drafted approach. Adds four tables (`Principal`, `HumanPrincipal`, `ServicePrincipal`, `ServicePrincipalPermission`) and a polymorphic `actor_type` enum on `AuditLog`. **Rejected permanently** (see §6). The abstraction solves a problem we do not have and do not plan to introduce: every realistic non-human call shape on this platform fits one of three existing patterns — user-JWT-in-flight (BFF/proxy), shared-secret signature (webhooks), or runs *as* the backend (outbound integrations + scheduled work). A schema migration to introduce service-identity machinery is not on the roadmap.
 
 **Long-lived access tokens (1+ hour) with backend revocation list.** Simpler refresh story, but requires us to maintain a revocation list and consult it per request — adding a database hit per auth check and a new failure mode (revocation list unavailable → fail-open or fail-closed?). Rejected: short TTLs + RT rotation gives equivalent security with no backend state.
 
@@ -113,7 +110,6 @@ This is straightforward additive work. Introducing the abstraction now, before a
 - [ ] Epic 2: TASK-014A acceptance criteria reference this ADR as the foundational contract.
 - [ ] Epic 3: TASK-014B (Auth0 tenant configuration) implements the Auth0-side configuration this ADR mandates (Organizations enabled, universal MFA policy, RT rotation + breach detection, single-connection setup).
 - [ ] Epic 4: TASK-014 (JWT middleware) implements the JWT contract this ADR defines (validate `sub` + `org_id`, resolve `Person`, check active `PersonRole`, set `app.org_id`).
-- [ ] Epic 5: When the first inbound M2M caller is proposed, draft a follow-up ADR for the `ServicePrincipal` introduction; do not introduce the abstraction speculatively.
 
 ## References
 
