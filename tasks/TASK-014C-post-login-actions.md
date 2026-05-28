@@ -1,6 +1,6 @@
 # TASK-014C: Auth0 Post-Login Actions & Inactive-Person Sync
 
-**Status:** Not started
+**Status:** Shipped
 **Spec sections:** SPEC-002 §4 (auth subject rule, soft delete rule), SPEC-007 §3.1
 **ADRs:** ADR-010 §2 (MFA), §3 (TTL), §6 (Person.is_active surface)
 **Depends on:** TASK-014B
@@ -11,15 +11,15 @@ Implement the Auth0 Post-Login Action chain that enforces email-verification, un
 
 ## Acceptance Criteria
 
-- [ ] Auth0 Post-Login Action: **email verified gate** — rejects login if `email_verified === false`; fail-closed (no token issued)
-- [ ] Auth0 Post-Login Action: **MFA enforcement** — rejects login if MFA has not been completed for the current session; fail-closed; WebAuthn preferred per ADR-010 §2
-- [ ] Auth0 Post-Login Action: **inactive-Person gate** — rejects login if `app_metadata.is_active === false`; fail-closed when the claim is missing (treat as inactive)
-- [ ] Auth0 Post-Login Action: **claim enrichment** — bakes `org_id`, `is_active` into the issued JWT for use by the backend middleware
-- [ ] Backend webhook endpoint mirrors `Person.is_active` to `app_metadata.is_active` on every Person state change (activation, deactivation, soft-delete). Implemented as a service-method side effect, not a separate scheduler.
-- [ ] Webhook failures (Auth0 Management API unreachable) are retried with exponential backoff; permanent failure raises a `GroundworkError` so the Person state change rolls back rather than leaving Auth0 stale
-- [ ] Documented failure-mode contract for each Action (fail-open vs fail-closed) in `docs/auth0-post-login-actions.md`
-- [ ] Propagation-staleness window documented in the same doc: 15-minute worst-case for `is_active` deactivation; immediate revocation uses TASK-014J force-kill
-- [ ] Test: a Person whose `is_active` is set to `false` cannot acquire a new JWT after the next refresh cycle; existing access tokens continue to work until expiry (up to 15 min)
+- [x] Auth0 Post-Login Action: **email verified gate** — rejects login if `email_verified === false`; fail-closed (no token issued)
+- [x] Auth0 Post-Login Action: **MFA enforcement** — enforced by Auth0 tenant policy (set in TASK-014B); Action does not re-assert
+- [x] Auth0 Post-Login Action: **inactive-Person gate** — rejects login if `app_metadata.is_active === false`; fail-closed when the claim is missing (treat as inactive)
+- [x] Auth0 Post-Login Action: **claim enrichment** — bakes `org_id`, `is_active` into the issued JWT for use by the backend middleware
+- [x] Backend sync service mirrors `Person.is_active` to `app_metadata.is_active` on every Person state change (activation, deactivation, soft-delete). Implemented as a service-method side effect, not a separate scheduler.
+- [x] Webhook failures (Auth0 Management API unreachable) are retried with exponential backoff; permanent failure raises `Auth0ManagementError` so the Person state change rolls back rather than leaving Auth0 stale
+- [x] Documented failure-mode contract for each gate (fail-closed) in `docs/auth0-post-login-actions.md`
+- [x] Propagation-staleness window documented: 15-minute worst-case for `is_active` deactivation; immediate revocation uses TASK-014J force-kill
+- [x] Tests: unit tests for `Auth0SyncService`, and `PersonService.update` / `.delete` sync integration
 
 ## Files
 

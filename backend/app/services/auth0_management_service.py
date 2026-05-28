@@ -233,6 +233,14 @@ class Auth0ManagementService:
             expected_statuses=(200,),
         )
 
+    async def delete_user(self, auth0_user_id: str) -> None:
+        """Permanently delete an Auth0 user (compensating action for bootstrap rollback)."""
+        await self._request(
+            "DELETE",
+            f"/users/{auth0_user_id}",
+            expected_statuses=(204,),
+        )
+
     async def delete_sessions(self, auth0_user_id: str) -> None:
         """Invalidate all active sessions for the user (force-logout)."""
         await self._request(
@@ -286,6 +294,42 @@ class Auth0ManagementService:
             json={"members": [auth0_user_id]},
             expected_statuses=(204,),
         )
+
+    async def delete_organization(self, auth0_org_id: str) -> None:
+        """Delete an Auth0 Organization (compensating action for bootstrap rollback)."""
+        await self._request(
+            "DELETE",
+            f"/organizations/{auth0_org_id}",
+            expected_statuses=(204,),
+        )
+
+    # ------------------------------------------------------------------
+    # Ticket operations
+    # ------------------------------------------------------------------
+
+    async def create_password_change_ticket(
+        self,
+        auth0_user_id: str,
+        *,
+        result_url: str = "",
+        mark_email_as_verified: bool = True,
+        ttl_seconds: int = 604800,  # 7 days
+    ) -> dict[str, Any]:
+        """Create a password-change ticket for the user and return ``{"ticket": url}``."""
+        body: dict[str, Any] = {
+            "user_id": auth0_user_id,
+            "mark_email_as_verified": mark_email_as_verified,
+            "ttl_sec": ttl_seconds,
+        }
+        if result_url:
+            body["result_url"] = result_url
+        result = await self._request(
+            "POST",
+            "/tickets/password-change",
+            json=body,
+            expected_statuses=(201,),
+        )
+        return result  # type: ignore[return-value]
 
     # ------------------------------------------------------------------
     # Invitation operations

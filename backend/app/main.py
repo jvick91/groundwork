@@ -236,6 +236,7 @@ def create_app() -> FastAPI:
     # Identity domain — Person CRUD (SPEC-002 §8, TASK-012)
     app.include_router(identity_router.router, prefix="/api/v1")
 
+
     # TODO: Phase 1 - Include EntityAttribute router (TASK-010 Phase 2)
     # TODO: Phase 2 - Include remaining Identity/RBAC routers (Roles, Permissions, PersonRoles)
     # TODO: Phase 3 - Include Scheduling routers

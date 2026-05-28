@@ -1,6 +1,6 @@
 # TASK-014D: Auth0 Management API Integration
 
-**Status:** Not started
+**Status:** Shipped
 **Spec sections:** SPEC-007 §3 (auth flow)
 **ADRs:** ADR-010
 **Depends on:** TASK-014B

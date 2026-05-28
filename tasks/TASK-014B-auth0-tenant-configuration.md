@@ -1,6 +1,6 @@
 # TASK-014B: Auth0 Tenant Configuration & Environment Doc
 
-**Status:** Not started
+**Status:** In progress
 **Spec sections:** SPEC-007 §3.1 (JWT validation), §3.2 (org context)
 **ADRs:** ADR-010 (decisions this task implements on the Auth0 side)
 **Depends on:** TASK-014A
