@@ -1,6 +1,6 @@
 # TASK-014F: Invitation Resource (Model, CRUD, State Machine)
 
-**Status:** Not started
+**Status:** Shipped
 **Spec sections:** SPEC-002 §2 (PersonRole entity_instance rules), §4 (assignment integrity), SPEC-007 §8 (endpoint inventory)
 **ADRs:** ADR-002 (FK-only), ADR-003 (partial unique index pattern), ADR-009 (service/model layering), ADR-010, ADR-011
 **Depends on:** TASK-014D

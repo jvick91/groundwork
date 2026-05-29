@@ -29,7 +29,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base, IdMixin, SoftDeleteMixin, TimestampMixin
-from app.enums.identity import RoleDomain
+from app.enums.identity import InvitationState, InvitationType, RoleDomain
 
 
 class Person(Base, IdMixin, TimestampMixin, SoftDeleteMixin):
@@ -137,6 +137,67 @@ class PersonRole(Base, IdMixin, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("people.id"), nullable=True
     )
     # NULL = active; non-null = revoked (historical, does not block re-assignment)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Invitation(Base, IdMixin, TimestampMixin):
+    """One-shot invitation that carries the *planned* PersonRole shape.
+
+    PersonRole is NOT created at invite-send; it is created at accept
+    (TASK-014G). Until then, the planned role lives here.
+
+    State machine (ADR-011 §state-machine):
+        pending → accepted | expired | revoked  (all terminal)
+
+    Cross-tenant enumeration prevention: the uniform response shape on the
+    send path (`{status, invitation_id}`) never reveals whether the email
+    maps to an existing Person.
+    """
+
+    __tablename__ = "invitations"
+    __table_args__ = (
+        # One pending invite per email per org (ADR-003 pattern).
+        # Revoked / expired / accepted rows are historical and do not block
+        # a fresh invite to the same address.
+        Index(
+            "uq_invitations_pending_email",
+            "organization_id",
+            "email",
+            unique=True,
+            postgresql_where=text("state = 'pending'"),
+        ),
+    )
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False
+    )
+    type: Mapped[InvitationType] = mapped_column(
+        SAEnum(InvitationType, native_enum=False), nullable=False
+    )
+    email: Mapped[str] = mapped_column(String, nullable=False)
+    first_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    last_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    planned_role_slug: Mapped[str] = mapped_column(String, nullable=False)
+    planned_entity_instance_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entity_instances.id"), nullable=True
+    )
+    planned_entity_instance_payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # Opaque single-use token — the only binding key between the email link
+    # and the accept transaction (TASK-014G).
+    nonce: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
+    state: Mapped[InvitationState] = mapped_column(
+        SAEnum(InvitationState, native_enum=False),
+        nullable=False,
+        server_default=text("'pending'"),
+    )
+    # Populated once Auth0 invitation API is called; used for revocation.
+    auth0_invitation_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_by_person_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("people.id"), nullable=False
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 

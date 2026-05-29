@@ -111,6 +111,27 @@ class ForbiddenError(GroundworkError):
         )
 
 
+class PermissionDeniedError(GroundworkError):
+    """403 raised when a caller lacks a specific permission or role.
+
+    Use this instead of ``ForbiddenError`` when the denial reason can be
+    stated in terms of a missing role/permission slug (never PHI).
+    """
+
+    def __init__(
+        self,
+        message: str = "You do not have permission to perform this action.",
+        *,
+        actor_id: UUID | None = None,
+    ):
+        super().__init__(
+            error="forbidden",
+            message=message,
+            status_code=403,
+            audit_actor_id=actor_id,
+        )
+
+
 class OrgAccessDeniedError(GroundworkError):
     def __init__(self) -> None:
         super().__init__(
@@ -242,6 +263,26 @@ class ResourceLockedError(GroundworkError):
             message=f"{resource} is locked and cannot be modified: {reason}.",
             status_code=409,
             details=[{"resource": resource, "reason": reason}],
+        )
+
+
+# ---------------------------------------------------------------------------
+# 410
+# ---------------------------------------------------------------------------
+
+
+class GoneError(GroundworkError):
+    """410 returned when a one-shot resource (e.g. invitation nonce) is no
+    longer usable — it was not found, has expired, was revoked, or was already
+    consumed.  Using 410 instead of 404 allows callers to distinguish
+    "never existed" from "existed but is now terminal".
+    """
+
+    def __init__(self, message: str = "Resource is no longer available."):
+        super().__init__(
+            error="gone",
+            message=message,
+            status_code=410,
         )
 
 

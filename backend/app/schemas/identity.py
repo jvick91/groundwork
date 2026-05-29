@@ -7,12 +7,12 @@ itself (ADR-009 amendment — services don't construct Response schemas).
 """
 
 from datetime import date, datetime
-from typing import Any
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
-from app.enums.identity import RoleDomain
+from app.enums.identity import InvitationState, InvitationType, RoleDomain
 
 
 class PersonCreate(BaseModel):
@@ -145,6 +145,144 @@ class PersonRoleResponse(BaseModel):
     assigned_at: datetime
     assigned_by_person_id: UUID | None
     revoked_at: datetime | None
+
+
+# ---------------------------------------------------------------------------
+# Invitation schemas (TASK-014F / ADR-011)
+# ---------------------------------------------------------------------------
+
+
+class _InvitationCreateBase(BaseModel):
+    """Fields common to all invitation types."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    email: EmailStr = Field(..., description="Invitee's email address.")
+    planned_role_slug: str = Field(
+        ..., min_length=1, max_length=128, description="Role slug to grant on accept."
+    )
+
+
+class ProviderInvitationCreate(_InvitationCreateBase):
+    """Type 1 — invite a new provider.  Requires entity instance info."""
+
+    type: Literal[InvitationType.PROVIDER]
+    first_name: str = Field(..., min_length=1, max_length=255)
+    last_name: str = Field(..., min_length=1, max_length=255)
+    planned_entity_instance_id: UUID | None = Field(
+        default=None,
+        description="Existing EntityInstance to bind the provider role to.",
+    )
+    planned_entity_instance_payload: dict[str, Any] | None = Field(
+        default=None,
+        description="If set, an EntityInstance is created from this payload on accept.",
+    )
+
+    @model_validator(mode="after")
+    def _require_entity_instance(self) -> "ProviderInvitationCreate":
+        if (
+            self.planned_entity_instance_id is None
+            and self.planned_entity_instance_payload is None
+        ):
+            raise ValueError(
+                "Provider invitations require either planned_entity_instance_id "
+                "or planned_entity_instance_payload."
+            )
+        return self
+
+
+class AdminInvitationCreate(_InvitationCreateBase):
+    """Type 2 — invite a new admin."""
+
+    type: Literal[InvitationType.ADMIN]
+    first_name: str = Field(..., min_length=1, max_length=255)
+    last_name: str = Field(..., min_length=1, max_length=255)
+
+
+class SystemAdminInvitationCreate(_InvitationCreateBase):
+    """Type 3 — invite a new system_admin.  Caller must be a system_admin."""
+
+    type: Literal[InvitationType.SYSTEM_ADMIN]
+    first_name: str = Field(..., min_length=1, max_length=255)
+    last_name: str = Field(..., min_length=1, max_length=255)
+
+
+class CrossOrgInvitationCreate(_InvitationCreateBase):
+    """Type 4 — add an existing Person from another org.
+
+    first_name / last_name are omitted: the Person record already exists.
+    """
+
+    type: Literal[InvitationType.CROSS_ORG]
+
+
+# Discriminated union — FastAPI reads the ``type`` field to pick the right validator.
+InvitationCreate = Annotated[
+    ProviderInvitationCreate
+    | AdminInvitationCreate
+    | SystemAdminInvitationCreate
+    | CrossOrgInvitationCreate,
+    Field(discriminator="type"),
+]
+
+
+class InvitationSendResponse(BaseModel):
+    """Uniform response shape for POST /invitations (ADR-011 §uniform-response).
+
+    Identical regardless of invite type or whether the email maps to an
+    existing Person — prevents cross-tenant enumeration.
+    """
+
+    status: Literal["pending"] = "pending"
+    invitation_id: UUID
+
+
+class InvitationResponse(BaseModel):
+    """Full invitation detail returned by GET /invitations/{id}."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    organization_id: UUID
+    type: InvitationType
+    email: str
+    first_name: str | None
+    last_name: str | None
+    planned_role_slug: str
+    planned_entity_instance_id: UUID | None
+    planned_entity_instance_payload: dict[str, Any] | None
+    state: InvitationState
+    auth0_invitation_id: str | None
+    created_by_person_id: UUID
+    expires_at: datetime
+    accepted_at: datetime | None
+    expired_at: datetime | None
+    revoked_at: datetime | None
+    created_at: datetime
+    updated_at: datetime | None
+
+
+class InvitationAcceptRequest(BaseModel):
+    """Body for POST /invitations/accept.
+
+    The JWT is validated against Auth0 JWKS inside the service; ``sub`` and
+    ``org_id`` claims are read from it.  No ``X-Organization-Id`` header is
+    required — the invitation row carries the org.
+    """
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    nonce: str = Field(
+        ..., min_length=1, max_length=512, description="Single-use invitation nonce."
+    )
+    jwt: str = Field(..., min_length=1, description="Auth0 JWT issued to the invitee.")
+
+
+class InvitationAcceptResponse(BaseModel):
+    """Response from POST /invitations/accept."""
+
+    person_id: UUID
+    person_role_id: UUID
 
 
 class RolePermissionResponse(BaseModel):

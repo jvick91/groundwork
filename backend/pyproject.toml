@@ -20,6 +20,7 @@ auth0-fastapi-api = ">=1.0.0b7"
 python-dotenv = "^1.0.0"
 joserfc = ">=1.0.0"
 cryptography = ">=42.0.0"
+email-validator = ">=2.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"

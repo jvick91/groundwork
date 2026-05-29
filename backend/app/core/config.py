@@ -42,6 +42,15 @@ class Settings(BaseSettings):
     # Typically https://<domain>/api/v2/
     auth0_management_audience: str = ""
 
+    # Auth0 SPA application client ID (TASK-014F).
+    # Required when creating Auth0 Organization invitations — the Auth0
+    # invitation API requires the target SPA client ID so the email link
+    # redirects to the correct application.
+    auth0_spa_client_id: str = ""
+
+    # Invitation TTL in seconds (default 7 days — matches Auth0's invitation TTL).
+    invitation_ttl_seconds: int = 604800
+
     # Auth
     # Flip to False in production to engage real JWT validation.
     # Tests override to False after wiring the test JWKS via set_test_jwks().

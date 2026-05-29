@@ -26,6 +26,7 @@ from app.routers import entity_instances as entity_instances_router
 from app.routers import entity_types as entity_types_router
 from app.routers import health as health_router
 from app.routers import identity as identity_router
+from app.routers import invitations as invitations_router
 from app.services.audit_service import AuditWriter, _AuditScope
 
 logger = get_logger(__name__)
@@ -235,6 +236,9 @@ def create_app() -> FastAPI:
 
     # Identity domain — Person CRUD (SPEC-002 §8, TASK-012)
     app.include_router(identity_router.router, prefix="/api/v1")
+
+    # Invitation lifecycle — send / list / resend / revoke (TASK-014F)
+    app.include_router(invitations_router.router, prefix="/api/v1")
 
 
     # TODO: Phase 1 - Include EntityAttribute router (TASK-010 Phase 2)

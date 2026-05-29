@@ -43,7 +43,9 @@ from app.core.security import _STUB_AUTH_SUBJECT, _STUB_ORG_ID, fetch_jwks, deco
 _ORG_EXEMPT_PATHS = {"/api/v1/auth/me"}
 
 # Path prefixes that bypass authentication entirely.
-_AUTH_SKIP_PREFIXES = ("/api/v1/health",)
+# /api/v1/invitations/accept is unauthenticated: the invitee has no existing
+# session; the JWT arrives in the request body and is validated by the service.
+_AUTH_SKIP_PREFIXES = ("/api/v1/health", "/api/v1/invitations/accept")
 
 # Stub claims injected when auth_stub_enabled=True.
 _STUB_CLAIMS: dict[str, Any] = {
