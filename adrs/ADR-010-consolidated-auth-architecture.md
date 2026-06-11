@@ -4,6 +4,8 @@
 **Author:** claude-code
 **Status:** Proposed (supersedes ADR-008 when accepted)
 
+> **Amendment (2026-06-11, ADR-013):** This ADR's six decisions are split into *policy* and *mechanism* by ADR-013. The policy layer — org-scoped tokens (§1), universal WebAuthn MFA (§2), short TTL + refresh rotation with breach detection (§3), nonce-only binding (§4), single connection (§5), no service principals (§6) — is provider-agnostic and remains binding on any identity provider as ADR-013's "capability floor." The Auth0-specific mechanisms named throughout (Auth0 Organizations, Post-Login Actions, Management API, `app_metadata` mirroring, Auth0-sent invitation emails) are now implementation details of the Auth0 adapter (TASK-014O). Two concrete changes: invitation **emails are application-sent** (ADR-013 reverses this ADR's "Backend-driven invitations" rejection — that alternative is now the design, because it is the only one that generalizes across providers), and ADR-011's `auth0_invitation_id` column is renamed `external_invitation_id`.
+
 ## Context
 
 TASK-014 was scoped as "JWT validation middleware" with the assumption that an Auth0-issued token would arrive containing a `sub` claim that maps to a `Person.auth_subject`. Several decisions are implicit in that scope and need to be ratified before TASK-014 ships, because the JWT shape and the surrounding identity ceremony are load-bearing for everything downstream.

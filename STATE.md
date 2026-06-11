@@ -1,11 +1,13 @@
 # STATE.md — Session Entry Point
 
-**Last updated:** 2026-05-21
-**Active task:** TASK-011A (next — AttributeValue type casting engine, on the new ADR-009 pattern). Auth chain (TASK-014 series) is being designed in parallel on branch `task-014-auth-decomposition`.
-**Branch:** main (auth-chain design work lives on `task-014-auth-decomposition`)
-**Last architectural change:** 2026-05-21 — Auth chain decomposed. ADR-010 (consolidated Auth0 identity architecture: Organizations adopted, universal WebAuthn MFA, 5–15min access tokens + refresh rotation, nonce-only first-login binding, single-connection-per-user for MVP, ServicePrincipal deferred). ADR-011 (invitation lifecycle: PersonRole-at-accept; five-type discriminator; uniform response shape for enumeration mitigation). ADR-012 (`Person.permissions_version` column for zero-staleness permission cache). ADR-008 superseded by ADR-010. TASK-014 decomposed into TASK-014A–014J. Net schema delta for the full auth chain: +1 table (`Invitation`), +1 column (`Person.permissions_version`), +4 seed permissions (`invites.send/revoke/read`, `auth.force_revoke`). All other auth work is Auth0-side configuration or backend code.
+**Last updated:** 2026-06-11
+**Active task:** TASK-011A (next — AttributeValue type casting engine, on the new ADR-009 pattern). Auth chain (TASK-014 series) restructured around provider-agnostic ports on branch `task-014-auth-ports`.
+**Branch:** main (auth-ports docs work lives on `task-014-auth-ports`; earlier implementation spike on `auth-middleware` is salvage material, not mergeable as-is)
+**Last architectural change:** 2026-06-11 — Identity provider abstracted behind ports (ADR-013). Two abstract base classes (`TokenVerifier` hot path, `IdentityProviderAdmin` cold path) + `FakeIdentityProvider` + adapter conformance suite; provider selected once in the composition root (`settings.auth_provider`). SuperTokens (self-hosted) is the trial primary provider, Auth0 the proven fallback — both ship as adapters. ADR-010 amended (policy = capability floor, binding on any provider; Auth0 specifics = adapter mechanism). ADR-011 amended (`auth0_invitation_id` → `external_invitation_id`; invitation emails are application-sent). Task restructure: **new** 014K (ports + composition root), 014L (fake + conformance), 014M (SuperTokens core deployment — gated on pricing/licensing/passkeys verification), 014N (SuperTokens adapter), 014O (Auth0 adapter), 014P (invitation email delivery); **removed** 014C and 014D (absorbed into 014O); **rewritten provider-neutral** 014, 014E, 014F, 014G, 014J. The 014 middleware rewrite also bakes in the open security-review fixes (full `exp`/`nbf`/`iat`/`iss`/`aud` validation, algorithm pinning, full verification on the accept path).
 
-**Previous architectural change:** 2026-05-09 — ADR-009 accepted; ADR-002 amended; Organization (TASK-009) and EntityType / EntityAttribute (TASK-010) refactored to class-per-aggregate Service + Model-as-Entity. AuditLog gained an `outcome` column. The route-level `GroundworkError` handler now writes failure audits in a fresh session. TASK-008A rewritten as the canonical conventions doc; all not-yet-shipped tasks reference ADR-009. **Same-day amendment:** Repository layer removed — each repo was a thin SQL wrapper called from one service; queries now inline in the service file under a `# Query helpers` section. Re-introduce a Repository only when queries are genuinely shared across services (e.g. role-hierarchy walks, JSONB projections).
+**Previous architectural change:** 2026-05-21 — Auth chain decomposed. ADR-010 (consolidated Auth0 identity architecture: Organizations adopted, universal WebAuthn MFA, 5–15min access tokens + refresh rotation, nonce-only first-login binding, single-connection-per-user for MVP, ServicePrincipal deferred). ADR-011 (invitation lifecycle: PersonRole-at-accept; five-type discriminator; uniform response shape for enumeration mitigation). ADR-012 (`Person.permissions_version` column for zero-staleness permission cache). ADR-008 superseded by ADR-010. TASK-014 decomposed into TASK-014A–014J. Net schema delta for the full auth chain: +1 table (`Invitation`), +1 column (`Person.permissions_version`), +4 seed permissions (`invites.send/revoke/read`, `auth.force_revoke`). All other auth work is Auth0-side configuration or backend code.
+
+**Earlier architectural change:** 2026-05-09 — ADR-009 accepted; ADR-002 amended; Organization (TASK-009) and EntityType / EntityAttribute (TASK-010) refactored to class-per-aggregate Service + Model-as-Entity. AuditLog gained an `outcome` column. The route-level `GroundworkError` handler now writes failure audits in a fresh session. TASK-008A rewritten as the canonical conventions doc; all not-yet-shipped tasks reference ADR-009. **Same-day amendment:** Repository layer removed — each repo was a thin SQL wrapper called from one service; queries now inline in the service file under a `# Query helpers` section. Re-introduce a Repository only when queries are genuinely shared across services (e.g. role-hierarchy walks, JSONB projections).
 
 ---
 
@@ -67,16 +69,20 @@
 |---|------|--------|------------|
 | 012 | [Person model & CRUD API](tasks/TASK-012-person-model-and-api.md) | **Complete** (401 test deferred to TASK-014) | 004, 009, 006, 008 |
 | 013 | [RBAC models & seed data](tasks/TASK-013-rbac-models-and-seed-data.md) | **Complete** (hierarchy invariant not enforced at model level — seed data conforms; revisit in TASK-016) | 009, 012 |
-| 014 | [Auth middleware — JWT, person resolution, org context, `Person.permissions_version` migration](tasks/TASK-014-auth-middleware.md) | Not started | 012, 013, 014A |
+| 014 | [Auth middleware — token verification via port, person resolution, org context, `Person.permissions_version` migration](tasks/TASK-014-auth-middleware.md) | Not started | 012, 013, 014A, 014K, 014L |
 | ↳ 014A | [Consolidated ADR ratification & SPEC-007 edits (ADR-010)](tasks/TASK-014A-auth-consolidated-adr.md) | Not started | — |
-| ↳ 014B | [Auth0 tenant configuration & env doc](tasks/TASK-014B-auth0-tenant-configuration.md) | Not started | 014A |
-| ↳ 014C | [Post-Login Actions & `is_active` mirroring](tasks/TASK-014C-post-login-actions.md) | Not started | 014B |
-| ↳ 014D | [Auth0 Management API integration](tasks/TASK-014D-auth0-management-api.md) | Not started | 014B |
-| ↳ 014E | [Bootstrap first admin (one-shot deploy-token endpoint)](tasks/TASK-014E-bootstrap-first-admin.md) | Not started | 014D |
-| ↳ 014F | [Invitation resource (CRUD, state machine, the one new table)](tasks/TASK-014F-invitation-resource.md) | Not started | 014D |
+| ↳ 014K | [Identity provider ports & composition root (ADR-013)](tasks/TASK-014K-identity-provider-ports.md) | Not started | 014A |
+| ↳ 014L | [Fake identity provider & adapter conformance suite](tasks/TASK-014L-fake-provider-conformance.md) | Not started | 014K |
+| ↳ 014P | [Invitation email delivery (application-sent per ADR-013)](tasks/TASK-014P-invitation-email-delivery.md) | Not started | 014K |
+| ↳ 014E | [Bootstrap first admin (one-shot deploy-token endpoint)](tasks/TASK-014E-bootstrap-first-admin.md) | Not started | 014K, 014L |
+| ↳ 014F | [Invitation resource (CRUD, state machine, the one new table)](tasks/TASK-014F-invitation-resource.md) | Not started | 014K, 014L, 014P |
 | ↳ 014G | [Invitation accept + nonce binding](tasks/TASK-014G-invitation-accept-binding.md) | Not started | 014F |
 | ↳ 014I | [Permission cache invalidation strategy](tasks/TASK-014I-permission-cache-invalidation.md) | Not started | 014, 015 |
-| ↳ 014J | [Force-revoke operator endpoint](tasks/TASK-014J-force-revoke.md) | Not started | 014C, 014D, 014I |
+| ↳ 014J | [Force-revoke operator endpoint](tasks/TASK-014J-force-revoke.md) | Not started | 014K, 014L, 014I |
+| ↳ 014B | [Auth0 tenant configuration & env doc (Auth0 adapter infra)](tasks/TASK-014B-auth0-tenant-configuration.md) | Not started | 014A |
+| ↳ 014M | [SuperTokens core deployment (gated on pricing/licensing/passkeys verification)](tasks/TASK-014M-supertokens-deployment.md) | Not started | 014A |
+| ↳ 014N | [SuperTokens adapter (trial primary)](tasks/TASK-014N-supertokens-adapter.md) | Not started | 014K, 014L, 014M |
+| ↳ 014O | [Auth0 adapter (proven fallback; absorbs former 014C/014D)](tasks/TASK-014O-auth0-adapter.md) | Not started | 014K, 014L, 014B |
 | 015 | [Permission resolution, caching, & row-level filtering](tasks/TASK-015-permission-resolution-and-caching.md) | Not started | 013, 014 |
 | 016 | [Role & permission management API (adds invites.* + auth.force_revoke seeds; permissions_version write discipline)](tasks/TASK-016-role-permission-management-api.md) | Not started | 013, 015 |
 | 017 | [Person role assignment API (permissions_version write discipline)](tasks/TASK-017-person-role-assignment-api.md) | Not started | 012, 013, 015 |

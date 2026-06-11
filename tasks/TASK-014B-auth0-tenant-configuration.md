@@ -7,6 +7,8 @@
 
 ## Objective
 
+**Scope note (ADR-013):** this task is Auth0-adapter infrastructure — the Auth0 counterpart of TASK-014M (SuperTokens core deployment). It feeds TASK-014O (Auth0 adapter) only; no application task depends on it. It implements the ADR-013 capability floor on the Auth0 side.
+
 Configure the Auth0 tenant per ADR-010: Organizations enabled, Universal Login with WebAuthn-first universal MFA, refresh token rotation with reuse/breach detection, single-connection-per-user (email/password + WebAuthn passkey), branded login pages, and per-environment callback/logout URLs. Produce an operational runbook plus a Terraform or CLI script that captures the configuration so dev/staging/prod tenants can be reproducibly provisioned. Routine login and logout become fully Auth0-handled by the end of this task — the backend has no role in routine logout flow.
 
 ## Acceptance Criteria

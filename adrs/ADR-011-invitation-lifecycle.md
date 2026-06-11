@@ -4,6 +4,8 @@
 **Author:** claude-code
 **Status:** Proposed
 
+> **Amendment (2026-06-11, ADR-013):** Provider-neutral revision. `auth0_invitation_id` is renamed `external_invitation_id` and stores the provider-agnostic `SignupTicket.external_ref`. Invitation emails are sent by the application (TASK-014P), not the provider; references below to "Auth0 sends/emails the invite" and Auth0 Management API calls now describe the Auth0 adapter's mechanism behind `IdentityProviderAdmin.create_signup_ticket` / `revoke_signup_ticket` / `add_org_member`. The state machine, PersonRole-at-accept rule, uniform response shape, and nonce semantics are unchanged.
+
 ## Context
 
 ADR-010 ratifies that `Person.auth_subject` is bound exclusively through invitation acceptance — there is no email-matching fallback, no self-service signup path. That ratification leaves the invitation resource itself unspecified: what its shape is, what states it transitions through, when `PersonRole` is created, and how the five distinct invite types share an endpoint without becoming a tangle of conditionals.
