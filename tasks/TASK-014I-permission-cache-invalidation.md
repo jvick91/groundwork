@@ -23,7 +23,7 @@ Most of this task is **documentation, tests, and review** — the increment logi
   - [ ] `test_force_kill_invalidates_cache` — TASK-014J's force-kill flow increments `permissions_version`; verifies cached entries are unreachable.
 - [ ] Granularity-tradeoff documented in code comments: `permissions_version` is per-Person, not per-(Person, org); cross-org cache invalidation on single-org change is acknowledged and the escape hatch (move to per-(person, org) table) is noted.
 - [ ] LISTEN/NOTIFY rejection rationale referenced in the task; no LISTEN/NOTIFY code path exists.
-- [ ] Logout flow note: routine logout is fully handled by Auth0 + SPA SDK per TASK-014B. The force-kill path is TASK-014J. This task does **not** ship a backend logout endpoint.
+- [ ] Logout flow note: routine logout is fully provider-handled (see TASK-014M / TASK-014K). The force-kill path is TASK-014J. This task does **not** ship a backend logout endpoint.
 
 ## Files
 

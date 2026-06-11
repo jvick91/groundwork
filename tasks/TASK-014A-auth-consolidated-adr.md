@@ -28,6 +28,6 @@ Ratify ADR-010 (consolidated Auth0 identity architecture) from Proposed to Accep
 
 ## Non-goals
 
-- Any Auth0 tenant configuration work (TASK-014B)
+- Any Auth0 tenant configuration work (TASK-014M)
 - Any middleware code (TASK-014)
-- Any Auth0 Management API integration (TASK-014D)
+- Any provider adapter work (TASK-014L, TASK-014N)
