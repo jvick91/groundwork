@@ -3,7 +3,7 @@
 **Status:** Not started
 **Spec sections:** SPEC-007 §3 (auth flow), SPEC-002 §8 (Person management)
 **ADRs:** ADR-008 Epic 4 (resolves the cold-start gap), ADR-010 (policy), ADR-013 (provider operations go through `IdentityProviderAdmin`)
-**Depends on:** TASK-014K, TASK-014L
+**Depends on:** TASK-014B, TASK-014C
 
 ## Objective
 
@@ -11,7 +11,7 @@ One-shot operator endpoint that provisions the first `Organization`, first `Pers
 
 The bootstrap transaction spans the application DB and the identity provider. The two sides must succeed together; failure leaves the marker file in place so the operator can retry without leaving a half-provisioned tenant.
 
-**Provider-blind:** this task imports the port, never a concrete provider. Tests run against the `FakeIdentityProvider` (TASK-014L), including the compensation paths.
+**Provider-blind:** this task imports the port, never a concrete provider. Tests run against the `FakeIdentityProvider` (TASK-014C), including the compensation paths.
 
 ## Acceptance Criteria
 
@@ -37,5 +37,5 @@ The bootstrap transaction spans the application DB and the identity provider. Th
 ## Non-goals
 
 - Invitation flow (TASK-014F); routine admin creation post-bootstrap (use TASK-014F invitations)
-- Provider-specific provisioning mechanics (adapters: TASK-014N, TASK-014O)
+- Provider-specific provisioning mechanics (adapters: TASK-014L, TASK-014N)
 - Any UI for triggering bootstrap (operator uses curl/script with the token file)

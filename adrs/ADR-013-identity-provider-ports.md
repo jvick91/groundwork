@@ -88,20 +88,20 @@ A provider that cannot meet the floor is not made to "work" by weakening the flo
 
 ADR-010 chose Auth0's native organization-invitation emails; its rejected alternative (backend-driven invitations) is the only design that generalizes — SuperTokens has no invitation primitive at all. Amended position:
 
-- The backend owns the `Invitation` row, the nonce, the state machine (ADR-011 unchanged), **and the email** (TASK-014P provides delivery).
+- The backend owns the `Invitation` row, the nonce, the state machine (ADR-011 unchanged), **and the email** (TASK-014D provides delivery).
 - The provider's only invitation role is `create_signup_ticket` → a URL the invitee uses to establish credentials, embedded in our email. The Auth0 adapter implements this with Management API invitation tickets (provider email suppressed); the SuperTokens adapter with a tenant-scoped signup URL.
 - ADR-011's `auth0_invitation_id` column is renamed `external_invitation_id` and stores `SignupTicket.external_ref`.
 
 ### Login eligibility propagation
 
-`identity_service` calls `set_login_eligibility(subject, active)` on every Person activation/deactivation/soft-delete, in the same transaction discipline TASK-014C specified (rollback on permanent provider failure). How the adapter honors it is mechanism: Auth0 mirrors to `app_metadata.is_active` read by a Post-Login Action; SuperTokens denies session refresh in-process. Either way the DB remains authoritative on every request (middleware step 4).
+`identity_service` calls `set_login_eligibility(subject, active)` on every Person activation/deactivation/soft-delete, in the same transaction discipline the former Post-Login Actions task specified (rollback on permanent provider failure). How the adapter honors it is mechanism: Auth0 mirrors to `app_metadata.is_active` read by a Post-Login Action; SuperTokens denies session refresh in-process. Either way the DB remains authoritative on every request (middleware step 4).
 
 ### Testing: three tiers, no provider mocks
 
 The standing rule "auth-chain tests hit a real provider, never a mock" is preserved and generalized:
 
 1. **Application tests** run against `FakeIdentityProvider` — a real, complete port implementation (in-memory), not a mock of HTTP calls.
-2. **Conformance suite** (TASK-014L): one parametrized test suite asserting port semantics, run against the fake, against a real SuperTokens core in Docker (CI), and against the live Auth0 test tenant (marked, on-demand). An adapter that cannot pass conformance does not ship.
+2. **Conformance suite** (TASK-014C): one parametrized test suite asserting port semantics, run against the fake, against a real SuperTokens core in Docker (CI), and against the live Auth0 test tenant (marked, on-demand). An adapter that cannot pass conformance does not ship.
 3. **E2E smoke** against the deployed provider per environment.
 
 SPEC-007 §13.4 ("no real Auth0 calls in tests") is superseded by this section and must be amended.
@@ -136,11 +136,11 @@ SPEC-007 §13.4 ("no real Auth0 calls in tests") is superseded by this section a
 
 ## Phased plan
 
-- [ ] Epic 1: TASK-014K implements the ports, exceptions, settings, and composition root.
-- [ ] Epic 2: TASK-014L implements `FakeIdentityProvider` and the conformance suite; amends SPEC-007 §13.4.
-- [ ] Epic 3: TASK-014 (middleware), 014E, 014F, 014G, 014J build against the ports; TASK-014C and 014D are absorbed into the adapters (014C → Auth0 mechanism in 014O; 014D → split across 014K/L/N/O).
-- [ ] Epic 4: TASK-014M deploys the SuperTokens core (docker-compose); TASK-014N implements the SuperTokens adapter; TASK-014O reshapes the existing Auth0 client into the Auth0 adapter.
-- [ ] Epic 5: TASK-014P implements invitation email delivery.
+- [ ] Epic 1: TASK-014B implements the ports, exceptions, settings, and composition root.
+- [ ] Epic 2: TASK-014C implements `FakeIdentityProvider` and the conformance suite; amends SPEC-007 §13.4.
+- [ ] Epic 3: TASK-014 (middleware), 014E, 014F, 014G, 014J build against the ports; the former Post-Login Actions and Management API tasks are absorbed into the Auth0 adapter (014N), with the port contract they implement defined in 014B.
+- [ ] Epic 4: TASK-014K deploys the SuperTokens core (docker-compose); TASK-014L implements the SuperTokens adapter; TASK-014N reshapes the existing Auth0 client into the Auth0 adapter.
+- [ ] Epic 5: TASK-014D implements invitation email delivery.
 - [ ] Epic 6: SPEC-007 §3 and §13.4 amended to provider-neutral language.
 
 ## References

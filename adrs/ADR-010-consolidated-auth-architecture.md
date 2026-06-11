@@ -4,7 +4,7 @@
 **Author:** claude-code
 **Status:** Proposed (supersedes ADR-008 when accepted)
 
-> **Amendment (2026-06-11, ADR-013):** This ADR's six decisions are split into *policy* and *mechanism* by ADR-013. The policy layer — org-scoped tokens (§1), universal WebAuthn MFA (§2), short TTL + refresh rotation with breach detection (§3), nonce-only binding (§4), single connection (§5), no service principals (§6) — is provider-agnostic and remains binding on any identity provider as ADR-013's "capability floor." The Auth0-specific mechanisms named throughout (Auth0 Organizations, Post-Login Actions, Management API, `app_metadata` mirroring, Auth0-sent invitation emails) are now implementation details of the Auth0 adapter (TASK-014O). Two concrete changes: invitation **emails are application-sent** (ADR-013 reverses this ADR's "Backend-driven invitations" rejection — that alternative is now the design, because it is the only one that generalizes across providers), and ADR-011's `auth0_invitation_id` column is renamed `external_invitation_id`.
+> **Amendment (2026-06-11, ADR-013):** This ADR's six decisions are split into *policy* and *mechanism* by ADR-013. The policy layer — org-scoped tokens (§1), universal WebAuthn MFA (§2), short TTL + refresh rotation with breach detection (§3), nonce-only binding (§4), single connection (§5), no service principals (§6) — is provider-agnostic and remains binding on any identity provider as ADR-013's "capability floor." The Auth0-specific mechanisms named throughout (Auth0 Organizations, Post-Login Actions, Management API, `app_metadata` mirroring, Auth0-sent invitation emails) are now implementation details of the Auth0 adapter (TASK-014N). Two concrete changes: invitation **emails are application-sent** (ADR-013 reverses this ADR's "Backend-driven invitations" rejection — that alternative is now the design, because it is the only one that generalizes across providers), and ADR-011's `auth0_invitation_id` column is renamed `external_invitation_id`.
 
 ## Context
 
@@ -72,7 +72,7 @@ One authenticated principal type — a human, identified by `Person.auth_subject
 
 **For:**
 
-- The JWT shape is fully specified before TASK-014 writes a line of code. Downstream tasks (014C–G, 014I, 014J, 015–019) compose against a stable contract.
+- The JWT shape is fully specified before TASK-014 writes a line of code. Downstream tasks (014B–G, 014I, 014J, 015–019) compose against a stable contract.
 - Stolen access tokens are bounded to one org for at most 15 minutes. Refresh token theft is detected and family-revoked by Auth0 natively.
 - Tenant isolation has two layers: the JWT's `org_id` claim (issuance-time) and Postgres RLS keyed on `app.org_id` (query-time). Either layer alone would be insufficient; together they are HIPAA-defensible.
 - The seam between Auth0 identity and our `Person` model is single-purpose: invitation-accept writes `auth_subject`, every other login resolves by `auth_subject`. There is no email-matching backdoor.
@@ -100,7 +100,7 @@ One authenticated principal type — a human, identified by `Person.auth_subject
 
 - [ ] Epic 1: Update SPEC-007 §3 (auth flow) to reference Auth0 Organizations and the nonce-binding model. Mark ADR-008 superseded.
 - [ ] Epic 2: TASK-014A acceptance criteria reference this ADR as the foundational contract.
-- [ ] Epic 3: TASK-014B (Auth0 tenant configuration) implements the Auth0-side configuration this ADR mandates (Organizations enabled, universal MFA policy, RT rotation + breach detection, single-connection setup).
+- [ ] Epic 3: TASK-014M (Auth0 tenant configuration) implements the Auth0-side configuration this ADR mandates (Organizations enabled, universal MFA policy, RT rotation + breach detection, single-connection setup).
 - [ ] Epic 4: TASK-014 (JWT middleware) implements the JWT contract this ADR defines (validate `sub` + `org_id`, resolve `Person`, check active `PersonRole`, set `app.org_id`).
 
 ## References

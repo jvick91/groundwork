@@ -4,7 +4,7 @@
 **Author:** claude-code
 **Status:** Proposed
 
-> **Amendment (2026-06-11, ADR-013):** Provider-neutral revision. `auth0_invitation_id` is renamed `external_invitation_id` and stores the provider-agnostic `SignupTicket.external_ref`. Invitation emails are sent by the application (TASK-014P), not the provider; references below to "Auth0 sends/emails the invite" and Auth0 Management API calls now describe the Auth0 adapter's mechanism behind `IdentityProviderAdmin.create_signup_ticket` / `revoke_signup_ticket` / `add_org_member`. The state machine, PersonRole-at-accept rule, uniform response shape, and nonce semantics are unchanged.
+> **Amendment (2026-06-11, ADR-013):** Provider-neutral revision. `auth0_invitation_id` is renamed `external_invitation_id` and stores the provider-agnostic `SignupTicket.external_ref`. Invitation emails are sent by the application (TASK-014D), not the provider; references below to "Auth0 sends/emails the invite" and Auth0 Management API calls now describe the Auth0 adapter's mechanism behind `IdentityProviderAdmin.create_signup_ticket` / `revoke_signup_ticket` / `add_org_member`. The state machine, PersonRole-at-accept rule, uniform response shape, and nonce semantics are unchanged.
 
 ## Context
 

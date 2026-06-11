@@ -1,9 +1,9 @@
-# TASK-014P: Invitation Email Delivery
+# TASK-014D: Invitation Email Delivery
 
 **Status:** Not started
 **Spec sections:** SPEC-007 §8 (endpoint inventory — no new endpoints; service-layer only), SPEC-006 (PHI handling — email content constraints)
 **ADRs:** ADR-009 (layering), ADR-011 (invitation lifecycle), ADR-013 §Invitation lifecycle (application owns the email)
-**Depends on:** TASK-014K
+**Depends on:** TASK-014B
 
 ## Objective
 

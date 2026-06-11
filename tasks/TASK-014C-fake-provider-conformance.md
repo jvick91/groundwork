@@ -1,15 +1,15 @@
-# TASK-014L: Fake Identity Provider & Adapter Conformance Suite
+# TASK-014C: Fake Identity Provider & Adapter Conformance Suite
 
 **Status:** Not started
 **Spec sections:** SPEC-007 §13 (test philosophy — §13.4 amended by this task)
 **ADRs:** ADR-013 §Testing
-**Depends on:** TASK-014K
+**Depends on:** TASK-014B
 
 ## Objective
 
 Ship `FakeIdentityProvider` — a real, complete in-memory implementation of both ports, not an HTTP mock — and the parametrized conformance suite that every adapter (fake, SuperTokens, Auth0) must pass. The fake is what lets all application-layer auth tasks (014, 014E, 014F, 014G, 014J) build and test before any concrete provider exists. The conformance suite is what keeps the port honest: if a real provider cannot implement a behavior the fake exhibits, the port is wrong and this surfaces immediately.
 
-Testing policy per ADR-013: application tests run against the fake; conformance runs against the fake always, against a SuperTokens core in Docker in CI (TASK-014M), and against the live Auth0 test tenant on-demand (marked). **No provider HTTP mocks anywhere.**
+Testing policy per ADR-013: application tests run against the fake; conformance runs against the fake always, against a SuperTokens core in Docker in CI (TASK-014K), and against the live Auth0 test tenant on-demand (marked). **No provider HTTP mocks anywhere.**
 
 ## Acceptance Criteria
 
@@ -31,5 +31,5 @@ Testing policy per ADR-013: application tests run against the fake; conformance 
 
 ## Non-goals
 
-- SuperTokens and Auth0 adapter fixtures' underlying implementations (TASK-014N, TASK-014O — they plug into this suite)
-- CI wiring for the dockerized SuperTokens core (TASK-014M)
+- SuperTokens and Auth0 adapter fixtures' underlying implementations (TASK-014L, TASK-014N — they plug into this suite)
+- CI wiring for the dockerized SuperTokens core (TASK-014K)

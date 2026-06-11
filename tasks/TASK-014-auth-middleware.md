@@ -3,13 +3,13 @@
 **Status:** Not started
 **Spec sections:** SPEC-007 §3.1 (authentication flow), §3.2 (organization context); SPEC-002 §4 (auth subject rule, soft delete rule), §9
 **ADRs:** ADR-009 (layering), ADR-010 (auth policy — must be Accepted before this task starts), ADR-012 (permission cache invalidation; this task adds the supporting column), ADR-013 (identity provider ports — this middleware consumes `TokenVerifier`)
-**Depends on:** TASK-012, TASK-013, TASK-014A, TASK-014K, TASK-014L
+**Depends on:** TASK-012, TASK-013, TASK-014A, TASK-014B, TASK-014C
 
 ## Objective
 
 Implement the auth middleware that runs on every authenticated request: verify the bearer token through the `TokenVerifier` port (ADR-013), resolve `Person` by `auth_subject = VerifiedIdentity.subject`, map `VerifiedIdentity.provider_org_ref` to the application `Organization` via `organizations.auth_provider_org_id`, verify an active `PersonRole` exists in that org, set `SET LOCAL app.org_id` for RLS, and attach `current_person` + `current_org` to the request context.
 
-**Provider-blind by construction:** this task imports the port, never a concrete provider. Which provider verifies the token is decided by the TASK-014K composition root. All tests run against the `FakeIdentityProvider` (TASK-014L).
+**Provider-blind by construction:** this task imports the port, never a concrete provider. Which provider verifies the token is decided by the TASK-014B composition root. All tests run against the `FakeIdentityProvider` (TASK-014C).
 
 Bundles **one small schema migration**: add `Person.permissions_version INTEGER NOT NULL DEFAULT 0` per ADR-012. The column is used by TASK-015's cache and incremented by TASK-016/017/014J on every permission-affecting mutation.
 
@@ -58,8 +58,8 @@ Routine login and logout are entirely provider-handled; the invitation flow that
 
 ## Non-goals
 
-- Token verification internals (the adapters: TASK-014N, TASK-014O; the contract: TASK-014K)
+- Token verification internals (the adapters: TASK-014L, TASK-014N; the contract: TASK-014B)
 - Permission resolution mechanics and caching (TASK-015 + TASK-014I)
 - Invitation flow (TASK-014F, TASK-014G); bootstrap (TASK-014E); force-revoke (TASK-014J)
 - RLS policy creation on tenant tables (security-review follow-up; step 6 documents the dependency)
-- Routine logout (provider-handled; see TASK-014B / TASK-014M)
+- Routine logout (provider-handled; see TASK-014M / TASK-014K)

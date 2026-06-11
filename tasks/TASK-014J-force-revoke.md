@@ -3,7 +3,7 @@
 **Status:** Not started
 **Spec sections:** SPEC-002 §4 (soft delete and revocation), SPEC-007 §8 (endpoint inventory)
 **ADRs:** ADR-009, ADR-010 §3 (policy), ADR-012, ADR-013 (provider operations through `IdentityProviderAdmin`)
-**Depends on:** TASK-014K, TASK-014L, TASK-014I
+**Depends on:** TASK-014B, TASK-014C, TASK-014I
 
 ## Objective
 
@@ -35,6 +35,6 @@ This is the operational counterpart to routine `set_login_eligibility` propagati
 
 ## Non-goals
 
-- Routine logout (provider-handled; see TASK-014B / TASK-014M)
+- Routine logout (provider-handled; see TASK-014M / TASK-014K)
 - Routine deactivation via `PATCH /people/{id}` setting `is_active=false` (TASK-012; covered by `set_login_eligibility` propagation)
 - Bulk revocation (single Person only; multi-target would be a separate task if needed)

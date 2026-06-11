@@ -3,11 +3,11 @@
 **Status:** Not started
 **Spec sections:** SPEC-002 §2 (PersonRole entity_instance rules), §4 (assignment integrity), SPEC-007 §8 (endpoint inventory)
 **ADRs:** ADR-002 (FK-only), ADR-003 (partial unique index pattern), ADR-009 (service/model layering), ADR-010 (policy), ADR-011 (lifecycle — email ownership amended by ADR-013), ADR-013 (provider operations through the port; application owns the email)
-**Depends on:** TASK-014K, TASK-014L, TASK-014P
+**Depends on:** TASK-014B, TASK-014C, TASK-014D
 
 ## Objective
 
-Introduce the `Invitation` table — the **one new table for the entire auth chain** — with full CRUD endpoints, state machine, audit hooks, and the four-type discriminator. Implements the send side of the invitation flow per ADR-011 as amended by ADR-013: validates the type-specific payload, creates the Invitation row in `pending` state with a generated nonce, obtains a credential-setup URL from the provider via `IdentityProviderAdmin.create_signup_ticket` (adding org membership first via `add_org_member` for type 4), sends **our own** invitation email (TASK-014P) containing the accept URL + ticket URL, and returns the uniform response envelope that closes the cross-tenant email enumeration vector.
+Introduce the `Invitation` table — the **one new table for the entire auth chain** — with full CRUD endpoints, state machine, audit hooks, and the four-type discriminator. Implements the send side of the invitation flow per ADR-011 as amended by ADR-013: validates the type-specific payload, creates the Invitation row in `pending` state with a generated nonce, obtains a credential-setup URL from the provider via `IdentityProviderAdmin.create_signup_ticket` (adding org membership first via `add_org_member` for type 4), sends **our own** invitation email (TASK-014D) containing the accept URL + ticket URL, and returns the uniform response envelope that closes the cross-tenant email enumeration vector.
 
 `PersonRole` is **not** created in this task — the planned role lives on the Invitation row until the accept transaction in TASK-014G fires.
 
@@ -22,7 +22,7 @@ Introduce the `Invitation` table — the **one new table for the entire auth cha
 - [ ] System_admin invites (type 3) callable only by an existing `system_admin`
 - [ ] Cross-org invites (type 4) require an existing `Person` with `auth_subject` set; the service calls `add_org_member(org_ref, subject)` **before** `create_signup_ticket` (the provider will not issue org-scoped tokens until membership exists)
 - [ ] All invite types: the service calls `create_signup_ticket(org_ref, email, ttl)` and stores `external_ref` on the Invitation row; `expires_at` aligns with the ticket TTL
-- [ ] Invitation email sent via TASK-014P containing the accept URL (with nonce) and the ticket URL; email send failure rolls the send transaction back (no orphaned pending Invitation)
+- [ ] Invitation email sent via TASK-014D containing the accept URL (with nonce) and the ticket URL; email send failure rolls the send transaction back (no orphaned pending Invitation)
 - [ ] `GET /api/v1/invitations` lists invitations for the requesting org; filterable by state; requires `invites.read`
 - [ ] `GET /api/v1/invitations/{id}` retrieves single invitation; requires `invites.read`
 - [ ] `POST /api/v1/invitations/{id}/resend` rotates the nonce, calls `revoke_signup_ticket(old_ref)` then `create_signup_ticket` for a fresh one, refreshes `expires_at`, sends a new email; requires `invites.send`; only valid on `state = 'pending'`
@@ -47,6 +47,6 @@ Introduce the `Invitation` table — the **one new table for the entire auth cha
 ## Non-goals
 
 - The accept endpoint and binding logic (TASK-014G)
-- Email transport and templates (TASK-014P — this task calls it)
+- Email transport and templates (TASK-014D — this task calls it)
 - Seeding `invites.send`, `invites.revoke`, `invites.read` permissions in the catalog (TASK-016 follow-on migration)
 - Type 5 (bootstrap) — that lives in TASK-014E with a different auth model

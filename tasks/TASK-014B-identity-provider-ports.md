@@ -1,4 +1,4 @@
-# TASK-014K: Identity Provider Ports & Composition Root
+# TASK-014B: Identity Provider Ports & Composition Root
 
 **Status:** Not started
 **Spec sections:** SPEC-007 §3 (auth flow), SPEC-002 §4 (auth subject rule)
@@ -7,12 +7,12 @@
 
 ## Objective
 
-Define the provider-agnostic contracts everything else in the auth chain compiles against: the `TokenVerifier` and `IdentityProviderAdmin` abstract base classes, the `VerifiedIdentity` and `SignupTicket` value objects, the provider-neutral exception hierarchy, and the composition root that selects the live provider from settings. **No provider code in this task** — concrete adapters are TASK-014N (SuperTokens) and TASK-014O (Auth0); the fake is TASK-014L.
+Define the provider-agnostic contracts everything else in the auth chain compiles against: the `TokenVerifier` and `IdentityProviderAdmin` abstract base classes, the `VerifiedIdentity` and `SignupTicket` value objects, the provider-neutral exception hierarchy, and the composition root that selects the live provider from settings. **No provider code in this task** — concrete adapters are TASK-014L (SuperTokens) and TASK-014N (Auth0); the fake is TASK-014C.
 
 ## Acceptance Criteria
 
 - [ ] `backend/app/core/identity_ports.py` defines `TokenVerifier`, `IdentityProviderAdmin`, `VerifiedIdentity`, `SignupTicket` exactly per ADR-013 §Decision
-- [ ] `TokenVerifier.verify` contract documented in the docstring: pinned signature algorithm, `iss`, `aud`, `exp`/`nbf`/`iat` with bounded leeway, org scope required — adapters that skip any of these fail conformance (TASK-014L)
+- [ ] `TokenVerifier.verify` contract documented in the docstring: pinned signature algorithm, `iss`, `aud`, `exp`/`nbf`/`iat` with bounded leeway, org scope required — adapters that skip any of these fail conformance (TASK-014C)
 - [ ] Provider-neutral exceptions added to `backend/app/core/exceptions.py`: `TokenInvalidError` (base, → 401), `TokenExpiredError`, `OrgScopeMissingError`, `IdentityProviderError` (cold path, → 502); all `GroundworkError` subclasses
 - [ ] `settings.auth_provider: Literal["fake", "auth0", "supertokens"]` added to `backend/app/core/config.py`; no default in production — unset is a startup error
 - [ ] Factory in `backend/app/core/dependencies.py` constructs both port implementations once at startup from `settings.auth_provider`; FastAPI dependencies expose `get_token_verifier` and `get_identity_provider_admin`
@@ -31,6 +31,6 @@ Define the provider-agnostic contracts everything else in the auth chain compile
 
 ## Non-goals
 
-- Any concrete adapter (TASK-014N, TASK-014O)
-- The fake implementation and conformance suite (TASK-014L)
+- Any concrete adapter (TASK-014L, TASK-014N)
+- The fake implementation and conformance suite (TASK-014C)
 - The middleware that consumes `TokenVerifier` (TASK-014)
